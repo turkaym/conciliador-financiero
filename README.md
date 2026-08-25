@@ -113,7 +113,7 @@ La diferenciación es una propuesta a validar y no implica superioridad demostra
 | Colaboración | Git y GitHub | Control de versiones y revisión conjunta |
 | Entorno local | Docker Compose | Entorno reproducible sin convertir la infraestructura en el objetivo del proyecto |
 
-La elección considera el problema, la escala académica del MVP, la madurez de las herramientas, el entorno de desarrollo y el costo de aprendizaje. Ambos integrantes tienen poca experiencia con estas tecnologías, por lo que la curva de aprendizaje es un riesgo real. Se prioriza un stack pequeño y estable: cambiarlo durante el proyecto tendría un costo alto en capacitación, integración y pruebas.
+La elección considera el problema, la escala académica del MVP, la madurez de las herramientas, el entorno de desarrollo y el costo de aprendizaje. Se prioriza un stack pequeño, estable y respaldado por documentación y comunidades activas. Mantener estas tecnologías durante el proyecto permitirá concentrar el esfuerzo en el problema y evitar costos innecesarios de capacitación, integración y pruebas derivados de un cambio de stack.
 
 ### Base relacional frente a NoSQL
 
@@ -143,10 +143,10 @@ Cada etapa reservará tiempo para aprendizaje, integración y revisión conjunta
 
 | Dimensión | Evaluación inicial | Medida prevista |
 |---|---|---|
-| Técnica | El flujo puede resolverse con reglas y componentes maduros, pero la integración será nueva para el equipo | Construir por etapas, usar datos de prueba y validar primero el recorrido mínimo |
+| Técnica | El flujo puede resolverse con reglas explícitas y tecnologías maduras adecuadas para la escala del MVP | Construir por etapas, usar datos de prueba y validar primero el recorrido mínimo |
 | Temporal | La disponibilidad conjunta es de unas 10 horas semanales | Priorizar el MVP, limitar trabajo simultáneo y ajustar estimaciones al calendario final de la materia |
 | Operativa | El sistema requiere formatos claros y participación humana para resolver excepciones | Validar el flujo con actores y mantener reglas y estados comprensibles |
-| Conocimientos | La poca experiencia con el stack aumenta tiempos y riesgo de errores | Prever aprendizaje cruzado, revisiones conjuntas y documentación de decisiones |
+| Conocimientos | La formación académica del equipo brinda una base común y el stack seleccionado cuenta con documentación y comunidades amplias | Organizar aprendizaje cruzado, revisiones conjuntas y documentación de decisiones |
 
 La viabilidad se reevaluará al finalizar el relevamiento y cada etapa. Si el tiempo o el aprendizaje requerido superan lo previsto, se reducirá el alcance antes de agregar infraestructura o funciones secundarias.
 
