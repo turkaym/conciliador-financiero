@@ -1,158 +1,154 @@
 # CONCILIADOR — Plataforma de Conciliación Financiera y Contable
 
-CONCILIADOR es una propuesta académica para centralizar movimientos bancarios, registros y comprobantes, sugerir coincidencias mediante criterios verificables y reservar la intervención humana para las excepciones. La primera entrega, con cierre el **30/08/2026**, documenta el problema, el alcance viable del producto mínimo (MVP), la arquitectura prevista y el plan de trabajo. El repositorio todavía no contiene una implementación validada.
+Propuesta académica para la materia **Proyecto Final** de la **Tecnicatura Universitaria en Programación (UTN)**. En esta primera entrega se define el problema, su estrategia de validación, el alcance y la propuesta técnica inicial. El cierre de la entrega es el **30/08/2026**.
 
-## Problema y contexto
+**Estado de la etapa:** propuesta técnica inicial.
 
-Empresas y estudios contables reciben información dispersa de bancos, pasarelas de pago y comprobantes. Cuando la conciliación se realiza manualmente, aumenta el tiempo dedicado a comparar registros, se favorecen errores operativos y se dificulta reconstruir quién tomó cada decisión y por qué.
+## Integrantes y disponibilidad
 
-La propuesta no parte de métricas ni entrevistas aún validadas. Su viabilidad inicial se apoya en acotar el problema a un flujo observable: importar datos, detectar posibles correspondencias, revisar excepciones y conservar trazabilidad básica.
-
-## Actores involucrados
-
-| Actor | Necesidad principal | Participación esperada |
+| Integrante | Usuario de GitHub | Rol principal previsto |
 |---|---|---|
-| Personal administrativo y contable | Reducir la revisión repetitiva y localizar diferencias | Importar información, revisar propuestas y resolver pendientes |
-| Responsables de empresas o estudios contables | Conocer el estado de la conciliación y rastrear decisiones | Consultar pendientes y trazabilidad |
-| Equipo del proyecto | Construir y validar una solución académica viable | Analizar, implementar, probar, documentar y presentar |
+| Hugo Tcach | `HugoTcach` | Backend, base de datos e infraestructura local |
+| Farid Salomón | `turkaym` | Análisis funcional, frontend, documentación y calidad |
 
-## Propuesta de valor
+La disponibilidad conjunta es de aproximadamente **10 horas semanales**. Ambos integrantes participarán en el relevamiento, la revisión de cambios, las pruebas y la presentación. Se prevé aprendizaje cruzado para evitar que un área dependa de una sola persona.
 
-Centralizar las fuentes que intervienen en la conciliación, proponer coincidencias por reglas explícitas y concentrar el trabajo humano en los casos ambiguos o incompletos. La decisión final permanece bajo control del usuario y cada confirmación o corrección debe dejar una referencia trazable.
+## Problema e hipótesis inicial
 
-## Objetivos
+Se plantea que empresas y estudios contables pueden recibir movimientos bancarios y registros o comprobantes en fuentes separadas. La conciliación exige relacionar esos datos, detectar diferencias y conservar evidencia de las decisiones tomadas.
 
-### Objetivo general
+Como hipótesis inicial, cuando este proceso se realiza con comparaciones manuales y herramientas no conectadas pueden aparecer tareas repetitivas, dificultades para identificar pendientes y poca trazabilidad sobre por qué dos registros fueron asociados o descartados. **Esta hipótesis todavía no fue validada mediante entrevistas ni métricas.**
 
-Diseñar e implementar un MVP que asista la conciliación entre movimientos financieros y registros contables mediante importación, propuestas de coincidencia, revisión manual y trazabilidad básica.
+### Actores y necesidades por validar
 
-### Objetivos específicos
+| Actor | Participación en el flujo | Necesidad propuesta |
+|---|---|---|
+| Personal administrativo o contable | Reúne fuentes, compara registros y resuelve diferencias | Reducir comparaciones repetitivas sin perder control sobre la decisión |
+| Responsable del proceso | Supervisa el estado y revisa excepciones | Identificar pendientes y reconstruir decisiones |
+| Empresa o estudio contable | Define criterios y conserva documentación | Contar con un proceso consistente y trazable |
 
-- Importar movimientos bancarios y registros o comprobantes mediante formatos definidos y validables.
-- Identificar posibles coincidencias aplicando monto, fecha y referencia como criterios explícitos.
-- Permitir que una persona confirme, rechace o corrija una propuesta de conciliación.
-- Presentar los movimientos y registros pendientes de resolución.
-- Registrar el origen de los datos y las decisiones realizadas durante la conciliación.
-- Verificar el flujo principal con pruebas de backend y controles de calidad del frontend formalizados durante el desarrollo.
+### Flujo actual supuesto
 
-## Alcance del MVP
+1. Se obtienen movimientos bancarios y registros o comprobantes desde fuentes separadas.
+2. Se revisan formatos y se normalizan datos cuando es necesario.
+3. Se comparan monto, fecha y referencias para buscar correspondencias.
+4. Se investigan diferencias y se decide qué elementos coinciden.
+5. Se registran resultados y quedan pendientes los casos no resueltos.
 
-### Incluido
+Este flujo es una representación inicial que se validará y corregirá durante el relevamiento.
 
-- Importación de movimientos bancarios.
-- Importación de registros o comprobantes.
-- Validación básica de los datos recibidos.
+### Digitalizar y agregar valor
+
+Digitalizar sería trasladar la comparación a una pantalla sin cambiar el proceso. La propuesta busca agregar valor al asistir la comparación con reglas explicables, destacar excepciones, mantener la revisión humana y registrar la trazabilidad básica. No se presupone que ese valor esté demostrado: se evaluará con los actores y con pruebas del flujo.
+
+### Planteamiento formal
+
+**Pregunta del proyecto:** ¿cómo asistir la conciliación entre movimientos bancarios y registros o comprobantes para reducir la revisión repetitiva y hacer visibles las diferencias, sin reemplazar la decisión humana y conservando trazabilidad básica?
+
+## Estrategia de validación
+
+No hay usuarios consultados, resultados ni mediciones disponibles en esta etapa. Para validar la relevancia se propone:
+
+1. Identificar personas que realicen o supervisen conciliaciones en empresas o estudios contables.
+2. Realizar entrevistas semiestructuradas sobre fuentes utilizadas, pasos, excepciones, frecuencia y dificultades del proceso.
+3. Observar ejemplos anonimizados o datos ficticios representativos, sin solicitar información financiera sensible.
+4. Documentar el flujo real y contrastarlo con la hipótesis y los actores iniciales.
+5. Probar un prototipo del flujo con datos de prueba y registrar comprensión, utilidad percibida, errores y ajustes solicitados.
+6. Revisar el alcance si el problema no resulta recurrente, relevante o compatible con el tiempo de la materia.
+
+La relevancia se considerará respaldada cuando el relevamiento confirme la necesidad de relacionar fuentes separadas, resolver excepciones y conservar trazabilidad, y cuando el flujo propuesto pueda evaluarse con casos representativos. Las métricas y criterios cuantitativos se definirán después del relevamiento, no antes.
+
+## Propuesta de valor y alternativas existentes
+
+Se propone una herramienta acotada a la conciliación entre dos fuentes, con reglas visibles de coincidencia, revisión humana y trazabilidad de las decisiones.
+
+| Categoría alternativa | Aporte habitual | Diferenciación que se evaluará |
+|---|---|---|
+| Hojas de cálculo | Flexibilidad y acceso inmediato | Guiar el flujo, mostrar pendientes y registrar decisiones de manera consistente |
+| Portales bancarios aislados | Consulta de movimientos de una entidad | Relacionar movimientos con registros externos en un mismo flujo |
+| Sistemas contables o ERP generalistas | Cobertura amplia de procesos administrativos | Concentrarse en una experiencia mínima de conciliación explicable y revisable |
+
+La diferenciación es una propuesta a validar y no implica superioridad demostrada frente a esas categorías.
+
+## Alcance priorizado
+
+### MVP esencial
+
+- Carga manual de dos conjuntos de datos de prueba: movimientos bancarios y registros o comprobantes.
+- Validación de estructura y campos requeridos.
 - Propuestas de coincidencia por monto, fecha y referencia.
-- Confirmación y corrección manual de coincidencias.
-- Vista de elementos pendientes.
-- Trazabilidad básica de importaciones y decisiones.
+- Revisión manual para confirmar o rechazar propuestas.
+- Visualización de elementos pendientes.
+- Trazabilidad básica del origen de los datos y de las decisiones.
 
-### Fuera del alcance inicial
+### Nice to have
+
+- Búsqueda aproximada de referencias con `pg_trgm`.
+- Importación asincrónica para archivos grandes.
+- Dashboard básico.
+- Exportación de resultados.
+- Despliegue en una plataforma PaaS.
+
+### Fuera de alcance
 
 - Inteligencia artificial y modelos predictivos.
-- Reconocimiento óptico de caracteres (OCR).
-- Despliegue con Kubernetes.
+- OCR.
+- Integración productiva con AFIP.
+- Integraciones bancarias reales.
+- Kubernetes y servidores propios.
+- Multi-tenancy.
 - Monetización o modalidad SaaS.
 - Analítica avanzada.
-- Integración productiva con AFIP.
 
-Estos puntos representan posibles líneas de evolución. No son capacidades comprometidas ni garantizadas para el MVP.
+## Propuesta técnica inicial
 
-## Flujo principal
+### Stack previsto para el MVP
 
-1. El usuario importa movimientos bancarios y registros o comprobantes.
-2. El sistema valida la estructura y conserva el origen de cada dato aceptado.
-3. El sistema compara los registros y propone coincidencias por monto, fecha y referencia.
-4. El usuario revisa cada propuesta y la confirma, rechaza o corrige.
-5. El sistema actualiza los pendientes y registra la decisión para su consulta posterior.
-
-## Stack tecnológico
-
-| Área | Tecnologías previstas | Propósito y justificación |
+| Área | Tecnologías | Criterio de elección |
 |---|---|---|
-| Frontend | TypeScript, React 19, Vite | SPA tipada, componentes de interfaz y ciclo de desarrollo ágil |
-| Estado y comunicación | Zustand, Axios | Estado cliente acotado y comunicación explícita con la API |
-| Estilos | Tailwind CSS | Construcción consistente y rápida de la interfaz |
-| Backend | Python 3.11, FastAPI, Pydantic 2 | Productividad del equipo, API tipada y validación de entradas y salidas |
-| Persistencia | SQLAlchemy 2, Alembic | Acceso estructurado a datos y evolución controlada del esquema |
-| Datos | PostgreSQL 16, `pg_trgm` | Integridad transaccional y apoyo a búsquedas aproximadas sobre referencias |
-| Procesamiento asíncrono | Celery, RabbitMQ, Redis | Ejecución desacoplada de importaciones o tareas que no deben bloquear solicitudes |
-| Archivos | MinIO / S3 | Almacenamiento de archivos importados mediante una interfaz compatible con objetos |
-| Infraestructura | Docker Compose, Traefik, PgBouncer | Entorno reproducible, enrutamiento y administración de conexiones |
-| Calidad | pytest, FastAPI TestClient, lint y build de frontend | Verificación automatizable del backend y controles estáticos y de compilación del frontend; su configuración aún debe formalizarse |
+| Frontend | TypeScript, React y Vite | Tipado, ecosistema maduro, documentación abundante y aprendizaje transferible |
+| Backend | Python, FastAPI y Pydantic | API acotada, validación explícita y comunidad amplia |
+| Persistencia | SQLAlchemy y Alembic | Acceso estructurado y evolución controlada del esquema |
+| Base de datos | PostgreSQL | Integridad relacional, transacciones y trazabilidad |
+| Colaboración | Git y GitHub | Control de versiones y revisión conjunta |
+| Entorno local | Docker Compose | Entorno reproducible sin convertir la infraestructura en el objetivo del proyecto |
 
-El stack prioriza integridad transaccional, tipado, productividad, procesamiento asíncrono y reproducibilidad. Su amplitud también introduce complejidad operativa; cada componente de apoyo deberá incorporarse solo cuando el flujo del MVP lo justifique.
+La elección considera el problema, la escala académica del MVP, la madurez de las herramientas, el entorno de desarrollo y el costo de aprendizaje. Ambos integrantes tienen poca experiencia con estas tecnologías, por lo que la curva de aprendizaje es un riesgo real. Se prioriza un stack pequeño y estable: cambiarlo durante el proyecto tendría un costo alto en capacitación, integración y pruebas.
 
-## Arquitectura resumida
+### Base relacional frente a NoSQL
 
-La arquitectura prevista es un **monolito modular con una SPA y workers distribuidos**, no un conjunto de microservicios.
+Las conciliaciones relacionan movimientos, registros, propuestas, decisiones y estados pendientes. PostgreSQL favorece este caso por su consistencia, integridad referencial y soporte transaccional. Una base NoSQL podría ser apropiada para datos muy variables o patrones de escala diferentes, pero esas necesidades no están justificadas para el MVP. La decisión se revisará si el relevamiento descubre requisitos incompatibles con el modelo relacional.
 
-```text
-SPA React
-    |
-    v
-API FastAPI (módulos funcionales)
-    |-------------------|
-    v                   v
-PostgreSQL          Cola de tareas ---> Workers Celery
-                        |                    |
-                        |--------------------v
-                                      MinIO / S3
-```
+### Alternativas de despliegue
 
-- La SPA concentra la interacción del usuario y consume una API HTTP.
-- El backend organiza las capacidades por módulos dentro de una única aplicación desplegable.
-- PostgreSQL protege la consistencia de importaciones, conciliaciones y trazabilidad.
-- La cola y los workers aíslan tareas potencialmente costosas sin convertir el sistema en microservicios.
-- Docker Compose busca reproducir el entorno local; Traefik y PgBouncer apoyan el acceso y las conexiones cuando su incorporación sea necesaria.
+- **Desarrollo inicial:** ejecución local reproducible mediante Docker Compose.
+- **Alternativa posterior:** PaaS, si se necesita publicar una demostración con menor carga operativa.
+- **Fuera del alcance inicial:** administración de servidores propios y Kubernetes, porque agregan complejidad que no valida el problema central.
 
 ## Plan de trabajo
 
-| Etapa | Entregable | Responsables | Criterio de finalización | Estado |
-|---|---|---|---|---|
-| Definición académica | Propuesta, alcance, stack, arquitectura y plan documentados | Ambos integrantes | README revisado y alineado con la primera entrega, cuyo cierre es el 30/08/2026 | En elaboración |
-| Saneamiento técnico | Inventario y evaluación reproducible del prototipo separado | Hugo Tcach y Farid Salomón | Componentes candidatos identificados, dependencias revisadas y exclusiones documentadas, sin trasladar material no verificado | Pendiente |
-| Base del proyecto | Estructura del monolito modular, SPA y entorno local mínimo | Hugo Tcach con revisión de Farid Salomón | Aplicaciones iniciables en un entorno reproducible y configuración sin secretos | Pendiente |
-| Importación | Flujo de carga y validación de movimientos y registros | Hugo Tcach en backend; Farid Salomón en interfaz y criterios funcionales | Datos válidos aceptados, errores informados y origen registrado | Pendiente |
-| Conciliación | Reglas de coincidencia, revisión manual y pendientes | Ambos integrantes | Flujo principal ejecutable con confirmación, rechazo o corrección y trazabilidad básica | Pendiente |
-| Verificación | Pruebas de backend y controles de lint y build de frontend formalizados | Farid Salomón con apoyo de Hugo Tcach | Comandos de verificación documentados y ejecutados sobre el alcance implementado | Pendiente |
-| Presentación | Demostración y documentación del alcance alcanzado | Ambos integrantes | Flujo verificable presentado y limitaciones pendientes declaradas | Pendiente |
+La secuencia se ajustará al calendario final de la materia y a los hallazgos del relevamiento.
 
-## Distribución de roles
+| Secuencia | Etapa | Entregable | Responsables | Criterio de finalización |
+|---:|---|---|---|---|
+| 1 | Relevamiento y validación | Registro de entrevistas, flujo revisado y necesidades priorizadas | Farid lidera; Hugo participa y revisa | Hipótesis contrastadas y cambios de alcance documentados |
+| 2 | Formatos y diseño | Formatos de prueba, modelo relacional, reglas y bocetos del flujo | Hugo lidera datos y backend; Farid interfaz; revisión conjunta | Campos, validaciones, relaciones y recorrido principal definidos |
+| 3 | Prototipo del flujo | Carga, propuestas, revisión, pendientes y trazabilidad básica | Hugo backend; Farid frontend; integración conjunta | Recorrido MVP ejecutable con datos de prueba acordados |
+| 4 | Verificación | Casos funcionales, pruebas técnicas y registro de limitaciones | Ambos integrantes | Flujo principal verificado y resultados documentados |
+| 5 | Presentación | Demostración y documentación final | Ambos integrantes | Alcance logrado, evidencia y pendientes comunicados con claridad |
 
-| Integrante | Rol principal | Responsabilidades |
+Cada etapa reservará tiempo para aprendizaje, integración y revisión conjunta. No se incorporará un nice to have mientras falte un criterio de finalización del MVP esencial.
+
+## Viabilidad
+
+| Dimensión | Evaluación inicial | Medida prevista |
 |---|---|---|
-| Hugo Tcach (`HugoTcach`) | Liderazgo técnico | Backend, base de datos e infraestructura |
-| Farid Salomón (`turkaym`) | Análisis funcional | Frontend, documentación y aseguramiento de calidad |
+| Técnica | El flujo puede resolverse con reglas y componentes maduros, pero la integración será nueva para el equipo | Construir por etapas, usar datos de prueba y validar primero el recorrido mínimo |
+| Temporal | La disponibilidad conjunta es de unas 10 horas semanales | Priorizar el MVP, limitar trabajo simultáneo y ajustar estimaciones al calendario final de la materia |
+| Operativa | El sistema requiere formatos claros y participación humana para resolver excepciones | Validar el flujo con actores y mantener reglas y estados comprensibles |
+| Conocimientos | La poca experiencia con el stack aumenta tiempos y riesgo de errores | Prever aprendizaje cruzado, revisiones conjuntas y documentación de decisiones |
 
-Ambos integrantes participan también en la planificación, revisión de cambios, pruebas y presentación del proyecto.
-
-## Riesgos y mitigaciones
-
-| Riesgo | Impacto | Mitigación prevista |
-|---|---|---|
-| Alcance excesivo para un proyecto académico | Dispersión y entregas incompletas | Priorizar el flujo principal y mantener la evolución potencial fuera del MVP |
-| Prototipo separado sin saneamiento ni verificación | Incorporación de defectos, dependencias o supuestos desconocidos | Evaluar por componentes y trasladar únicamente material revisado y reproducible |
-| Variabilidad de formatos de entrada | Importaciones ambiguas o inválidas | Definir formatos admitidos, validar campos y reportar rechazos con claridad |
-| Coincidencias incorrectas o ambiguas | Decisiones contables equivocadas | Usar reglas explícitas, presentar la evidencia y exigir intervención humana ante excepciones |
-| Complejidad operativa del stack | Mayor costo de configuración y diagnóstico | Incorporar servicios de apoyo de forma incremental y documentar su necesidad |
-| Pruebas aún no formalizadas | Regresiones difíciles de detectar | Establecer comandos reproducibles y casos del flujo principal antes de considerar una etapa finalizada |
-| Manejo de información financiera | Exposición o pérdida de datos | Evitar secretos en el repositorio, limitar datos de prueba y revisar controles de acceso antes de usar información real |
-
-## Criterios de éxito verificables
-
-- El sistema puede importar un conjunto válido de movimientos y otro de registros o comprobantes, conservando su origen.
-- Los datos inválidos se rechazan o señalan sin incorporarse silenciosamente.
-- Cada propuesta muestra los criterios que motivaron la posible coincidencia.
-- El usuario puede confirmar, rechazar o corregir una propuesta.
-- Los elementos sin resolución permanecen visibles como pendientes.
-- Las decisiones manuales dejan trazabilidad básica consultable.
-- El flujo principal cuenta con verificaciones reproducibles de backend y controles de lint y build de frontend.
-- Las capacidades fuera del MVP no se presentan como implementadas.
-
-## Estado actual
-
-Este repositorio inicia como base académica y, por el momento, contiene únicamente esta documentación. Existe un prototipo avanzado en un entorno separado, pero debe sanearse, revisar sus dependencias y verificarse antes de incorporar cualquier parte. En consecuencia, no se afirma que las funcionalidades descritas estén terminadas o probadas.
+La viabilidad se reevaluará al finalizar el relevamiento y cada etapa. Si el tiempo o el aprendizaje requerido superan lo previsto, se reducirá el alcance antes de agregar infraestructura o funciones secundarias.
 
 ## Repositorio
 
