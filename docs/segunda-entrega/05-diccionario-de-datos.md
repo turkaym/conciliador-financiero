@@ -1,0 +1,22 @@
+# Diccionario de datos propuesto
+
+`NN` significa `NOT NULL`; todas las claves primarias serían `BIGINT`. Los nombres y tipos describen un esquema futuro.
+
+| Tabla | Campos principales | Restricciones e índices relevantes |
+|---|---|---|
+| `usuario` | `id PK`; `email VARCHAR(254) NN`; `password_hash TEXT NN`; `activo BOOLEAN NN`; `creado_en TIMESTAMPTZ NN` | Email recortado/no vacío; índice único `lower(email)`; hash seguro previsto |
+| `fuente_datos` | `id PK`; `tipo_origen VARCHAR NN`; `codigo VARCHAR NN`; `nombre VARCHAR NN`; `activa BOOLEAN NN` | Tipo `BANCO` o `COMPROBANTES`; código único; código/nombre no vacíos. Expresa procedencia, no integración |
+| `plantilla_importacion` | `id PK`; `fuente_id FK NN`; `nombre VARCHAR NN`; `tipo VARCHAR NN`; `version INTEGER NN`; `activa BOOLEAN NN` | Tipo `MOVIMIENTO` o `COMPROBANTE`; versión positiva; `UQ(fuente_id,nombre,tipo,version)` y clave candidata `UQ(id,fuente_id,tipo)` para la FK compuesta del lote; coherencia fuente-tipo mediante trigger |
+| `campo_plantilla` | `id PK`; `plantilla_id FK NN`; `columna_origen VARCHAR NN`; `campo_canonico VARCHAR NN`; `tipo_dato VARCHAR NN`; `requerido BOOLEAN NN`; `formato_fecha?`; `separador_decimal?` | Columna y campo canónico únicos por plantilla; parámetros solo para tipos aplicables |
+| `lote_carga` | `id PK`; `fuente_id FK NN`; `plantilla_id FK?`; `plantilla_solicitada VARCHAR NN`; `usuario_id FK NN`; `tipo VARCHAR NN`; `nombre_archivo VARCHAR NN`; `huella_archivo BYTEA(32) NN`; `estado VARCHAR NN`; `lote_original_id FK?`; `recibido_en NN`; `finalizado_en?` | FK compuesta `(plantilla_id,fuente_id,tipo)` solo si hay plantilla; `CHECK(plantilla_id IS NOT NULL OR estado='FALLIDO')`; solicitud inmutable, recortada y no vacía; duplicado exige original; terminal exige fin; índice único parcial `(fuente_id,tipo,huella_archivo)` donde plantilla no es nula y estado ≠ `DUPLICADO` |
+| `registro_importado` | `id PK`; `lote_id/fuente_id NN`; `numero_fila INTEGER NN`; `tipo/estado VARCHAR NN`; `id_externo?`; `clave_duplicado BYTEA(32) NN`; `registro_original_id FK?`; `datos_originales JSONB NN`; `creado_en NN` | Fila única por lote; original anterior; duplicado queda `INVALIDO`; índice único parcial `(fuente_id,tipo,clave_duplicado)` donde estado ≠ `INVALIDO` |
+| `movimiento_bancario` | `registro_id PK/FK`; `fecha DATE NN`; `monto NUMERIC(18,2) NN`; `moneda CHAR(3) NN`; `referencia_normalizada?`; `es_credito BOOLEAN NN` | Monto positivo, moneda `ARS` y crédito verdadero; índice de matching por moneda/monto/fecha |
+| `comprobante` | `registro_id PK/FK`; `fecha DATE NN`; `monto NUMERIC(18,2) NN`; `moneda CHAR(3) NN`; `referencia_normalizada?`; `clase VARCHAR NN` | Monto positivo, `ARS`, clase `VENTA` o `COBRO`; índice de matching por moneda/monto/fecha |
+| `error_validacion` | `id PK`; `lote_id FK NN`; `registro_id FK?`; `alcance VARCHAR NN`; `campo?`; `codigo/mensaje NN`; `registro_original_id FK?`; `creado_en NN` | Alcance `LOTE` sin registro o `FILA` con registro; código/mensaje no vacíos; sin unicidad para conservar errores |
+| `propuesta_conciliacion` | `id PK`; `movimiento_id/comprobante_id FK NN`; `estado VARCHAR NN`; `version_regla NN`; `diferencia_dias SMALLINT NN`; `referencia_orden?`; `explicacion JSONB NN`; `creado_en NN` | Estados y días declarados; índice único parcial `(movimiento_id,comprobante_id,version_regla) WHERE estado='GENERADA'`; terminales históricas; nueva fila tras caducidad/reversión; rechazo idéntico requiere cambio o reapertura explícita |
+| `conciliacion` | `id PK`; `propuesta_id UQ NN`; `movimiento_id/comprobante_id NN`; `estado VARCHAR NN`; confirmación actor/fecha NN; reversión actor/fecha/motivo opcionales | Pareja coincide con propuesta; reversión exige sus tres datos; índices únicos parciales por movimiento y comprobante donde estado=`ACTIVA` |
+| `evento_historial` | `id PK`; `usuario_id FK?`; `lote_id FK?`; `registro_id FK?`; `propuesta_id FK?`; `conciliacion_id FK?`; `tipo VARCHAR NN`; `motivo?`; `datos JSONB NN`; `ocurrido_en NN` | `CHECK(num_nonnulls(lote_id,registro_id,propuesta_id,conciliacion_id)=1)`; evento humano exige usuario; rechazo/reversión exige motivo; append-only, sin UQ |
+
+## Índices de consulta
+
+Se proponen índices para todas las FK y para lote por usuario/fecha y fuente/tipo/estado; registro por lote/estado/tipo e ID externo; propuestas por estado y cada extremo; historial por entidad/fecha. `pg_trgm` queda fuera del MVP.

@@ -1,8 +1,8 @@
 # CONCILIADOR — Plataforma de Conciliación Financiera y Contable
 
-Propuesta académica para la materia **Proyecto Final** de la **Tecnicatura Universitaria en Programación (UTN)**. En esta primera entrega se define el problema, su estrategia de validación, el alcance y la propuesta técnica inicial. El cierre de la entrega es el **30/08/2026**.
+Propuesta académica para la materia **Proyecto Final** de la **Tecnicatura Universitaria en Programación (UTN)**. La primera entrega, aprobada sin observaciones, queda como antecedente del problema, la estrategia de validación, el alcance y la propuesta técnica inicial.
 
-**Estado de la etapa:** propuesta técnica inicial.
+**Estado vigente:** segunda entrega documental disponible; la codificación aún no comenzó.
 
 ## Integrantes y disponibilidad
 
@@ -153,3 +153,7 @@ La viabilidad se reevaluará al finalizar el relevamiento y cada etapa. Si el ti
 ## Repositorio
 
 Código y documentación del proyecto: [github.com/turkaym/conciliador-financiero](https://github.com/turkaym/conciliador-financiero)
+
+## Documentación
+
+- [Segunda entrega: diseño previo a la codificación](docs/segunda-entrega/README.md)
