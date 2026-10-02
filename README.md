@@ -2,7 +2,7 @@
 
 Propuesta académica para la materia **Proyecto Final** de la **Tecnicatura Universitaria en Programación (UTN)**. La primera entrega, aprobada sin observaciones, queda como antecedente del problema, la estrategia de validación, el alcance y la propuesta técnica inicial.
 
-**Estado vigente:** segunda entrega documental disponible; la codificación aún no comenzó.
+**Estado vigente:** segunda entrega documental corregida; relevamiento **no iniciado** y codificación del producto **no iniciada**. El repositorio incluye contratos y activos documentales verificables, no una aplicación implementada.
 
 ## Integrantes y disponibilidad
 
@@ -129,13 +129,13 @@ Las conciliaciones relacionan movimientos, registros, propuestas, decisiones y e
 
 La secuencia se ajustará al calendario final de la materia y a los hallazgos del relevamiento.
 
-| Secuencia | Etapa | Entregable | Responsables | Criterio de finalización |
-|---:|---|---|---|---|
-| 1 | Relevamiento y validación | Registro de entrevistas, flujo revisado y necesidades priorizadas | Farid lidera; Hugo participa y revisa | Hipótesis contrastadas y cambios de alcance documentados |
-| 2 | Formatos y diseño | Formatos de prueba, modelo relacional, reglas y bocetos del flujo | Hugo lidera datos y backend; Farid interfaz; revisión conjunta | Campos, validaciones, relaciones y recorrido principal definidos |
-| 3 | Prototipo del flujo | Carga, propuestas, revisión, pendientes y trazabilidad básica | Hugo backend; Farid frontend; integración conjunta | Recorrido MVP ejecutable con datos de prueba acordados |
-| 4 | Verificación | Casos funcionales, pruebas técnicas y registro de limitaciones | Ambos integrantes | Flujo principal verificado y resultados documentados |
-| 5 | Presentación | Demostración y documentación final | Ambos integrantes | Alcance logrado, evidencia y pendientes comunicados con claridad |
+| Secuencia | Etapa | Estado factual | Entregable previsto |
+|---:|---|---|---|
+| 1 | Relevamiento y validación | **No iniciado** | Entrevistas, flujo revisado y necesidades priorizadas |
+| 2 | Formatos y diseño | **Documentado** | Formatos ficticios, modelo relacional, reglas y wireframes |
+| 3 | Prototipo del flujo | **No iniciado** | Recorrido MVP ejecutable con datos de prueba acordados |
+| 4 | Verificación del producto | **No iniciada** | Casos funcionales, pruebas técnicas y limitaciones |
+| 5 | Presentación | **No iniciada** | Demostración y documentación final |
 
 Cada etapa reservará tiempo para aprendizaje, integración y revisión conjunta. No se incorporará un nice to have mientras falte un criterio de finalización del MVP esencial.
 
@@ -156,4 +156,8 @@ Código y documentación del proyecto: [github.com/turkaym/conciliador-financier
 
 ## Documentación
 
-- [Segunda entrega: diseño previo a la codificación](docs/segunda-entrega/README.md)
+- [Segunda entrega corregida: índice y recorrido de revisión](docs/segunda-entrega/README.md)
+- [Contrato API `/api/v1`](docs/segunda-entrega/09-contrato-api.md)
+- [Plantillas y fixtures CSV](docs/segunda-entrega/csv/README.md)
+- [Wireframes del MVP](docs/segunda-entrega/wireframes/README.md)
+- [Esqueleto backend](backend/README.md), [esqueleto frontend](frontend/README.md) y [esquema PostgreSQL](database/README.md)

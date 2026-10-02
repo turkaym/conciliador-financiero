@@ -1,4 +1,4 @@
-# Alcance y módulos propuestos
+# Alcance y módulos del MVP
 
 ## Alcance priorizado
 
@@ -25,15 +25,19 @@ El volumen de 10.000 registros define una futura prueba funcional, no un SLA ni 
 
 ## Arquitectura objetivo
 
-Se propone un monolito modular: React/Vite → API FastAPI/Pydantic → aplicación → dominio ← adaptadores SQLAlchemy/PostgreSQL; Alembic administraría la evolución futura. Las reglas permanecerían independientes de HTTP y ORM. La dirección de dependencias, los límites y la persistencia se amplían en [diseño de base de datos](04-diseno-base-de-datos.md) y [diagramas](06-diagramas.md).
+La arquitectura objetivo es un monolito modular: React/Vite → API FastAPI/Pydantic → aplicación → dominio ← adaptadores SQLAlchemy/PostgreSQL. Alembic administra la evolución futura. Las reglas permanecen independientes de HTTP y ORM. La dirección de dependencias, los límites y la persistencia se amplían en [diseño de base de datos](04-diseno-base-de-datos.md) y [diagramas](06-diagramas.md).
+
+## Estado de trabajo
+
+El relevamiento está **No iniciado**. El diseño documental está definido y la codificación del producto está **No iniciada**. Las responsabilidades siguientes expresan el comportamiento requerido, no software disponible.
 
 ## Recorrido funcional
 
-1. El operador se autenticaría y seleccionaría fuente, plantilla y tipo compatibles.
-2. El sistema calcularía la huella, detectaría archivos repetidos y validaría estructura y filas.
-3. Conservaría originales; produciría datos normalizados o errores consultables.
-4. Generaría propuestas solo para registros elegibles.
-5. Una persona confirmaría o rechazaría; también podría revertir con motivo.
-6. Pendientes e historial conservarían el origen, los estados, el actor y las decisiones.
+1. El operador se autentica y selecciona fuente, plantilla y tipo compatibles.
+2. El sistema calcula la huella, detecta archivos repetidos y valida estructura y filas.
+3. Conserva originales y produce datos normalizados o errores consultables.
+4. Al finalizar correctamente el lote, genera propuestas para nuevos elegibles contra pendientes opuestos históricos.
+5. Una persona confirma o rechaza; una conciliación activa puede revertirse con motivo.
+6. Pendientes e historial conservan el origen, los estados, el actor y las decisiones.
 
 Los criterios verificables están en [requerimientos](02-requerimientos.md); las restricciones del dominio, en [reglas de negocio](03-reglas-de-negocio.md).

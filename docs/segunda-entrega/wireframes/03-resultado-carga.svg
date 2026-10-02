@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe de resultado de carga</title>
+  <desc id="desc">Resumen de lote con estados procesado, procesado con errores, fallido y duplicado.</desc>
+  <rect width="900" height="560" fill="#fff" stroke="#111"/><text x="30" y="40" font-size="24">CONCILIADOR</text><text x="320" y="40">[Cargas] Pendientes Propuestas Historial</text>
+  <line x1="0" y1="60" x2="900" y2="60" stroke="#111"/><text x="50" y="105" font-size="24">Resultado del lote #31</text>
+  <rect x="50" y="130" width="800" height="65" fill="#eee" stroke="#111"/><text x="70" y="158">Estado visible: PROCESADO CON ERRORES</text><text x="70" y="182">Archivo movimientos.csv · finalizado 12:04 UTC</text>
+  <rect x="50" y="225" width="180" height="90" fill="#fff" stroke="#111"/><text x="70" y="255">Válidas</text><text x="70" y="290" font-size="24">97</text>
+  <rect x="260" y="225" width="180" height="90" fill="#fff" stroke="#111"/><text x="280" y="255">Inválidas</text><text x="280" y="290" font-size="24">3</text>
+  <rect x="470" y="225" width="180" height="90" fill="#fff" stroke="#111"/><text x="490" y="255">Propuestas</text><text x="490" y="290" font-size="24">12</text>
+  <rect x="50" y="350" width="800" height="80" fill="#f5f5f5" stroke="#777"/><text x="70" y="378">Otros estados: PROCESADO · FALLIDO (cabecera) · DUPLICADO (lote original #18).</text><text x="70" y="405">La generación de propuestas terminó automáticamente para filas elegibles.</text>
+  <rect x="50" y="465" width="190" height="44" fill="#ddd" stroke="#111" stroke-width="3"/><text x="85" y="492">Ver 3 errores</text><rect x="660" y="465" width="190" height="44" fill="#ddd" stroke="#111"/><text x="685" y="492">Ver propuestas</text>
+</svg>

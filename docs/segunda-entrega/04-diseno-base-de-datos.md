@@ -1,38 +1,40 @@
-# Diseño propuesto de base de datos
+# Diseño de base de datos
 
 ## Criterios
 
-Se propone PostgreSQL relacional porque el dominio requiere cardinalidad 1:1, integridad referencial, control concurrente y trazabilidad transaccional. Los importes usarían `NUMERIC(18,2)`, las fechas de negocio `DATE`, los eventos `TIMESTAMPTZ` en UTC y los estados `VARCHAR` con `CHECK`. El [diccionario](05-diccionario-de-datos.md) es la fuente canónica de campos y restricciones.
+El diseño usa PostgreSQL 16 porque el dominio requiere cardinalidad 1:1, integridad referencial, control concurrente y trazabilidad transaccional. Los importes usan `NUMERIC(18,2)`, las fechas de negocio `DATE`, los eventos `TIMESTAMPTZ` en UTC y los estados `VARCHAR` con `CHECK`. El [SQL](../../database/schema.sql) gobierna la implementación física y el [diccionario](05-diccionario-de-datos.md) la explica atributo por atributo.
 
 ## Modelo conceptual
 
-- `Usuario` atribuiría lotes y decisiones.
-- `FuenteDatos` identificaría procedencia; tendría plantillas versionadas y no representaría una integración externa.
-- `PlantillaImportacion` definiría campos y procesaría lotes resolubles.
-- `LoteCarga` conservaría todo intento y la plantilla solicitada; solo un `FALLIDO` podría carecer de plantilla resuelta. Contendría registros o señalaría el lote original de un duplicado.
-- `RegistroImportado` conservaría JSON original inmutable y tendría un único subtipo cuando fuese válido.
-- `PropuestaConciliacion` uniría un movimiento y un comprobante; `Conciliacion` materializaría la confirmación humana.
-- `ErrorValidacion` explicaría fallos de lote o fila; `EventoHistorial` conservaría una cronología transversal.
+- `Usuario` atribuye lotes, eventos, confirmaciones y reversiones mediante relaciones independientes.
+- `FuenteDatos` identifica procedencia, tiene plantillas versionadas y no representa una integración externa.
+- `PlantillaImportacion` define campos y procesa lotes resolubles.
+- `LoteCarga` conserva todo intento y el `template_id` solicitado; `FALLIDO` y su posterior `DUPLICADO` pueden carecer de plantilla resuelta. Contiene registros o señala el lote original de un duplicado.
+- `RegistroImportado` conserva JSON original inmutable y tiene un único subtipo cuando es válido.
+- `PropuestaConciliacion` une un movimiento y un comprobante; `Conciliacion` materializa la confirmación humana.
+- `ErrorValidacion` explica fallos de lote o fila; `EventoHistorial` conserva una cronología transversal.
 
 ## Integridad y deduplicación
 
-La huella de archivo sería SHA-256 de sus bytes exactos. La clave de fila sería SHA-256 de versión de algoritmo y componentes encuadrados por longitud: fuente, tipo e ID externo original; sin ID, campos originales estables ordenados por plantilla. No usaría valores normalizados mutables.
+La huella de archivo es SHA-256 de sus bytes exactos. La clave de fila es SHA-256 de versión de algoritmo y componentes encuadrados por longitud: fuente, tipo e ID externo original; sin ID, campos originales estables ordenados por plantilla. No usa valores normalizados mutables.
 
-Índices únicos parciales reservarían una huella solo para lotes con plantilla resuelta y no `DUPLICADO`, una clave solo para registros no `INVALIDO`, una única propuesta `GENERADA` por pareja/versión y cada movimiento/comprobante solo para conciliaciones `ACTIVA`. Los estados terminales de propuesta permanecerían históricos. Los `FALLIDO` sin plantilla no ocuparían la huella. El email tendría índice único funcional sobre `lower(email)`.
+El índice único parcial `uq_lote_huella_original` reserva la huella de todo primer lote no `DUPLICADO`, incluso si queda `FALLIDO` sin plantilla; cada envío posterior se registra como `DUPLICADO` y apunta a ese primer lote. Otro índice reserva una clave solo para registros no `INVALIDO`; además hay una única propuesta `GENERADA` por pareja/versión y cada movimiento/comprobante participa como máximo en una conciliación `ACTIVA`. Los estados terminales permanecen históricos. El email tiene índice único funcional sobre `lower(email)`.
+
+`uq_lote_id_fuente_tipo (id, fuente_id, tipo)` es la clave candidata referenciada por `fk_registro_lote_fuente_tipo (lote_id, fuente_id, tipo)`: una fila no puede declarar fuente o tipo distintos de su lote.
 
 ## Operaciones atómicas previstas
 
 | Operación | Límite transaccional |
 |---|---|
-| Importar | Una transacción corta persistiría y confirmaría primero el intento. Con plantilla resoluble, otra transacción procesaría filas y reservaría claves mediante `ON CONFLICT`; ante fallo inesperado, revertiría solo el procesamiento y una nueva transacción corta marcaría el lote `FALLIDO` con error `LOTE` y evento. La plantilla desconocida se persistiría directamente como `FALLIDO`. |
-| Generar propuestas | Bloquearía ambos registros en orden de ID y revalidaría elegibilidad antes de insertar una nueva `GENERADA` contra su índice parcial. Los estados terminales no se sobrescribirían: caducidad o reversión permitiría otra fila histórica si la pareja vuelve a ser elegible; un rechazo idéntico exigiría cambio relevante o reapertura explícita. Confirmación usaría el mismo orden y todo conflicto revertiría la operación. |
-| Confirmar | `FOR UPDATE` bloquearía propuesta y registros en orden estable; se revalidaría elegibilidad antes de crear conciliación, estados, caducidades y evento en un commit. |
-| Rechazar | Bloquearía la propuesta, exigiría motivo y agregaría estado y evento en el mismo commit. |
-| Revertir | Bloquearía conciliación y registros, exigiría motivo y recalcularía pendientes sin borrar historia. |
+| Importar | Una transacción corta intenta reservar `(fuente_id, tipo, huella_archivo)` para todo primer lote, incluso `FALLIDO` por `template_id` desconocido. Un conflicto se registra como `DUPLICADO` con `lote_original_id`. Con plantilla resoluble, otra transacción procesa filas; ante fallo inesperado, revierte solo el procesamiento y una nueva transacción corta marca el lote `FALLIDO` con error `LOTE` y evento. |
+| Generar propuestas | Tras el commit de un lote `PROCESADO` o `PROCESADO_CON_ERRORES`, bloquea ambos `registro_importado` por `id` ascendente, revalida y recién entonces inserta `GENERADA`. `tr_propuesta_generada_sin_conciliacion` repite el lock y rechaza la escritura si cualquier extremo tiene conciliación `ACTIVA`. |
+| Confirmar | Lee sin lock los IDs inmutables de la pareja, bloquea ambos `registro_importado` por `id` ascendente y solo entonces bloquea la propuesta. Revalida que siga `GENERADA`, la cambia a `CONFIRMADA` y crea la conciliación. `tr_conciliacion_activa_caduca_propuestas` exige esa propuesta confirmada y caduca toda otra `GENERADA` que comparta un extremo, dentro del mismo commit. Generación y confirmación usan idéntico recurso y orden para evitar deadlocks. |
+| Rechazar | Bloquea la propuesta, exige motivo y agrega estado y evento en el mismo commit. |
+| Revertir | Bloquea conciliación y registros, exige motivo y recalcula pendientes sin borrar historia. |
 
 ## Originales y normalizados
 
-`datos_originales` conservaría el objeto recibido sin modificación semántica y no participaría directamente en matching. Los adaptadores de plantilla producirían campos tipados en los subtipos. Un trigger diferible comprobaría que un registro válido tenga exactamente el subtipo indicado y que uno inválido no lo tenga; permisos y trigger protegerían la inmutabilidad del original.
+`datos_originales` conserva el objeto recibido sin modificación semántica y no participa directamente en matching. Los adaptadores de plantilla producen campos tipados en los subtipos. Tres constraint triggers diferibles, sobre el registro y ambos subtipos, consultan estado/tipo actuales al final de la transacción: todo estado distinto de `INVALIDO` exige exactamente el subtipo indicado y `INVALIDO` exige ninguno. Así se admite `IMPORTADO → INVALIDO` junto con el borrado del subtipo, y se rechazan un segundo subtipo o el borrado del único. Otro trigger protege la inmutabilidad del original.
 
 ## Evolución futura
 

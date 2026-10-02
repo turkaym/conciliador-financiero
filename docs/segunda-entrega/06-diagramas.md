@@ -23,6 +23,7 @@ flowchart LR
  O --- D[Confirmar o rechazar]
  O --- V[Revertir con motivo]
  O --- Q[Consultar pendientes, errores e historial]
+ R((Responsable)) --- Q
  I --> N[Validar, deduplicar y normalizar]
  P --> G[Ver criterios y evidencia]
 ```
@@ -31,14 +32,15 @@ flowchart LR
 
 ```mermaid
 flowchart TD
- A[Autenticar; validar fuente/tipo y capturar plantilla solicitada] --> H[Calcular huella]
- H --> T{¿Plantilla activa y compatible?}
- T -- No --> PF[Insertar FALLIDO sin plantilla_id + error LOTE]
- PF --> PZ[Conservar solicitud para diagnóstico]
- T -- Sí --> U{¿Se insertó lote original?}
- U -- No --> DU[Insertar DUPLICADO con lote_original_id]
+ A[Autenticar; validar fuente/tipo y capturar template_id] --> H[Calcular huella]
+ H --> U{¿La huella ya tiene lote original?}
+ U -- Sí --> DU[Insertar DUPLICADO con lote_original_id]
  DU --> Z[Registrar evento; sin filas]
- U -- Sí --> E{¿Estructura interpretable?}
+ U -- No --> T{¿template_id activo y compatible?}
+ T -- No --> PF[Insertar FALLIDO sin plantilla_id + error LOTE; reservar huella]
+ PF --> PZ[Conservar solicitud para diagnóstico]
+ T -- Sí --> E{¿Se reservó lote original y la estructura es interpretable?}
+ E -- Conflicto de huella --> DU
  E -- No --> F[FALLIDO + error de lote]
  E -- Sí --> R[Conservar original y calcular clave]
  R --> X{¿Fila válida?}
@@ -61,26 +63,60 @@ flowchart TD
 ## 4. Módulos
 
 ```mermaid
-flowchart LR
- UI[React / API] --> AC[Acceso]
- UI --> CA[Catálogos]
- UI --> IM[Importación]
- IM --> VN[Validación-normalización]
- VN --> PR[Propuestas]
- UI --> RC[Revisión-conciliación]
- RC --> PR
- UI --> PC[Pendientes-consultas]
- AC --> DB[(PostgreSQL)]
- CA --> DB
- IM --> DB
- VN --> DB
- PR --> DB
- RC --> DB
- PC --> DB
- TR[Trazabilidad] --> DB
+flowchart TB
+ subgraph UI[UI React]
+  V[Vistas: acceso, cargas, pendientes, propuestas e historial]
+ end
+ subgraph IN[Adaptador de entrada]
+  API[API FastAPI / Pydantic]
+ end
+ subgraph APP[Capa de aplicación]
+  AC[Acceso]
+  CA[Catálogos]
+  IM[Importación]
+  VN[Validación-normalización]
+  PR[Propuestas]
+  RC[Revisión-conciliación]
+  PC[Pendientes-consultas]
+  TR[Trazabilidad]
+  PORT[Puertos de persistencia]
+ end
+ subgraph DOM[Dominio]
+  D[Entidades y reglas de negocio]
+ end
+ subgraph OUT[Adaptador de salida]
+  PA[Persistencia SQLAlchemy]
+ end
+ DB[(PostgreSQL)]
+ V --> API
+ API --> AC
+ API --> CA
+ API --> IM
+ API --> PR
+ API --> RC
+ API --> PC
+ IM --> VN
  IM --> TR
  VN --> TR
  RC --> TR
+ AC --> D
+ CA --> D
+ IM --> D
+ VN --> D
+ PR --> D
+ RC --> D
+ PC --> D
+ TR --> D
+ AC --> PORT
+ CA --> PORT
+ IM --> PORT
+ VN --> PORT
+ PR --> PORT
+ RC --> PORT
+ PC --> PORT
+ TR --> PORT
+ PA -. implementa .-> PORT
+ PA --> DB
 ```
 
 ## 5. Entidad-relación
@@ -101,7 +137,9 @@ erDiagram
  MOVIMIENTO_BANCARIO ||--o{ PROPUESTA_CONCILIACION : candidato
  COMPROBANTE ||--o{ PROPUESTA_CONCILIACION : candidato
  PROPUESTA_CONCILIACION ||--o| CONCILIACION : origina
- USUARIO ||--o{ CONCILIACION : decide
+  USUARIO ||--o{ CONCILIACION : confirma
+  USUARIO o|--o{ CONCILIACION : revierte
+  USUARIO o|--o{ EVENTO_HISTORIAL : registra
  LOTE_CARGA o|--o{ EVENTO_HISTORIAL : historia
  REGISTRO_IMPORTADO o|--o{ EVENTO_HISTORIAL : historia
  PROPUESTA_CONCILIACION o|--o{ EVENTO_HISTORIAL : historia
@@ -126,16 +164,17 @@ classDiagram
 +varchar columna_origen
 +varchar campo_canonico}
  class LoteCarga {+bigint id PK
-+bigint fuente_id FK
+ +bigint fuente_id FK
 +bigint plantilla_id FK_NULLABLE
 +varchar plantilla_solicitada
 +bytea huella_archivo
-+bigint lote_original_id FK
-+varchar estado}
+ +bigint lote_original_id FK
+ +varchar estado
+ +UQ id_fuente_tipo}
  class RegistroImportado {+bigint id PK
-+bigint lote_id FK
-+bigint fuente_id FK
-+varchar tipo
+ +bigint lote_id FK_COMPUESTA
+ +bigint fuente_id FK_COMPUESTA
+ +varchar tipo FK_COMPUESTA
 +varchar id_externo
 +bytea clave_duplicado
 +jsonb datos_originales
@@ -182,7 +221,8 @@ classDiagram
  MovimientoBancario "1" --> "0..*" PropuestaConciliacion
  Comprobante "1" --> "0..*" PropuestaConciliacion
  PropuestaConciliacion "1" --> "0..1" Conciliacion
- Usuario "1" --> "0..*" Conciliacion : decide
+  Usuario "1" --> "0..*" Conciliacion : confirmada_por
+  Usuario "0..1" --> "0..*" Conciliacion : revertida_por
  Usuario "0..1" --> "0..*" EventoHistorial : actor
  LoteCarga "0..1" --> "0..*" EventoHistorial : objetivo
  RegistroImportado "0..1" --> "0..*" EventoHistorial : objetivo
@@ -235,19 +275,25 @@ sequenceDiagram
  participant P as ServicioPropuestas
  participant R as ServicioRevision
  participant DB as PostgreSQL
- O->>API: cargar CSV(fuente, plantilla, tipo)
+ O->>API: cargar CSV(source_id, template_id, tipo)
  API->>I: importar bytes
  I->>I: calcular huella y conservar solicitud
- I->>DB: resolver plantilla solicitada
- alt plantilla desconocida
-  I->>DB: INSERT FALLIDO(fuente, tipo, solicitud, huella) + error LOTE y COMMIT
-  I-->>O: fallo consultable
- else plantilla conocida
-  I->>DB: INSERT lote original ON CONFLICT y COMMIT intento
-  alt archivo duplicado
+  I->>DB: buscar reserva previa por fuente, tipo y huella
+  alt archivo ya recibido
    I->>DB: INSERT DUPLICADO(original_id) + evento y COMMIT
    I-->>O: duplicado, sin registros
-  else lote original
+  else candidato a lote original
+   I->>DB: resolver template_id exacto
+   alt plantilla desconocida
+    I->>DB: INSERT FALLIDO sin plantilla_id + error LOTE; reservar huella; COMMIT
+    Note over I,DB: Si una carrera ya reservó la huella, insertar DUPLICADO del ganador
+    I-->>O: fallo consultable o duplicado
+   else plantilla conocida
+    I->>DB: INSERT lote original ON CONFLICT y COMMIT intento
+    alt conflicto concurrente de huella
+     I->>DB: INSERT DUPLICADO(original_id) + evento y COMMIT
+     I-->>O: duplicado, sin registros
+    else lote original
    I->>DB: BEGIN procesamiento
    loop filas
     I->>DB: validar e INSERT elegible ON CONFLICT
@@ -260,26 +306,28 @@ sequenceDiagram
    alt fallo inesperado
     I->>DB: ROLLBACK procesamiento
     I->>DB: transacción corta FALLIDO + error LOTE + evento y COMMIT
-   else procesamiento completo
-    I->>DB: finalizar lote + evento y COMMIT
+    else procesamiento completo
+     I->>DB: finalizar lote + evento y COMMIT
+     I->>P: lote procesado; generar automáticamente
+     P->>DB: BEGIN y bloquear ambos registros por ID ascendente
+     P->>DB: revalidar estados, conciliación activa y criterios
+     alt cambió elegibilidad o hay conflicto
+      P->>DB: ROLLBACK sin propuesta vigente
+     else pareja aún elegible
+      P->>DB: INSERT nueva GENERADA; trigger revalida; COMMIT
+      Note over P,DB: Terminales históricas; rechazo solo se reevalúa si cambian datos o versión
+      P-->>O: candidatas ordenadas por referencia
+     end
+    end
+    end
    end
   end
- end
- O->>API: solicitar candidatas
- API->>P: generar pendientes
- P->>DB: BEGIN y bloquear registros en orden de ID
- P->>DB: revalidar estados, conciliación activa y criterios
- alt cambió elegibilidad o hay conflicto
-  P->>DB: ROLLBACK sin propuesta vigente
- else pareja aún elegible
-  P->>DB: INSERT nueva GENERADA ON CONFLICT índice parcial y COMMIT
-  Note over P,DB: Terminales históricas, nueva fila tras caducidad o reversión, rechazo exige cambio o reapertura
-  P-->>O: candidatas ordenadas por referencia
- end
  O->>API: confirmar propuesta
  API->>R: confirmar(usuario)
- R->>DB: BEGIN y SELECT FOR UPDATE propuesta y registros
- R->>DB: revalidar y guardar conciliación + estados + caducidades + evento
+ R->>DB: BEGIN; leer IDs inmutables de la pareja sin lock
+ R->>DB: bloquear ambos registros por ID ascendente
+ R->>DB: bloquear propuesta y revalidar que siga GENERADA
+ R->>DB: confirmar propuesta; insertar ACTIVA; trigger caduca incompatibles; evento
  alt conflicto o estado inválido
   DB-->>R: restricción/error
   R->>DB: ROLLBACK
