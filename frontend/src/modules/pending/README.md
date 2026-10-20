@@ -1,7 +1,7 @@
-# Pending
+# Pendientes
 
-- **Purpose:** list valid records without an active reconciliation.
-- **Input/output:** type/lote/state filters → paginated pending records and causes.
+- **Propósito:** listar registros válidos sin conciliación activa.
+- **Entrada/salida:** filtros → pendientes paginados y causas.
 - **RF:** RF-07; RNF-06.
-- **Dependency:** `GET /api/v1/pending`.
-- **Exclusions:** record mutation and matching controls.
+- **Dependencia:** `GET /api/v1/pending`.
+- **Exclusiones:** mutación de registros y controles de matching.

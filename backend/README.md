@@ -1,12 +1,12 @@
-# Backend documentary skeleton
+# Esqueleto documental del backend
 
-This directory defines the planned modular backend; it contains no application code, package manifest, dependencies, or container image.
+Este directorio define el backend modular previsto; no contiene código de aplicación, manifiestos, dependencias ni imagen de contenedor.
 
-## Boundary
+## Límite
 
-- **Input:** HTTP requests and CSV bytes from the future API adapter.
-- **Output:** typed responses and domain events persisted by future adapters.
-- **Direction:** API/application → domain ← persistence adapters.
-- **Exclusions:** framework setup, ORM models, migrations, credentials, jobs, and executable services.
+- **Entrada:** solicitudes HTTP y bytes CSV desde el futuro adaptador API.
+- **Salida:** respuestas tipadas y eventos de dominio persistidos por adaptadores futuros.
+- **Dirección:** API/aplicación → dominio ← adaptadores de persistencia.
+- **Exclusiones:** configuración de framework, modelos ORM, migraciones, credenciales, jobs y servicios ejecutables.
 
-See [`app/`](app/README.md) for module contracts. Modules coordinate services through explicit contracts and never write another module's tables directly.
+Consulte [`app/`](app/README.md) para los contratos. Los módulos coordinan mediante contratos explícitos y nunca escriben directamente las tablas de otro módulo.

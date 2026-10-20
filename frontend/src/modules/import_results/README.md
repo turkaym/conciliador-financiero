@@ -1,7 +1,7 @@
-# Import results
+# Resultados de importación
 
-- **Purpose:** explain processed, mixed, failed, and duplicate batch outcomes.
-- **Input/output:** batch ID → totals, state, row/lote errors, and next action.
+- **Propósito:** explicar resultados procesados, mixtos, sin válidos, fallidos y duplicados.
+- **Entrada/salida:** ID de lote → totales, estado, errores y acción siguiente.
 - **RF:** RF-03, RF-05, RF-06.
-- **Dependencies:** batch detail and error API operations.
-- **Exclusions:** editing imported records and silently repairing CSV data.
+- **Dependencias:** operaciones API de detalle y errores.
+- **Exclusiones:** editar registros y reparar silenciosamente el CSV.

@@ -1,8 +1,8 @@
-# Validation
+# Validación
 
-- **Purpose:** validate structure/rows, preserve originals, and produce typed eligible records.
-- **Input:** resolved template and parsed CSV rows.
-- **Output:** pending records or field/lote errors with stable duplicate keys.
+- **Propósito:** validar estructura/filas, preservar originales y producir registros elegibles tipados.
+- **Entrada:** plantilla resuelta y filas CSV interpretadas.
+- **Salida:** registros pendientes o errores de campo/lote con claves estables.
 - **RF:** RF-03–RF-06; RN-10, RN-11.
-- **Dependencies:** template definitions and record/error repositories.
-- **Exclusions:** changing original values, fuzzy correction, and proposal generation.
+- **Dependencias:** definiciones de plantilla y repositorios de registros/errores.
+- **Exclusiones:** cambiar originales, corrección difusa y generar propuestas.

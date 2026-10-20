@@ -1,8 +1,8 @@
-# Import catalogs
+# Catálogos de importación
 
-- **Purpose:** expose active sources and compatible versioned templates.
-- **Input:** authenticated catalog query and optional source/type filters.
-- **Output:** source and template descriptors.
+- **Propósito:** exponer fuentes activas y plantillas versionadas compatibles.
+- **Entrada:** consulta autenticada y filtros opcionales de fuente/tipo.
+- **Salida:** descriptores de fuentes y plantillas.
 - **RF:** RF-02.
-- **Dependencies:** catalog read interfaces only.
-- **Exclusions:** source integrations, template editing, and manual column mapping.
+- **Dependencias:** solo interfaces de lectura de catálogos.
+- **Exclusiones:** integraciones, edición de plantillas y mapeo manual.

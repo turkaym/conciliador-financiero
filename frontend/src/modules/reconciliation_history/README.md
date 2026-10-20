@@ -1,7 +1,7 @@
-# Reconciliation history
+# Historial de conciliación
 
-- **Purpose:** show reconciliation detail, chronology, and audited reversal.
-- **Input/output:** reconciliation ID/history filters and reversal reason → detail or reverted state.
+- **Propósito:** mostrar detalle, cronología y reversión atómica auditada.
+- **Entrada/salida:** ID/filtros y motivo → detalle, estado revertido y propuestas generadas.
 - **RF:** RF-12, RF-13.
-- **Dependencies:** reconciliation and history API operations.
-- **Exclusions:** deleting facts, editing events, and reopening proposals.
+- **Dependencias:** operaciones API de conciliación e historial.
+- **Exclusiones:** borrar hechos, editar eventos y reabrir propuestas.

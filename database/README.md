@@ -1,18 +1,18 @@
-# PostgreSQL 16 schema
+# Esquema PostgreSQL 16
 
-`schema.sql` is the executable physical design for an empty PostgreSQL 16 database. It is a single transactional, non-idempotent initialization; it does not claim a prior execution or provide application migrations.
+`schema.sql` es el diseño físico ejecutable para una base PostgreSQL 16 vacía. Es una inicialización transaccional única y no idempotente; no presupone ejecuciones previas ni ofrece migraciones de aplicación.
 
-## Local initialization
+## Inicialización local
 
-1. Optionally set `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` in the shell.
-2. Run `docker compose up --wait` from the repository root with a **new volume**.
-3. PostgreSQL executes the read-only mount at `/docker-entrypoint-initdb.d/001-schema.sql` only when the data directory is first initialized.
-4. Use `docker compose down -v` only for this project's disposable volume when a clean initialization is required.
+1. Opcionalmente, defina `POSTGRES_DB`, `POSTGRES_USER` y `POSTGRES_PASSWORD`.
+2. Ejecute `docker compose up --wait` desde la raíz con un **volumen nuevo**.
+3. PostgreSQL ejecuta el montaje de solo lectura `/docker-entrypoint-initdb.d/001-schema.sql` únicamente al inicializar el directorio de datos.
+4. Use `docker compose down -v` solo para el volumen descartable de este proyecto cuando necesite una inicialización limpia.
 
-The Compose default password is local-only and must not be reused outside this academic environment. The schema creates 12 tables, named constraints, query/uniqueness indexes, and seven integrity triggers. It does not seed users, catalogs, templates, or business data.
+La contraseña predeterminada de Compose es solo local y no debe reutilizarse fuera de este entorno académico. El esquema crea **12 tablas, 106 columnas, 109 constraints, 52 índices y 8 triggers** de integridad. No carga usuarios, catálogos, plantillas ni datos de negocio.
 
-## Sources of truth
+## Fuentes de verdad
 
-- Physical DDL: [`schema.sql`](schema.sql)
-- Attribute-level contract: [`../docs/segunda-entrega/05-diccionario-de-datos.md`](../docs/segunda-entrega/05-diccionario-de-datos.md)
-- Conceptual/logical views: [`../docs/segunda-entrega/06-diagramas.md`](../docs/segunda-entrega/06-diagramas.md)
+- DDL físico: [`schema.sql`](schema.sql)
+- Contrato por atributo: [`../docs/segunda-entrega/05-diccionario-de-datos.md`](../docs/segunda-entrega/05-diccionario-de-datos.md)
+- Vistas conceptual y lógica: [`../docs/segunda-entrega/06-diagramas.md`](../docs/segunda-entrega/06-diagramas.md)

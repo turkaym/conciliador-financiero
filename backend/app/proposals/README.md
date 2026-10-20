@@ -1,8 +1,8 @@
-# Proposals
+# Propuestas
 
-- **Purpose:** automatically generate and rank eligible movement–receipt pairs after a successful batch.
-- **Input:** newly eligible records plus all opposite historical pending records.
-- **Output:** versioned generated proposals with score components and explanation.
+- **Propósito:** generar y ordenar parejas elegibles tras lotes con válidos o durante reversión.
+- **Entrada:** registros habilitados y pendientes opuestos históricos.
+- **Salida:** propuestas versionadas con huella, procedencia, componentes y explicación.
 - **RF:** RF-08, RF-09; RN-01, RN-03, RN-04, RN-07.
-- **Dependencies:** pending-record, active-reconciliation, and proposal repositories; both records are locked by ascending ID before generation.
-- **Exclusions:** public manual generation, automatic confirmation, and rejected-proposal reopening.
+- **Dependencias:** repositorios de pendientes, conciliaciones y propuestas; bloquea registros por ID ascendente.
+- **Exclusiones:** generación manual pública, confirmación automática y reapertura de rechazos.

@@ -78,7 +78,7 @@ CREATE TABLE lote_carga (
         REFERENCES plantilla_importacion(id, fuente_id, tipo),
     CONSTRAINT uq_lote_id_fuente_tipo UNIQUE (id, fuente_id, tipo),
     CONSTRAINT ck_lote_tipo CHECK (tipo IN ('MOVIMIENTO', 'COMPROBANTE')),
-    CONSTRAINT ck_lote_estado CHECK (estado IN ('RECIBIDO', 'EN_VALIDACION', 'PROCESADO', 'PROCESADO_CON_ERRORES', 'FALLIDO', 'DUPLICADO')),
+    CONSTRAINT ck_lote_estado CHECK (estado IN ('RECIBIDO', 'EN_VALIDACION', 'PROCESADO', 'PROCESADO_CON_ERRORES', 'PROCESADO_SIN_VALIDOS', 'FALLIDO', 'DUPLICADO')),
     CONSTRAINT ck_lote_plantilla_solicitada CHECK (btrim(plantilla_solicitada) <> ''),
     CONSTRAINT ck_lote_nombre_archivo CHECK (btrim(nombre_archivo) <> ''),
     CONSTRAINT ck_lote_huella CHECK (octet_length(huella_archivo) = 32),
@@ -86,11 +86,11 @@ CREATE TABLE lote_carga (
     CONSTRAINT ck_lote_duplicado CHECK ((estado = 'DUPLICADO') = (lote_original_id IS NOT NULL)),
     CONSTRAINT ck_lote_original_distinto CHECK (lote_original_id IS NULL OR lote_original_id <> id),
     CONSTRAINT ck_lote_finalizacion CHECK (
-        (estado IN ('PROCESADO', 'PROCESADO_CON_ERRORES', 'FALLIDO', 'DUPLICADO')) = (finalizado_en IS NOT NULL)
+        (estado IN ('PROCESADO', 'PROCESADO_CON_ERRORES', 'PROCESADO_SIN_VALIDOS', 'FALLIDO', 'DUPLICADO')) = (finalizado_en IS NOT NULL)
     )
 );
 CREATE UNIQUE INDEX uq_lote_huella_original ON lote_carga (fuente_id, tipo, huella_archivo)
-    WHERE estado <> 'DUPLICADO';
+    WHERE estado NOT IN ('FALLIDO', 'DUPLICADO');
 CREATE INDEX ix_lote_usuario_fecha ON lote_carga (usuario_id, recibido_en DESC);
 CREATE INDEX ix_lote_fuente_tipo_estado ON lote_carga (fuente_id, tipo, estado);
 CREATE INDEX ix_lote_original ON lote_carga (lote_original_id) WHERE lote_original_id IS NOT NULL;
@@ -175,6 +175,10 @@ CREATE TABLE propuesta_conciliacion (
     estado VARCHAR(20) NOT NULL DEFAULT 'GENERADA',
     normalizador_version VARCHAR(30) NOT NULL,
     version_regla VARCHAR(30) NOT NULL,
+    huella_evaluacion BYTEA NOT NULL,
+    origen_tipo VARCHAR(10) NOT NULL,
+    lote_origen_id BIGINT REFERENCES lote_carga(id),
+    conciliacion_revertida_id BIGINT,
     score_referencia NUMERIC(5,4) NOT NULL,
     coincidencia_exacta BOOLEAN NOT NULL,
     diferencia_dias SMALLINT NOT NULL,
@@ -187,6 +191,12 @@ CREATE TABLE propuesta_conciliacion (
     CONSTRAINT ck_propuesta_estado CHECK (estado IN ('GENERADA', 'CONFIRMADA', 'RECHAZADA', 'CADUCADA')),
     CONSTRAINT ck_propuesta_normalizador CHECK (btrim(normalizador_version) <> ''),
     CONSTRAINT ck_propuesta_version CHECK (btrim(version_regla) <> ''),
+    CONSTRAINT ck_propuesta_huella CHECK (octet_length(huella_evaluacion) = 32),
+    CONSTRAINT ck_propuesta_origen_tipo CHECK (origen_tipo IN ('LOTE', 'REVERSION')),
+    CONSTRAINT ck_propuesta_origen_xor CHECK (
+        (origen_tipo = 'LOTE' AND lote_origen_id IS NOT NULL AND conciliacion_revertida_id IS NULL)
+        OR (origen_tipo = 'REVERSION' AND lote_origen_id IS NULL AND conciliacion_revertida_id IS NOT NULL)
+    ),
     CONSTRAINT ck_propuesta_score CHECK (score_referencia BETWEEN 0 AND 1),
     CONSTRAINT ck_propuesta_dias CHECK (diferencia_dias BETWEEN -3 AND 3),
     CONSTRAINT ck_propuesta_explicacion CHECK (jsonb_typeof(explicacion) = 'object'),
@@ -197,13 +207,17 @@ CREATE TABLE propuesta_conciliacion (
         OR (estado = 'CADUCADA' AND decidida_por IS NULL AND decidida_en IS NOT NULL)
     )
 );
-CREATE UNIQUE INDEX uq_propuesta_generada ON propuesta_conciliacion (movimiento_id, comprobante_id, version_regla)
+CREATE UNIQUE INDEX uq_propuesta_generada ON propuesta_conciliacion (movimiento_id, comprobante_id, version_regla, huella_evaluacion)
     WHERE estado = 'GENERADA';
-CREATE UNIQUE INDEX uq_propuesta_rechazada ON propuesta_conciliacion (movimiento_id, comprobante_id, version_regla)
+CREATE UNIQUE INDEX uq_propuesta_rechazada ON propuesta_conciliacion (movimiento_id, comprobante_id, version_regla, huella_evaluacion)
     WHERE estado = 'RECHAZADA';
 CREATE INDEX ix_propuesta_estado_fecha ON propuesta_conciliacion (estado, creado_en DESC);
 CREATE INDEX ix_propuesta_movimiento ON propuesta_conciliacion (movimiento_id);
 CREATE INDEX ix_propuesta_comprobante ON propuesta_conciliacion (comprobante_id);
+CREATE INDEX ix_propuesta_lote_origen ON propuesta_conciliacion (lote_origen_id)
+    WHERE lote_origen_id IS NOT NULL;
+CREATE INDEX ix_propuesta_conciliacion_revertida ON propuesta_conciliacion (conciliacion_revertida_id)
+    WHERE conciliacion_revertida_id IS NOT NULL;
 
 CREATE TABLE conciliacion (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -228,6 +242,10 @@ CREATE UNIQUE INDEX uq_conciliacion_movimiento_activa ON conciliacion (movimient
 CREATE UNIQUE INDEX uq_conciliacion_comprobante_activa ON conciliacion (comprobante_id) WHERE estado = 'ACTIVA';
 CREATE INDEX ix_conciliacion_confirmador ON conciliacion (confirmada_por);
 CREATE INDEX ix_conciliacion_reversor ON conciliacion (revertida_por) WHERE revertida_por IS NOT NULL;
+
+ALTER TABLE propuesta_conciliacion
+    ADD CONSTRAINT fk_propuesta_conciliacion_revertida
+    FOREIGN KEY (conciliacion_revertida_id) REFERENCES conciliacion(id);
 
 CREATE TABLE evento_historial (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -324,9 +342,11 @@ CREATE CONSTRAINT TRIGGER tr_comprobante_subtipo_exacto AFTER INSERT OR UPDATE O
 CREATE FUNCTION validar_actualizacion_propuesta() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     IF (NEW.movimiento_id, NEW.comprobante_id, NEW.normalizador_version, NEW.version_regla,
+        NEW.huella_evaluacion, NEW.origen_tipo, NEW.lote_origen_id, NEW.conciliacion_revertida_id,
         NEW.score_referencia, NEW.coincidencia_exacta, NEW.diferencia_dias, NEW.explicacion)
        IS DISTINCT FROM
        (OLD.movimiento_id, OLD.comprobante_id, OLD.normalizador_version, OLD.version_regla,
+        OLD.huella_evaluacion, OLD.origen_tipo, OLD.lote_origen_id, OLD.conciliacion_revertida_id,
         OLD.score_referencia, OLD.coincidencia_exacta, OLD.diferencia_dias, OLD.explicacion) THEN
         RAISE EXCEPTION 'identidad y evaluacion de propuesta son inmutables';
     END IF;
@@ -355,6 +375,21 @@ BEGIN
                     OR comprobante_id IN (NEW.movimiento_id, NEW.comprobante_id))
         ) THEN
             RAISE EXCEPTION 'propuesta generada incompatible con conciliacion activa';
+        END IF;
+
+        IF EXISTS (
+            SELECT 1 FROM propuesta_conciliacion
+             WHERE movimiento_id = NEW.movimiento_id
+               AND comprobante_id = NEW.comprobante_id
+               AND version_regla = NEW.version_regla
+               AND huella_evaluacion = NEW.huella_evaluacion
+               AND (estado = 'RECHAZADA' OR id = (
+                   SELECT propuesta_id
+                     FROM conciliacion
+                    WHERE id = NEW.conciliacion_revertida_id
+               ))
+        ) THEN
+            RAISE EXCEPTION 'evaluacion terminal identica suprimida';
         END IF;
     END IF;
     RETURN NEW;

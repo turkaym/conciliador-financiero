@@ -42,8 +42,8 @@ Fuente atributo por atributo del esquema PostgreSQL 16. `NN` indica `NOT NULL`; 
 | `lote_carga.usuario_id` | `BIGINT` | No | — | No | `usuario.id` | — | — | Autor de la carga. |
 | `lote_carga.tipo` | `VARCHAR(20)` | No | — | No | parte de FK a plantilla | `uq_lote_id_fuente_tipo`; `uq_lote_huella_original` | movimiento/comprobante | Tipo declarado y heredado por cada registro. |
 | `lote_carga.nombre_archivo` | `VARCHAR(255)` | No | — | No | — | — | no vacío | Nombre informativo del archivo. |
-| `lote_carga.huella_archivo` | `BYTEA` | No | — | No | — | `uq_lote_huella_original` parcial con fuente/tipo para todo no duplicado | 32 bytes | SHA-256 de bytes exactos; también la reserva un `FALLIDO`. |
-| `lote_carga.estado` | `VARCHAR(30)` | No | `RECIBIDO` | No | — | condiciona UQ | seis estados; coherencia | Estado del intento. |
+| `lote_carga.huella_archivo` | `BYTEA` | No | — | No | — | `uq_lote_huella_original` parcial con fuente/tipo para estados que reservan | 32 bytes | SHA-256 exacto; `FALLIDO` y `DUPLICADO` no reservan. |
+| `lote_carga.estado` | `VARCHAR(30)` | No | `RECIBIDO` | No | — | condiciona UQ | siete estados; coherencia | Estado del intento; incluye `PROCESADO_SIN_VALIDOS`. |
 | `lote_carga.lote_original_id` | `BIGINT` | Sí | `NULL` | No | `lote_carga.id` | — | obligatorio solo en duplicado | Lote con bytes previos. |
 | `lote_carga.recibido_en` | `TIMESTAMPTZ` | No | `now()` | No | — | — | — | Recepción UTC. |
 | `lote_carga.finalizado_en` | `TIMESTAMPTZ` | Sí | `NULL` | No | — | — | obligatorio solo terminal | Fin UTC. |
@@ -85,11 +85,15 @@ Fuente atributo por atributo del esquema PostgreSQL 16. `NN` indica `NOT NULL`; 
 | Tabla.atributo | Tipo | Nulable | Default | PK | FK | UQ | CHECK | Descripción |
 |---|---|---:|---|---:|---|---|---|---|
 | `propuesta_conciliacion.id` | `BIGINT IDENTITY` | No | identidad | Sí | — | — | — | Evaluación candidata. |
-| `propuesta_conciliacion.movimiento_id` | `BIGINT` | No | — | No | `movimiento_bancario.registro_id` | dos UQ parciales por pareja/versión | — | Extremo bancario. |
-| `propuesta_conciliacion.comprobante_id` | `BIGINT` | No | — | No | `comprobante.registro_id` | dos UQ parciales por pareja/versión | — | Extremo contable. |
+| `propuesta_conciliacion.movimiento_id` | `BIGINT` | No | — | No | `movimiento_bancario.registro_id` | dos UQ parciales por pareja/regla/huella | — | Extremo bancario. |
+| `propuesta_conciliacion.comprobante_id` | `BIGINT` | No | — | No | `comprobante.registro_id` | dos UQ parciales por pareja/regla/huella | — | Extremo contable. |
 | `propuesta_conciliacion.estado` | `VARCHAR(20)` | No | `GENERADA` | No | — | condiciona UQ | cuatro estados; datos de decisión | Estado terminal o pendiente. |
 | `propuesta_conciliacion.normalizador_version` | `VARCHAR(30)` | No | — | No | — | — | no vacío | `ref-nfkd-v1`. |
 | `propuesta_conciliacion.version_regla` | `VARCHAR(30)` | No | — | No | — | dos UQ parciales | no vacía | Versión de elegibilidad/ranking. |
+| `propuesta_conciliacion.huella_evaluacion` | `BYTEA` | No | — | No | — | dos UQ parciales | 32 bytes | SHA-256 encuadrado de datos relevantes y normalizador. |
+| `propuesta_conciliacion.origen_tipo` | `VARCHAR(10)` | No | — | No | — | — | `LOTE\|REVERSION`; XOR | Discriminador explícito del disparador. |
+| `propuesta_conciliacion.lote_origen_id` | `BIGINT` | Sí | `NULL` | No | `lote_carga.id` | índice parcial | XOR | Lote disparador cuando el origen es `LOTE`. |
+| `propuesta_conciliacion.conciliacion_revertida_id` | `BIGINT` | Sí | `NULL` | No | `conciliacion.id` | índice parcial | XOR | Conciliación disparadora cuando el origen es `REVERSION`. |
 | `propuesta_conciliacion.score_referencia` | `NUMERIC(5,4)` | No | — | No | — | — | `0..1` | Jaccard. |
 | `propuesta_conciliacion.coincidencia_exacta` | `BOOLEAN` | No | — | No | — | — | — | Igualdad no vacía normalizada. |
 | `propuesta_conciliacion.diferencia_dias` | `SMALLINT` | No | — | No | — | — | `-3..3` | Comprobante menos movimiento. |
@@ -121,6 +125,6 @@ Fuente atributo por atributo del esquema PostgreSQL 16. `NN` indica `NOT NULL`; 
 
 ## Índices y triggers
 
-Además de PK/UQ, el SQL indexa las FK y los filtros de lote, registro, matching, propuestas e historial. `uq_lote_huella_original` garantiza una huella original para todo lote no `DUPLICADO`, aun `FALLIDO`; otros índices parciales garantizan una fila elegible, una propuesta `GENERADA` y una `RECHAZADA` por pareja/versión, y una conciliación activa por extremo.
+Además de PK/UQ, el SQL indexa las FK y filtros. `uq_lote_huella_original` excluye `FALLIDO` y `DUPLICADO`; los UQ de propuesta suprimen una `GENERADA` o `RECHAZADA` por pareja/regla/huella. Dos índices parciales sirven cada procedencia. El catálogo esperado es **12 tablas, 106 columnas, 109 constraints, 52 índices y 8 triggers**.
 
-El catálogo contiene ocho triggers: uno de coherencia plantilla–fuente–tipo; uno de inmutabilidad del original; tres constraint triggers diferibles de subtipo exacto (`tr_registro_subtipo_exacto`, `tr_movimiento_subtipo_exacto`, `tr_comprobante_subtipo_exacto`); `tr_propuesta_actualizacion_valida`, que restringe transiciones e impide cambiar pareja o evaluación; `tr_propuesta_generada_sin_conciliacion`; y `tr_conciliacion_activa_caduca_propuestas`. Los dos últimos bloquean los mismos registros por ID ascendente; el primero impide una `GENERADA` sobre una `ACTIVA` y el segundo exige la propuesta elegida `CONFIRMADA` y caduca otras `GENERADA` incompatibles.
+El catálogo contiene ocho triggers: uno de coherencia plantilla–fuente–tipo; uno de inmutabilidad del original; tres constraint triggers diferibles de subtipo exacto; `tr_propuesta_actualizacion_valida`, que inmoviliza pareja, evaluación y procedencia; `tr_propuesta_generada_sin_conciliacion`, que además suprime rechazo o pareja revertida idénticos; y `tr_conciliacion_activa_caduca_propuestas`. Los dos últimos bloquean registros por ID ascendente.

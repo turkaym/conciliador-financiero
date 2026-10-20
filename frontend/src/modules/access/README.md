@@ -1,7 +1,7 @@
-# Access
+# Acceso
 
-- **Purpose:** collect credentials and establish an authenticated UI context.
-- **Input/output:** email/password → session or generic error.
+- **Propósito:** capturar credenciales y establecer un contexto autenticado.
+- **Entrada/salida:** email/contraseña → sesión o error genérico.
 - **RF:** RF-01.
-- **Dependency:** `POST /api/v1/auth/login`.
-- **Exclusions:** registration, recovery, roles, and local credential persistence.
+- **Dependencia:** `POST /api/v1/auth/login`.
+- **Exclusiones:** registro, recuperación, roles y persistencia local de credenciales.

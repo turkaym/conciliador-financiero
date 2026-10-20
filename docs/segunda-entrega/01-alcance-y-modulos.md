@@ -23,6 +23,16 @@ El volumen de 10.000 registros define una futura prueba funcional, no un SLA ni 
 | Pendientes-consultas | Filtrar registros por tipo, lote y estado | Modificar datos del dominio |
 | Trazabilidad | Registrar cronología append-only junto con cada hecho | Sustituir las entidades operativas |
 
+## Correspondencia entre concepto y rutas
+
+| Módulo conceptual | Backend | Frontend |
+|---|---|---|
+| Acceso básico | `backend/app/access` | `frontend/src/modules/access` |
+| Catálogos de importación | `backend/app/import_catalogs` | `frontend/src/modules/imports` |
+| Importación y validación | `backend/app/imports`, `backend/app/validation` | `frontend/src/modules/imports`, `frontend/src/modules/import_results` |
+| Propuestas y revisión | `backend/app/proposals`, `backend/app/reconciliation` | `frontend/src/modules/proposals`, `frontend/src/modules/reconciliation_history` |
+| Pendientes y trazabilidad | `backend/app/queries`, `backend/app/audit` | `frontend/src/modules/pending`, `frontend/src/modules/reconciliation_history` |
+
 ## Arquitectura objetivo
 
 La arquitectura objetivo es un monolito modular: React/Vite → API FastAPI/Pydantic → aplicación → dominio ← adaptadores SQLAlchemy/PostgreSQL. Alembic administra la evolución futura. Las reglas permanecen independientes de HTTP y ORM. La dirección de dependencias, los límites y la persistencia se amplían en [diseño de base de datos](04-diseno-base-de-datos.md) y [diagramas](06-diagramas.md).
@@ -36,8 +46,8 @@ El relevamiento está **No iniciado**. El diseño documental está definido y la
 1. El operador se autentica y selecciona fuente, plantilla y tipo compatibles.
 2. El sistema calcula la huella, detecta archivos repetidos y valida estructura y filas.
 3. Conserva originales y produce datos normalizados o errores consultables.
-4. Al finalizar correctamente el lote, genera propuestas para nuevos elegibles contra pendientes opuestos históricos.
-5. Una persona confirma o rechaza; una conciliación activa puede revertirse con motivo.
+4. Al finalizar con filas válidas, genera propuestas para nuevos elegibles contra pendientes opuestos históricos.
+5. Una persona confirma o rechaza; una conciliación activa puede revertirse con motivo y recomparación atómica.
 6. Pendientes e historial conservan el origen, los estados, el actor y las decisiones.
 
 Los criterios verificables están en [requerimientos](02-requerimientos.md); las restricciones del dominio, en [reglas de negocio](03-reglas-de-negocio.md).

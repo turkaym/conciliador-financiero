@@ -1,8 +1,8 @@
-# Access
+# Acceso
 
-- **Purpose:** authenticate pre-registered users and provide actor identity.
-- **Input:** email and password.
-- **Output:** authenticated session/token context or a generic denial.
+- **Propósito:** autenticar usuarios pre-registrados y aportar identidad del actor.
+- **Entrada:** email y contraseña.
+- **Salida:** contexto autenticado de sesión/token o rechazo genérico.
 - **RF:** RF-01, RNF-04.
-- **Dependencies:** user repository and password verifier interfaces.
-- **Exclusions:** registration, password recovery, role administration, and user management.
+- **Dependencias:** interfaces de repositorio de usuarios y verificador de contraseña.
+- **Exclusiones:** registro, recuperación, roles y administración de usuarios.

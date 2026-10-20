@@ -33,11 +33,11 @@ flowchart LR
 ```mermaid
 flowchart TD
  A[Autenticar; validar fuente/tipo y capturar template_id] --> H[Calcular huella]
- H --> U{¿La huella ya tiene lote original?}
- U -- Sí --> DU[Insertar DUPLICADO con lote_original_id]
+ H --> U{¿La huella está reservada?}
+ U -- Sí --> DU[Crear DUPLICADO terminal con lote_original_id]
  DU --> Z[Registrar evento; sin filas]
  U -- No --> T{¿template_id activo y compatible?}
- T -- No --> PF[Insertar FALLIDO sin plantilla_id + error LOTE; reservar huella]
+ T -- No --> PF[Insertar FALLIDO sin plantilla_id + error LOTE; liberar huella]
  PF --> PZ[Conservar solicitud para diagnóstico]
  T -- Sí --> E{¿Se reservó lote original y la estructura es interpretable?}
  E -- Conflicto de huella --> DU
@@ -52,8 +52,10 @@ flowchart TD
  ID --> M
  PE --> M
  M -- Sí --> R
- M -- No --> L[PROCESADO o PROCESADO_CON_ERRORES]
- L --> G[Generar propuestas elegibles]
+ M -- No --> L[PROCESADO, CON_ERRORES o SIN_VALIDOS]
+ L --> V{¿Hay filas válidas?}
+ V -- Sí --> G[Generar propuestas LOTE elegibles]
+ V -- No --> ZV[Finalizar sin propuestas]
  G --> D{Decisión humana}
  D -- Confirmar --> C[Conciliar atómicamente]
  D -- Rechazar --> RE[Motivo + evento]
@@ -136,6 +138,8 @@ erDiagram
  REGISTRO_IMPORTADO o|--o{ ERROR_VALIDACION : presenta
  MOVIMIENTO_BANCARIO ||--o{ PROPUESTA_CONCILIACION : candidato
  COMPROBANTE ||--o{ PROPUESTA_CONCILIACION : candidato
+ LOTE_CARGA o|--o{ PROPUESTA_CONCILIACION : origen_lote
+ CONCILIACION o|--o{ PROPUESTA_CONCILIACION : origen_reversion
  PROPUESTA_CONCILIACION ||--o| CONCILIACION : origina
   USUARIO ||--o{ CONCILIACION : confirma
   USUARIO o|--o{ CONCILIACION : revierte
@@ -192,6 +196,10 @@ classDiagram
 +varchar codigo}
  class PropuestaConciliacion {+bigint movimiento_id FK
 +bigint comprobante_id FK
++bytea huella_evaluacion
++varchar origen_tipo
++bigint lote_origen_id FK_NULLABLE
++bigint conciliacion_revertida_id FK_NULLABLE
 +varchar estado
 +smallint diferencia_dias}
  class Conciliacion {+bigint propuesta_id FK_UQ
@@ -237,10 +245,11 @@ stateDiagram-v2
  state Lote {
   [*] --> RECIBIDO
   [*] --> FALLIDO : plantilla desconocida
+  [*] --> DUPLICADO : conflicto de huella
   RECIBIDO --> EN_VALIDACION
-  RECIBIDO --> DUPLICADO
   EN_VALIDACION --> PROCESADO
   EN_VALIDACION --> PROCESADO_CON_ERRORES
+  EN_VALIDACION --> PROCESADO_SIN_VALIDOS
   EN_VALIDACION --> FALLIDO
  }
  state Registro {
@@ -278,15 +287,15 @@ sequenceDiagram
  O->>API: cargar CSV(source_id, template_id, tipo)
  API->>I: importar bytes
  I->>I: calcular huella y conservar solicitud
-  I->>DB: buscar reserva previa por fuente, tipo y huella
+   I->>DB: intentar reservar por fuente, tipo y huella
   alt archivo ya recibido
    I->>DB: INSERT DUPLICADO(original_id) + evento y COMMIT
    I-->>O: duplicado, sin registros
   else candidato a lote original
    I->>DB: resolver template_id exacto
    alt plantilla desconocida
-    I->>DB: INSERT FALLIDO sin plantilla_id + error LOTE; reservar huella; COMMIT
-    Note over I,DB: Si una carrera ya reservó la huella, insertar DUPLICADO del ganador
+    I->>DB: INSERT FALLIDO sin plantilla_id + error LOTE; COMMIT sin reserva
+    Note over I,DB: Si una carrera reservó, crear DUPLICADO terminal; si el dueño falla, exigir nuevo envío
     I-->>O: fallo consultable o duplicado
    else plantilla conocida
     I->>DB: INSERT lote original ON CONFLICT y COMMIT intento
@@ -305,17 +314,17 @@ sequenceDiagram
    end
    alt fallo inesperado
     I->>DB: ROLLBACK procesamiento
-    I->>DB: transacción corta FALLIDO + error LOTE + evento y COMMIT
+     I->>DB: transacción corta FALLIDO + error LOTE + evento; libera huella; COMMIT
     else procesamiento completo
-     I->>DB: finalizar lote + evento y COMMIT
-     I->>P: lote procesado; generar automáticamente
+      I->>DB: finalizar PROCESADO, CON_ERRORES o SIN_VALIDOS + evento y COMMIT
+      I->>P: si hay válidos, generar automáticamente con origen LOTE
      P->>DB: BEGIN y bloquear ambos registros por ID ascendente
      P->>DB: revalidar estados, conciliación activa y criterios
      alt cambió elegibilidad o hay conflicto
       P->>DB: ROLLBACK sin propuesta vigente
      else pareja aún elegible
-      P->>DB: INSERT nueva GENERADA; trigger revalida; COMMIT
-      Note over P,DB: Terminales históricas; rechazo solo se reevalúa si cambian datos o versión
+       P->>DB: INSERT nueva GENERADA con huella/origen; trigger revalida; COMMIT
+       Note over P,DB: Suprimir pareja+regla+huella ya rechazada
       P-->>O: candidatas ordenadas por referencia
      end
     end
@@ -335,5 +344,15 @@ sequenceDiagram
  else éxito
   R->>DB: COMMIT
   R-->>O: conciliación activa
+  end
+ O->>API: revertir conciliación(reason)
+ API->>R: revertir(usuario, motivo)
+ R->>DB: BEGIN; leer IDs; reunir candidatos; bloquear registros por id ASC
+ R->>DB: bloquear conciliación; revalidar ACTIVA; marcar REVERTIDA; liberar extremos
+ R->>DB: recomparar; omitir pareja revertida/rechazos idénticos; insertar origen REVERSION + eventos
+ alt fallo, repetición o carrera
+  R->>DB: ROLLBACK total
+ else éxito
+  R->>DB: COMMIT
  end
 ```

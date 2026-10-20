@@ -14,7 +14,7 @@ La primera entrega fue aprobada sin observaciones. La devolución de la segunda 
 | Originales | JSONB inmutable en registro y normalizados tipados en subtipos | Preserva fidelidad y exige estructuras adicionales para integridad |
 | Dinero y tiempo | Decimal exacto, fechas de negocio y eventos UTC | Evita error binario y ambigüedad temporal |
 | Estados | Texto restringido, transiciones de dominio y transacción | Facilita evolución frente a ENUM, con controles explícitos |
-| Duplicados | Todo primer lote no `DUPLICADO`, aun `FALLIDO`, reserva fuente/tipo/huella | El reenvío siempre apunta al primer intento y no reinterpreta bytes ya recibidos |
+| Duplicados | `FALLIDO` y `DUPLICADO` no reservan huella; el duplicado concurrente nace terminal y nunca se promociona | Permite reenvío tras fallo y exige un envío nuevo si el dueño de una carrera falla |
 | Email | `VARCHAR(254)` e índice único sobre `lower(email)` | Evita SQL inválido y una extensión obligatoria |
 | Concurrencia | Generación y conciliación bloquean ambos registros por ID ascendente; triggers rechazan `GENERADA` sobre `ACTIVA` y caducan incompatibles al crear `ACTIVA` | Mayor complejidad a cambio de integridad sin serialización global ni orden circular de locks |
 | Historial | Evento transversal append-only | Simplifica cronología y requiere considerar crecimiento futuro |
@@ -23,6 +23,10 @@ La primera entrega fue aprobada sin observaciones. La devolución de la segunda 
 | Rechazo | Terminal; no existe reapertura manual | Reduce estados y evita una operación indefinida fuera del MVP |
 | Referencia | `ref-nfkd-v1` y desempate determinista | Hace reproducible la explicación sin alterar elegibilidad |
 | Selección de plantilla | La carga envía `template_id`; nombre y versión solo se muestran desde catálogo | Evita resolver ambiguamente varias versiones activas con el mismo nombre |
+| Cero válidos | `PROCESADO_SIN_VALIDOS` para estructura reconocida procesada sin filas válidas | Separa resultado de negocio de estructura desconocida o fallo técnico |
+| Procedencia | XOR explícito `LOTE|REVERSION` con una sola FK aplicable | Evita inferencias por nulabilidad y reconstruye cada disparador |
+| Evaluación | SHA-256 encuadrado + `version_regla` identifica una evaluación | Suprime rechazos y pareja revertida idénticos sin impedir una nueva evaluación justificada |
+| Reversión | Recomparación y auditoría en la misma transacción, con locks globales por registro `id ASC` | Evita ventanas parciales y deadlocks; aumenta brevemente la espera |
 
 ## Supuestos por validar
 

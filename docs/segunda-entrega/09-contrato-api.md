@@ -43,7 +43,7 @@ Login nunca informa si el email existe. El token y su almacenamiento se definir�
 {"id":31,"status":"PROCESSED_WITH_ERRORS","requested_template_id":17,"template":{"id":17,"name":"bank","version":1},"file_name":"movimientos.csv","received_at":"2026-05-01T12:00:00Z"}
 ```
 
-La implementación puede responder cuando termina el procesamiento síncrono aunque conserve `202` como aceptación del intento. Un `template_id` inexistente, inactivo o incompatible persiste lote `FAILED`, conserva el ID recibido en `plantilla_solicitada`, deja `plantilla_id NULL` y agrega un error `UNKNOWN_TEMPLATE` de alcance `LOTE`, consultable por `/errors`. Todo primer lote no `DUPLICATE`, incluido ese `FAILED`, reserva los bytes; cualquier repetición posterior produce `DUPLICATE` con `original_batch_id` y sin filas. Errores: 400 multipart/CSV ilegible, 401, 404 fuente, 409 conflicto de catálogo, 422 tipo/archivo. Cubre RF-02–RF-06.
+La implementación puede responder cuando termina el procesamiento síncrono aunque conserve `202`. Una estructura reconocida procesada por completo con `totals.total_rows = totals.invalid_rows > 0` y `totals.valid_rows = 0` devuelve `PROCESSED_WITHOUT_VALID_ROWS`; mezcla usa `PROCESSED_WITH_ERRORS`. Plantilla desconocida, estructura no interpretable y fallo técnico usan `FAILED` con `UNKNOWN_TEMPLATE`, `INVALID_FILE_STRUCTURE` o `PROCESSING_FAILED`, sin filas procesadas. `FAILED` conserva intento/error pero no reserva huella, por lo que los mismos bytes pueden reenviarse. Un conflicto de reserva crea directamente `DUPLICATE` terminal con `original_batch_id`, evento y cero filas. Si el dueño concurrente falla, el duplicado no se promociona: hace falta otro envío. Errores HTTP: 400 multipart ilegible, 401, 404 fuente, 409 conflicto, 422 tipo/archivo.
 
 | Método y ruta | Entrada/filtros | Respuesta | Errores | RF |
 |---|---|---|---|---|
@@ -55,7 +55,7 @@ Los estados API en inglés mapean 1:1 a los estados SQL documentados; la tabla d
 
 ## Propuestas
 
-Las propuestas nacen automáticamente cuando un lote termina `PROCESSED` o `PROCESSED_WITH_ERRORS`. Cada registro nuevo elegible se compara con todos los pendientes opuestos, incluidos lotes anteriores. Un lote `FAILED` o `DUPLICATE` no dispara comparación.
+Las propuestas nacen automáticamente cuando un lote termina `PROCESSED` o `PROCESSED_WITH_ERRORS`, y durante una reversión. Cada registro habilitado se compara con pendientes opuestos históricos. `PROCESSED_WITHOUT_VALID_ROWS`, `FAILED` y `DUPLICATE` no disparan comparación.
 
 `GET /api/v1/proposals` acepta `status?`, `batch_id?`, `page`, `page_size`; ordena por `exact_match DESC`, `reference_score DESC`, `absolute_day_difference ASC`, `movement_id ASC`, `receipt_id ASC`. Devuelve ítems resumidos con IDs, fechas, montos, estado, score y versiones. RF-08, RF-09.
 
@@ -65,10 +65,11 @@ Las propuestas nacen automáticamente cuando un lote termina `PROCESSED` o `PROC
 {
   "id": 81,
   "status": "GENERATED",
+  "evaluation_fingerprint": "sha256:base64url",
   "movement": {"record_id": 11, "batch_id": 3, "date": "2026-04-10", "amount": "1500.00", "currency": "ARS", "reference_original": "FACTURA 100"},
   "receipt": {"record_id": 24, "batch_id": 7, "date": "2026-04-11", "amount": "1500.00", "currency": "ARS", "reference_original": "Factura-100"},
   "ranking": {"exact_match": true, "reference_score": "1.0000", "day_difference": 1, "normalizer_version": "ref-nfkd-v1", "rule_version": "match-v1", "movement_normalized": "FACTURA 100", "receipt_normalized": "FACTURA 100", "movement_tokens": ["100","FACTURA"], "receipt_tokens": ["100","FACTURA"]},
-  "origin": {"trigger_batch_id": 7, "generated_at": "2026-04-24T10:00:00Z"},
+  "origin": {"type": "BATCH", "batch_id": 7, "reverted_reconciliation_id": null, "generated_at": "2026-04-24T10:00:00Z"},
   "decision": null
 }
 ```
@@ -82,17 +83,17 @@ Errores: 401, 404. La referencia explica y ordena; ARS, monto exacto y fecha ±3
 | `POST /api/v1/proposals/{proposal_id}/confirm` | JSON vacío `{}` | `200 {proposal:{id,status:"CONFIRMED",decided_by,decided_at},reconciliation:{id,status:"ACTIVE"}}` | 401, 404, 409 estado/carrera, 422 inelegible | RF-10 |
 | `POST /api/v1/proposals/{proposal_id}/reject` | JSON `{reason}` no vacío | `200 {id,status:"REJECTED",reason,decided_by,decided_at}` | 401, 404, 409 terminal, 422 motivo | RF-11 |
 
-Generar y confirmar comparten protocolo: dentro de la transacción bloquean ambos `registro_importado` con `SELECT ... FOR UPDATE ORDER BY id`, y luego revalidan. Generar recibe `409` si algún extremo ya tiene conciliación `ACTIVE`. Confirmar primero lee sin lock los IDs inmutables de la pareja, bloquea ambos registros por ID ascendente, después bloquea la propuesta y revalida que siga `GENERATED`; entonces la cambia a `CONFIRMED`, crea la conciliación y deja que el trigger caduque las demás `GENERATED` incompatibles antes del commit. Este orden global es obligatorio para evitar deadlocks. Los estados terminales, la pareja y la evaluación son inmutables. La misma pareja solo se evalúa otra vez ante cambios relevantes de datos o de `rule_version`; no existe una acción pública para cambiar esa decisión terminal.
+Generar y confirmar comparten protocolo: bloquean registros con `SELECT ... FOR UPDATE ORDER BY id` y revalidan. Confirmar lee primero IDs inmutables, bloquea registros, luego propuesta, cambia a `CONFIRMED`, crea conciliación y caduca incompatibles. Pareja, evaluación, procedencia y terminales son inmutables. Pareja + `rule_version` + `evaluation_fingerprint` suprime un rechazo idéntico; datos o regla nuevos permiten otra evaluación, nunca reapertura.
 
 ## Conciliaciones e historial
 
 | Método y ruta | Entrada/filtros | Respuesta | Errores | RF |
 |---|---|---|---|---|
 | `GET /api/v1/reconciliations/{reconciliation_id}` | Path ID | `{id,status,proposal_id,movement,receipt,confirmed_by,confirmed_at,reversal?}` | 401, 404 | RF-10, RF-12 |
-| `POST /api/v1/reconciliations/{reconciliation_id}/reverse` | JSON `{reason}` no vacío | `200 {id,status:"REVERSED",reversal:{reason,actor,occurred_at}}` | 401, 404, 409 ya revertida, 422 motivo | RF-12 |
+| `POST /api/v1/reconciliations/{reconciliation_id}/reverse` | JSON `{reason}` no vacío | `200 {id,status:"REVERSED",reversal:{reason,actor,occurred_at},generated_proposals:[{id,origin:{type:"REVERSAL",reverted_reconciliation_id}}]}` | 401, 404, 409 repetición/carrera, 422 motivo | RF-12 |
 | `GET /api/v1/history` | `target_type?,target_id?,event_type?,from?,to?,page,page_size` | Lista por `occurred_at DESC,id DESC` de `{id,event_type,target,actor?,reason?,data,occurred_at}` | 400, 401, 404 | RF-13 |
 
-Revertir conserva conciliación y propuesta, libera ambos extremos y registra motivo, actor y fecha. No borra eventos. `history` puede reconstruir origen del lote, validaciones, generación, decisión y reversión.
+Revertir lee IDs inmutables, reúne candidatos y bloquea globalmente todos los `registro_importado` por `id ASC`; después bloquea la conciliación y revalida `ACTIVE`. En una única transacción la marca `REVERSED`, libera extremos, recompara inmediatamente, omite rechazos y la pareja recién revertida con iguales datos/regla, crea propuestas nuevas con origen `REVERSAL` y agrega auditoría. Un cambio relevante o `rule_version` nuevo permite que esa pareja reaparezca. Cualquier error hace rollback total; terminales no cambian.
 
 ## Normalización y ranking canónicos
 

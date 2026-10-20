@@ -129,13 +129,13 @@ Las conciliaciones relacionan movimientos, registros, propuestas, decisiones y e
 
 La secuencia se ajustará al calendario final de la materia y a los hallazgos del relevamiento.
 
-| Secuencia | Etapa | Estado factual | Entregable previsto |
-|---:|---|---|---|
-| 1 | Relevamiento y validación | **No iniciado** | Entrevistas, flujo revisado y necesidades priorizadas |
-| 2 | Formatos y diseño | **Documentado** | Formatos ficticios, modelo relacional, reglas y wireframes |
-| 3 | Prototipo del flujo | **No iniciado** | Recorrido MVP ejecutable con datos de prueba acordados |
-| 4 | Verificación del producto | **No iniciada** | Casos funcionales, pruebas técnicas y limitaciones |
-| 5 | Presentación | **No iniciada** | Demostración y documentación final |
+| Secuencia | Etapa | Responsables | Estado factual | Entregable previsto |
+|---:|---|---|---|---|
+| 1 | Relevamiento y validación | Hugo y Farid | **No iniciado** | Entrevistas, flujo revisado y necesidades priorizadas |
+| 2 | Formatos y diseño | Hugo y Farid | **Documentado** | Formatos ficticios, modelo relacional, reglas y wireframes |
+| 3 | Prototipo del flujo | Hugo y Farid | **No iniciado** | Recorrido MVP ejecutable con datos de prueba acordados |
+| 4 | Verificación del producto | Hugo y Farid | **No iniciada** | Casos funcionales, pruebas técnicas y limitaciones |
+| 5 | Presentación | Hugo y Farid | **No iniciada** | Demostración y documentación final |
 
 Cada etapa reservará tiempo para aprendizaje, integración y revisión conjunta. No se incorporará un nice to have mientras falte un criterio de finalización del MVP esencial.
 

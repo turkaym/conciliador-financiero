@@ -1,12 +1,12 @@
-# Frontend documentary skeleton
+# Esqueleto documental del frontend
 
-This directory documents the planned UI feature boundaries. It contains no React code, package manifest, dependencies, build output, or container image.
+Este directorio documenta los límites funcionales de la UI prevista. No contiene código React, manifiestos, dependencias, resultados de build ni imagen de contenedor.
 
-## Boundary
+## Límite
 
-- **Input:** user actions and `/api/v1` responses.
-- **Output:** accessible views and explicit commands to the API.
-- **Dependency:** modules depend on the API contract, never on database structures.
-- **Exclusions:** application bootstrap, state library, styling system, and executable tests.
+- **Entrada:** acciones del usuario y respuestas de `/api/v1`.
+- **Salida:** vistas accesibles y comandos explícitos a la API.
+- **Dependencia:** los módulos dependen del contrato API, nunca de estructuras de base de datos.
+- **Exclusiones:** arranque de aplicación, biblioteca de estado, sistema de estilos y pruebas ejecutables.
 
-See [`src/modules/`](src/modules/) and the [wireframes](../docs/segunda-entrega/wireframes/README.md).
+Consulte [`src/modules/`](src/modules/) y los [wireframes](../docs/segunda-entrega/wireframes/README.md).
