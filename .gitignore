@@ -19,6 +19,7 @@ build/
 coverage/
 
 # Editors and operating systems
+.atl/
 .idea/
 .vscode/
 .DS_Store
