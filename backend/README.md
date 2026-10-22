@@ -4,6 +4,8 @@ Backend modular de FastAPI para el MVP de conciliacion financiera. El acceso usa
 un usuario pre-registrado y tokens JWT Bearer. MVP-03 agrega catálogos activos y
 recepción autenticada de lotes CSV. MVP-04 procesa las filas contra la plantilla
 seleccionada, persiste registros válidos y conserva errores deterministas por lote.
+MVP-05 agrega la consulta autenticada de pendientes con filtros de tipo, fuente,
+lote, estado y ventana de fechas.
 
 ## Requisitos
 
@@ -49,4 +51,5 @@ backend\.venv\Scripts\python.exe -m pytest backend/tests -q
 Las pruebas de acceso cubren login valido, rechazo uniforme de credenciales
 invalidas y validacion basica de tokens protegidos. Las pruebas de MVP-03 y MVP-04
 cubren catálogos, recepción/consulta de lotes, validación de fixtures aprobados,
-errores ordenados, duplicados y límites de autenticación y request.
+errores ordenados, duplicados, consultas pendientes ordenadas/paginadas y límites de
+autenticación y request.

@@ -84,7 +84,7 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: valid rows persist; invalid rows produce deterministic row-level errors without corrupting the batch.
   - Checks: approved CSV fixtures plus malformed-file cases.
 
-- [ ] **MVP-05 — Pending transaction queries**
+- [x] **MVP-05 — Pending transaction queries**
   - Route: delegated direct.
   - Trigger evidence: query service, API route, serialization, and tests.
   - Acceptance: unreconciled bank and collection transactions can be filtered and listed.
@@ -146,7 +146,9 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-03 checks passed: focused backend API tests, full backend pytest, schema/seed SQL parsing, and Compose configuration validation.
 - 2026-10-22: MVP-04 implemented synchronous parsing of stored original bytes, exact template header validation, typed movement/receipt persistence, deterministic duplicate and row-level validation errors, owner-scoped error inspection, and terminal batch status/totals.
 - 2026-10-22: MVP-04 checks passed: backend pytest (16 passed), Python compilation, Compose configuration validation, SQL boundary inspection, and approved CSV fixture coverage for valid, invalid, duplicate, and structurally invalid files.
+- 2026-10-22: MVP-05 implemented with owner-scoped pending queries for bank and collection records, type/source/batch/state/date filters, stable creation-order pagination, original-reference serialization, and active-reconciliation exclusion.
+- 2026-10-22: MVP-05 checks passed: focused query tests (3 passed), full backend pytest (19 passed), Python compilation, Docker Compose configuration validation, PostgreSQL 16 schema initialization in an isolated container, and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
 
 ## Current Next Step
 
-MVP-04 is complete. Continue with MVP-05 — pending transaction queries.
+MVP-05 is complete. Continue with MVP-06 — matching engine and proposal generation.

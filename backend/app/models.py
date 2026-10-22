@@ -115,6 +115,17 @@ class Receipt(Base):
     category: Mapped[str] = mapped_column("clase", String(20), nullable=False)
 
 
+class Reconciliation(Base):
+    __tablename__ = "conciliacion"
+
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    proposal_id: Mapped[int] = mapped_column("propuesta_id", BigInteger, nullable=False)
+    movement_id: Mapped[int] = mapped_column("movimiento_id", BigInteger, nullable=False)
+    receipt_id: Mapped[int] = mapped_column("comprobante_id", BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column("estado", String(20), nullable=False)
+    confirmed_by: Mapped[int] = mapped_column("confirmada_por", BigInteger, nullable=False)
+
+
 class ValidationError(Base):
     __tablename__ = "error_validacion"
 
