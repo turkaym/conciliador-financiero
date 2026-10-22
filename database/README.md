@@ -9,7 +9,7 @@
 3. PostgreSQL ejecuta el montaje de solo lectura `/docker-entrypoint-initdb.d/001-schema.sql` únicamente al inicializar el directorio de datos.
 4. Use `docker compose down -v` solo para el volumen descartable de este proyecto cuando necesite una inicialización limpia.
 
-La contraseña predeterminada de Compose es solo local y no debe reutilizarse fuera de este entorno académico. El esquema crea **12 tablas, 106 columnas, 109 constraints, 52 índices y 8 triggers** de integridad. No carga usuarios, catálogos, plantillas ni datos de negocio.
+La contraseña predeterminada de Compose es solo local y no debe reutilizarse fuera de este entorno académico. El esquema crea **12 tablas, 106 columnas, 109 constraints, 52 índices y 8 triggers** de integridad. `seed.sql` agrega o reactiva de forma determinista el usuario demo `demo@conciliador.local`; su contraseña local documentada es `Demo1234!`.
 
 ## Fuentes de verdad
 

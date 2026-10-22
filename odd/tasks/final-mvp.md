@@ -60,7 +60,7 @@ The repository contains an approved design and database model but no executable 
 
 ## Tasks
 
-- [ ] **MVP-01 — Backend bootstrap, database, authentication, and demo seed**
+- [x] **MVP-01 — Backend bootstrap, database, authentication, and demo seed**
   - Route: delegated direct.
   - Trigger evidence: coordinated implementation across multiple non-trivial backend, database, test, and configuration files.
   - Acceptance: `/health` is healthy; demo credentials receive a valid token; invalid credentials are rejected; PostgreSQL schema and seed initialize deterministically.
@@ -137,7 +137,10 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-21: repository mapped; approved design is implementation-ready, but no product code or manifests exist.
 - 2026-10-21: feature branch `feat/final-mvp` created from `19cd66a`.
 - 2026-10-21: maintainer selected the `stacked-to-main` chain strategy.
+- 2026-10-22: MVP-01 implemented with FastAPI health/login, JWT validation dependency, PostgreSQL 16 compose initialization, deterministic demo seed, and focused tests.
+- 2026-10-22: MVP-01 checks passed: backend pytest, Compose configuration validation, and import/startup smoke check.
+- 2026-10-22: Isolated PostgreSQL 16 initialization completed successfully; schema and seed ran in order, created 12 public tables, and produced the active demo user. The standard host-port startup was unavailable because `127.0.0.1:5432` was already occupied.
 
 ## Current Next Step
 
-Implement MVP-01 with tests before implementation where a deterministic RED is meaningful.
+Implement MVP-02 — frontend shell and login flow.

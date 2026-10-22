@@ -18,6 +18,9 @@ class FakeSession:
     def scalar(self, statement: object) -> User | None:
         return self.user
 
+    def get(self, model: type[User], user_id: int) -> User | None:
+        return self.user if user_id == self.user.id else None
+
 
 @pytest.fixture(scope="session")
 def demo_user() -> User:
