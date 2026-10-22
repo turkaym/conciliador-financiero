@@ -147,6 +147,25 @@ class Reconciliation(Base):
     receipt_id: Mapped[int] = mapped_column("comprobante_id", BigInteger, nullable=False)
     status: Mapped[str] = mapped_column("estado", String(20), nullable=False)
     confirmed_by: Mapped[int] = mapped_column("confirmada_por", BigInteger, nullable=False)
+    confirmed_at: Mapped[datetime] = mapped_column("confirmada_en", DateTime(timezone=True), nullable=False, server_default=func.now())
+    reversed_by: Mapped[int | None] = mapped_column("revertida_por", BigInteger)
+    reversed_at: Mapped[datetime | None] = mapped_column("revertida_en", DateTime(timezone=True))
+    reversal_reason: Mapped[str | None] = mapped_column("motivo_reversion", Text)
+
+
+class EventHistory(Base):
+    __tablename__ = "evento_historial"
+
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    user_id: Mapped[int | None] = mapped_column("usuario_id", BigInteger)
+    batch_id: Mapped[int | None] = mapped_column("lote_id", BigInteger)
+    record_id: Mapped[int | None] = mapped_column("registro_id", BigInteger)
+    proposal_id: Mapped[int | None] = mapped_column("propuesta_id", BigInteger)
+    reconciliation_id: Mapped[int | None] = mapped_column("conciliacion_id", BigInteger)
+    event_type: Mapped[str] = mapped_column("tipo", String(60), nullable=False)
+    reason: Mapped[str | None] = mapped_column("motivo", Text)
+    data: Mapped[dict] = mapped_column("datos", JSON, nullable=False, default=dict)
+    occurred_at: Mapped[datetime] = mapped_column("ocurrido_en", DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class ValidationError(Base):

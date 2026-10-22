@@ -8,6 +8,8 @@ MVP-05 agrega la consulta autenticada de pendientes con filtros de tipo, fuente,
 lote, estado y ventana de fechas.
 MVP-06 agrega matching determinista y propuestas persistidas, sin confirmar ni
 conciliar automáticamente los registros.
+MVP-07 agrega decisiones humanas atómicas, conciliaciones activas e historial
+consultable con alcance por propietario.
 
 ## Requisitos
 

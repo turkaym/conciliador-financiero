@@ -96,7 +96,7 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: only ARS, exact amount, and ±3-day candidates qualify; NFKD/Jaccard reference similarity ranks candidates but never changes eligibility.
   - Checks: unit tests for eligibility, ranking, duplicates, and no-match cases.
 
-- [ ] **MVP-07 — Proposal decision and history**
+- [x] **MVP-07 — Proposal decision and history**
   - Route: delegated direct.
   - Trigger evidence: transactional state changes, API routes, queries, and tests.
   - Acceptance: proposals can be confirmed or rejected exactly once and confirmed reconciliations appear in history.
@@ -150,7 +150,10 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-05 checks passed: focused query tests (3 passed), full backend pytest (19 passed), Python compilation, Docker Compose configuration validation, PostgreSQL 16 schema initialization in an isolated container, and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
 - 2026-10-22: MVP-06 implemented with NFKD reference normalization, Jaccard ranking, mandatory ARS/exact-amount/inclusive ±3-day eligibility, deterministic ID tie-breaking, persisted proposal fingerprints, automatic generation after eligible batches, idempotent duplicate suppression, and owner-scoped proposal list/detail endpoints.
 - 2026-10-22: MVP-06 checks passed: focused proposal tests (5 passed), full backend pytest (24 passed), Python compilation, Docker Compose configuration validation, SQL proposal-table/index inspection, and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
+- 2026-10-22: MVP-07 implemented with atomic owner-scoped proposal confirmation/rejection, terminal transition protection, pending-record conflict detection, active reconciliation creation, append-only decision events, reconciliation detail, and history listing. Rejection restores endpoints to `PENDIENTE` when no other generated proposal remains.
+- 2026-10-22: MVP-07 checks passed: focused integration tests (4 passed), full backend pytest (28 passed), Python compilation, Docker Compose configuration validation, isolated PostgreSQL 16 schema/seed initialization (12 public tables), and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
+- 2026-10-22: MVP-07 work-unit commit: pending commit on `feat/final-mvp`.
 
 ## Current Next Step
 
-MVP-06 is complete. Continue with MVP-07 — proposal decision and history.
+MVP-07 is complete. Continue with MVP-08 — atomic reconciliation reversal.
