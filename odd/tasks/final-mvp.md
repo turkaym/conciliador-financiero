@@ -158,7 +158,7 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-08 work-unit commit: `3fdaefd` (`feat(reconciliation): add atomic reversal`).
 - 2026-10-22: MVP-09 implemented with bearer-authenticated catalog selection, approved MOVIMIENTO/COMPROBANTE CSV upload, backend-driven batch status/totals and row-level validation errors, pending movement/comprobante table, loading/error/empty states, and safe 401 logout redirection.
 - 2026-10-22: MVP-09 checks passed: frontend Vitest suite (9 tests), TypeScript project build/type check, and Vite production build. Tests cover both catalog types, multipart field selection, invalid-row reporting, pending records, empty/error states, logout, session persistence, expiry, and protected navigation.
-- 2026-10-22: MVP-09 work-unit commit: recorded in the feature branch commit for this task.
+- 2026-10-22: MVP-09 work-unit commit: `143914a` (`feat(frontend): add import validation and pending workflows`).
 
 ## Current Next Step
 
