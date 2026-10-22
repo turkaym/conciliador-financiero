@@ -147,4 +147,4 @@ The repository contains an approved design and database model but no executable 
 
 ## Current Next Step
 
-Implement MVP-03 — catalogs and batch intake.
+Implement MVP-04 — CSV parsing, validation, and error reporting.
