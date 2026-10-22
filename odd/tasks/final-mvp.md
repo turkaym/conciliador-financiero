@@ -164,4 +164,4 @@ The repository contains an approved design and database model but no executable 
 
 ## Current Next Step
 
-MVP-09 is complete. Continue with MVP-10 — proposal, history, and reversal UI.
+MVP-10 is complete. Continue with MVP-11 — deployment and demo environment.
