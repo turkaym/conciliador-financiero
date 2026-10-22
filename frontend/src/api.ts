@@ -65,6 +65,49 @@ export interface PendingItem {
   cause: string;
 }
 
+export interface ProposalSummary {
+  id: number;
+  status: string;
+  movement_id: number;
+  receipt_id: number;
+  exact_match: boolean;
+  reference_score: string;
+  day_difference: number;
+  rule_version: string;
+  normalizer_version: string;
+}
+
+export interface ProposalDetail extends ProposalSummary {
+  evaluation_fingerprint: string;
+  movement: { record_id: number; batch_id: number; date: string; amount: string; currency: string; reference_original: string | null };
+  receipt: { record_id: number; batch_id: number; date: string; amount: string; currency: string; reference_original: string | null };
+  ranking: { exact_match: boolean; reference_score: string; day_difference: number; normalizer_version: string; rule_version: string; movement_normalized: string; receipt_normalized: string; movement_tokens: string[]; receipt_tokens: string[] };
+  origin: Record<string, unknown>;
+  decision: { reason?: string | null; decided_at?: string } | null;
+  created_at: string;
+}
+
+export interface HistoryItem {
+  id: number;
+  event_type: string;
+  target: { type: string; id: number };
+  actor: number | null;
+  reason: string | null;
+  data: Record<string, unknown>;
+  occurred_at: string;
+}
+
+export interface ReconciliationDetail {
+  id: number;
+  status: string;
+  proposal_id: number;
+  movement: Record<string, unknown>;
+  receipt: Record<string, unknown>;
+  confirmed_by: number;
+  confirmed_at: string;
+  reversal: { reason: string; actor: number; occurred_at: string } | null;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
@@ -132,5 +175,26 @@ export const api = {
   },
   getPending(accessToken: string) {
     return request<{ page: number; page_size: number; total: number; items: PendingItem[] }>("/api/v1/pending?page_size=100", undefined, accessToken);
+  },
+  getProposals(accessToken: string) {
+    return request<{ page: number; page_size: number; total: number; items: ProposalSummary[] }>("/api/v1/proposals?page_size=100", undefined, accessToken);
+  },
+  getProposal(accessToken: string, proposalId: number) {
+    return request<ProposalDetail>(`/api/v1/proposals/${proposalId}`, undefined, accessToken);
+  },
+  confirmProposal(accessToken: string, proposalId: number) {
+    return request<{ proposal: { id: number; status: string }; reconciliation: { id: number; status: string } }>(`/api/v1/proposals/${proposalId}/confirm`, { method: "POST" }, accessToken);
+  },
+  rejectProposal(accessToken: string, proposalId: number, reason: string) {
+    return request<{ id: number; status: string; reason: string }>(`/api/v1/proposals/${proposalId}/reject`, { method: "POST", body: JSON.stringify({ reason }) }, accessToken);
+  },
+  getHistory(accessToken: string) {
+    return request<{ page: number; page_size: number; total: number; items: HistoryItem[] }>("/api/v1/history?page_size=100", undefined, accessToken);
+  },
+  getReconciliation(accessToken: string, reconciliationId: number) {
+    return request<ReconciliationDetail>(`/api/v1/reconciliations/${reconciliationId}`, undefined, accessToken);
+  },
+  reverseReconciliation(accessToken: string, reconciliationId: number, reason: string) {
+    return request<{ id: number; status: string; reversal: Record<string, unknown>; generated_proposals: { id: number }[] }>(`/api/v1/reconciliations/${reconciliationId}/reverse`, { method: "POST", body: JSON.stringify({ reason }) }, accessToken);
   },
 };

@@ -114,7 +114,7 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: users can upload both approved CSV types, inspect validation results, and browse pending records.
   - Checks: component tests and production build.
 
-- [ ] **MVP-10 — Proposal, history, and reversal UI**
+- [x] **MVP-10 — Proposal, history, and reversal UI**
   - Route: delegated direct.
   - Trigger evidence: multiple workflow pages, mutations, state handling, and tests.
   - Acceptance: users can inspect, confirm, reject, and reverse records through the complete UI journey.
@@ -159,6 +159,8 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-09 implemented with bearer-authenticated catalog selection, approved MOVIMIENTO/COMPROBANTE CSV upload, backend-driven batch status/totals and row-level validation errors, pending movement/comprobante table, loading/error/empty states, and safe 401 logout redirection.
 - 2026-10-22: MVP-09 checks passed: frontend Vitest suite (9 tests), TypeScript project build/type check, and Vite production build. Tests cover both catalog types, multipart field selection, invalid-row reporting, pending records, empty/error states, logout, session persistence, expiry, and protected navigation.
 - 2026-10-22: MVP-09 work-unit commit: `143914a` (`feat(frontend): add import validation and pending workflows`).
+- 2026-10-22: MVP-10 implemented with shared bearer-authenticated proposal, history, reconciliation detail, confirmation, rejection, and reversal API workflows; accessible protected navigation; loading, empty, error, conflict, success, and required-reason states; and mutation submission guards.
+- 2026-10-22: MVP-10 checks passed: frontend Vitest suite (13 tests), TypeScript project build/type check, Vite production build, and `git diff --check`. Tests cover proposal loading/detail, confirmation, rejection, stale reversal conflict, duplicate submission prevention, reversal reason validation, history navigation, and 401 logout protection.
 
 ## Current Next Step
 

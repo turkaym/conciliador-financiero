@@ -2,6 +2,8 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-r
 import { LoginForm, useAuth } from "./auth";
 import { ImportPage } from "./modules/imports/ImportPage";
 import { PendingPage } from "./modules/pending/PendingPage";
+import { ProposalDetailPage, ProposalPage } from "./modules/proposals/ProposalPage";
+import { HistoryPage, ReconciliationDetailPage } from "./modules/reconciliation_history/HistoryPage";
 import "./styles.css";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -28,11 +30,11 @@ function AppShell() {
           <button className="text-button" type="button" onClick={handleLogout}>Cerrar sesión</button>
         </div>
       </header>
-        <nav className="main-nav" aria-label="Navegación principal"><Link to="/">Importar</Link><Link to="/pending">Pendientes</Link></nav>
+        <nav className="main-nav" aria-label="Navegación principal"><Link to="/">Importar</Link><Link to="/pending">Pendientes</Link><Link to="/proposals">Propuestas</Link><Link to="/history">Historial</Link></nav>
         <main className="workspace">
          <p className="eyebrow">Panel de trabajo</p>
          <h1>Bienvenido al conciliador</h1>
-         <Routes><Route path="/" element={<ImportPage />} /><Route path="/pending" element={<PendingPage />} /></Routes>
+          <Routes><Route path="/" element={<ImportPage />} /><Route path="/pending" element={<PendingPage />} /><Route path="/proposals" element={<ProposalPage />} /><Route path="/proposals/:proposalId" element={<ProposalDetailPage />} /><Route path="/history" element={<HistoryPage />} /><Route path="/history/reconciliations/:reconciliationId" element={<ReconciliationDetailPage />} /></Routes>
       </main>
     </div>
   );
