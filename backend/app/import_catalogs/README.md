@@ -6,3 +6,7 @@
 - **RF:** RF-02.
 - **Dependencias:** solo interfaces de lectura de catálogos.
 - **Exclusiones:** integraciones, edición de plantillas y mapeo manual.
+
+MVP-03 exposes active sources and versioned templates through authenticated
+catalog endpoints. API types are `MOVIMIENTO` and `COMPROBANTE`; database source
+types remain the approved `BANCO` and `COMPROBANTES` values.

@@ -72,7 +72,7 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: the demo user can log in, session state is handled, and protected navigation rejects unauthenticated access.
   - Checks: frontend unit tests and production build passed.
 
-- [ ] **MVP-03 — Catalogs and batch intake**
+- [x] **MVP-03 — Catalogs and batch intake**
   - Route: delegated direct.
   - Trigger evidence: API, persistence, and tests span multiple non-trivial files.
   - Acceptance: approved sources/templates are listed and a CSV batch can be submitted and inspected.
@@ -142,6 +142,8 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: Isolated PostgreSQL 16 initialization completed successfully; schema and seed ran in order, created 12 public tables, and produced the active demo user. The standard host-port startup was unavailable because `127.0.0.1:5432` was already occupied.
 - 2026-10-22: MVP-02 implemented with the React/Vite/TypeScript shell, shared auth API client, bearer session persistence with expiry handling, accessible login/error states, logout, and protected navigation redirect.
 - 2026-10-22: MVP-02 checks passed: five frontend authentication tests and the Vite production build.
+- 2026-10-22: MVP-03 implemented authenticated source/template catalogs and transactional CSV batch intake with exact file bytes and ownership-scoped inspection; row parsing remains deferred to MVP-04.
+- 2026-10-22: MVP-03 checks passed: focused backend API tests, full backend pytest, schema/seed SQL parsing, and Compose configuration validation.
 
 ## Current Next Step
 
