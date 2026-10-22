@@ -154,9 +154,9 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-07 checks passed: focused integration tests (4 passed), full backend pytest (28 passed), Python compilation, Docker Compose configuration validation, isolated PostgreSQL 16 schema/seed initialization (12 public tables), and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
 - 2026-10-22: MVP-07 work-unit commit: `ecd1522` (`feat(reconciliation): add proposal decisions and history`).
 - 2026-10-22: MVP-08 implemented with owner-scoped atomic reversal, ascending imported-record locks followed by reconciliation locking, endpoint release, deterministic reversal-origin proposal regeneration, append-only reversal history, and duplicate/stale-state protection.
-- 2026-10-22: MVP-08 checks passed: focused reversal integration tests (3 passed), including regenerated alternatives, released endpoint states, audit/detail/history evidence, duplicate and reason validation, owner scope, and stale-state conflict; Python compilation and diff-whitespace validation passed. Full backend, Compose, PostgreSQL schema, and concurrency checks remain part of closeout verification.
-- 2026-10-22: MVP-08 work-unit commit: this task-closeout commit (`feat(reconciliation): add atomic reversal`).
+- 2026-10-22: MVP-08 checks passed: focused reversal integration tests (3 passed), full backend pytest (31 passed), Python compilation, Compose validation, PostgreSQL 16 schema/seed initialization, and diff-whitespace validation. The existing Starlette/httpx deprecation warning remains; no multi-session PostgreSQL stress test was run.
+- 2026-10-22: MVP-08 work-unit commit: `3fdaefd` (`feat(reconciliation): add atomic reversal`).
 
 ## Current Next Step
 
-MVP-07 is complete. Continue with MVP-08 — atomic reconciliation reversal.
+MVP-08 is complete. Continue with MVP-09 — import, validation, and pending UI.
