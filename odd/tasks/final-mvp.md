@@ -102,7 +102,7 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: proposals can be confirmed or rejected exactly once and confirmed reconciliations appear in history.
   - Checks: integration tests for valid and conflicting transitions.
 
-- [ ] **MVP-08 — Atomic reconciliation reversal**
+- [x] **MVP-08 — Atomic reconciliation reversal**
   - Route: delegated direct.
   - Trigger evidence: transactional reversal, proposal regeneration behavior, and tests.
   - Acceptance: reversal restores both transactions to pending, records audit data, and prevents duplicate reversal.
@@ -153,6 +153,9 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-07 implemented with atomic owner-scoped proposal confirmation/rejection, terminal transition protection, pending-record conflict detection, active reconciliation creation, append-only decision events, reconciliation detail, and history listing. Rejection restores endpoints to `PENDIENTE` when no other generated proposal remains.
 - 2026-10-22: MVP-07 checks passed: focused integration tests (4 passed), full backend pytest (28 passed), Python compilation, Docker Compose configuration validation, isolated PostgreSQL 16 schema/seed initialization (12 public tables), and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
 - 2026-10-22: MVP-07 work-unit commit: `ecd1522` (`feat(reconciliation): add proposal decisions and history`).
+- 2026-10-22: MVP-08 implemented with owner-scoped atomic reversal, ascending imported-record locks followed by reconciliation locking, endpoint release, deterministic reversal-origin proposal regeneration, append-only reversal history, and duplicate/stale-state protection.
+- 2026-10-22: MVP-08 checks passed: focused reversal integration tests (3 passed), including regenerated alternatives, released endpoint states, audit/detail/history evidence, duplicate and reason validation, owner scope, and stale-state conflict; Python compilation and diff-whitespace validation passed. Full backend, Compose, PostgreSQL schema, and concurrency checks remain part of closeout verification.
+- 2026-10-22: MVP-08 work-unit commit: this task-closeout commit (`feat(reconciliation): add atomic reversal`).
 
 ## Current Next Step
 

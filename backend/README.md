@@ -9,7 +9,8 @@ lote, estado y ventana de fechas.
 MVP-06 agrega matching determinista y propuestas persistidas, sin confirmar ni
 conciliar automáticamente los registros.
 MVP-07 agrega decisiones humanas atómicas, conciliaciones activas e historial
-consultable con alcance por propietario.
+consultable con alcance por propietario. MVP-08 agrega reversión atómica con
+recomparación, auditoría y protección contra repetición.
 
 ## Requisitos
 

@@ -8,6 +8,10 @@ class RejectionRequest(BaseModel):
     reason: str
 
 
+class ReversalRequest(BaseModel):
+    reason: str
+
+
 class DecisionResponse(BaseModel):
     id: int
     status: str
@@ -35,6 +39,18 @@ class ReconciliationDetail(BaseModel):
     confirmed_by: int
     confirmed_at: datetime
     reversal: dict[str, object] | None = None
+
+
+class GeneratedProposalResponse(BaseModel):
+    id: int
+    origin: dict[str, object]
+
+
+class ReversalResponse(BaseModel):
+    id: int
+    status: str
+    reversal: dict[str, object]
+    generated_proposals: list[GeneratedProposalResponse]
 
 
 class HistoryItem(BaseModel):

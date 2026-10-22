@@ -8,8 +8,8 @@ from app.access.security import get_current_user
 from app.database import get_db
 from app.errors import ApiError
 from app.models import BankMovement, EventHistory, ImportBatch, ImportedRecord, Receipt, Reconciliation, ReconciliationProposal, User
-from app.reconciliation.schemas import ConfirmationResponse, DecisionResponse, HistoryItem, HistoryList, ReconciliationDetail, ReconciliationResponse, RejectionRequest
-from app.reconciliation.service import confirm_proposal, owned_proposal, reject_proposal
+from app.reconciliation.schemas import ConfirmationResponse, DecisionResponse, GeneratedProposalResponse, HistoryItem, HistoryList, ReconciliationDetail, ReconciliationResponse, RejectionRequest, ReversalRequest, ReversalResponse
+from app.reconciliation.service import confirm_proposal, owned_proposal, reject_proposal, reverse_reconciliation
 
 router = APIRouter(tags=["reconciliation"])
 
@@ -51,6 +51,18 @@ def get_reconciliation(reconciliation_id: int, db: Annotated[Session, Depends(ge
         receipt={"record_id": reconciliation.receipt_id, "date": receipt.date, "amount": str(receipt.amount), "currency": receipt.currency},
         confirmed_by=reconciliation.confirmed_by, confirmed_at=reconciliation.confirmed_at,
         reversal=None if reconciliation.reversed_at is None else {"reason": reconciliation.reversal_reason, "actor": reconciliation.reversed_by, "occurred_at": reconciliation.reversed_at},
+    )
+
+
+@router.post("/reconciliations/{reconciliation_id}/reverse", response_model=ReversalResponse)
+def reverse(reconciliation_id: int, request: ReversalRequest, db: Annotated[Session, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
+    reconciliation, proposals = reverse_reconciliation(db, reconciliation_id, user.id, request.reason)
+    db.commit()
+    return ReversalResponse(
+        id=reconciliation.id,
+        status=reconciliation.status,
+        reversal={"reason": reconciliation.reversal_reason, "actor": reconciliation.reversed_by, "occurred_at": reconciliation.reversed_at},
+        generated_proposals=[GeneratedProposalResponse(id=proposal.id, origin={"type": "REVERSAL", "reverted_reconciliation_id": reconciliation.id}) for proposal in proposals],
     )
 
 

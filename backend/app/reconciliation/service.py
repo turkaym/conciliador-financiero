@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import ApiError
 from app.models import EventHistory, ImportBatch, ImportedRecord, Reconciliation, ReconciliationProposal
+from app.proposals.service import generate_for_reversal
 
 
 def owned_proposal(db: Session, proposal_id: int, user_id: int) -> ReconciliationProposal | None:
@@ -22,6 +23,12 @@ def _lock_records(db: Session, ids: tuple[int, int]) -> list[ImportedRecord]:
     ).all()
 
 
+def _lock_record_ids(db: Session, ids: set[int]) -> list[ImportedRecord]:
+    return db.scalars(
+        select(ImportedRecord).where(ImportedRecord.id.in_(ids)).order_by(ImportedRecord.id).with_for_update()
+    ).all()
+
+
 def _active_reconciliation(db: Session, record_id: int) -> bool:
     return db.scalar(
         select(Reconciliation.id).where(
@@ -29,6 +36,13 @@ def _active_reconciliation(db: Session, record_id: int) -> bool:
             or_(Reconciliation.movement_id == record_id, Reconciliation.receipt_id == record_id),
         )
     ) is not None
+
+
+def _active_reconciliation_exists(record_id: int):
+    return select(Reconciliation.id).where(
+        Reconciliation.status == "ACTIVA",
+        or_(Reconciliation.movement_id == record_id, Reconciliation.receipt_id == record_id),
+    ).exists()
 
 
 def _event(db: Session, *, user_id: int, proposal_id: int | None = None, reconciliation_id: int | None = None, event_type: str, reason: str | None = None) -> None:
@@ -107,3 +121,60 @@ def reject_proposal(db: Session, proposal_id: int, user_id: int, reason: str) ->
     _event(db, user_id=user_id, proposal_id=proposal.id, event_type="PROPUESTA_RECHAZADA", reason=proposal.decision_reason)
     db.flush()
     return proposal
+
+
+def reverse_reconciliation(db: Session, reconciliation_id: int, user_id: int, reason: str) -> tuple[Reconciliation, list[ReconciliationProposal]]:
+    if not reason.strip():
+        raise ApiError(422, "INVALID_REVERSAL_REASON", "A reversal reason is required")
+
+    owned = db.scalar(
+        select(Reconciliation)
+        .join(ImportedRecord, ImportedRecord.id == Reconciliation.movement_id)
+        .join(ImportBatch, ImportBatch.id == ImportedRecord.batch_id)
+        .where(Reconciliation.id == reconciliation_id, ImportBatch.user_id == user_id)
+    )
+    if owned is None:
+        raise ApiError(404, "RECONCILIATION_NOT_FOUND", "Reconciliation not found")
+
+    endpoint_ids = {owned.movement_id, owned.receipt_id}
+    candidate_ids = set(db.scalars(
+        select(ImportedRecord.id)
+        .join(ImportBatch, ImportBatch.id == ImportedRecord.batch_id)
+        .where(
+            ImportBatch.user_id == user_id,
+            ImportedRecord.status.in_(('PENDIENTE', 'CON_PROPUESTAS')),
+            ~_active_reconciliation_exists(ImportedRecord.id),
+        )
+    ).all())
+    locked_records = _lock_record_ids(db, endpoint_ids | candidate_ids)
+    locked = {record.id: record for record in locked_records}
+
+    reconciliation = db.scalar(
+        select(Reconciliation).where(Reconciliation.id == reconciliation_id).with_for_update()
+    )
+    if reconciliation is None or reconciliation.status != "ACTIVA":
+        raise ApiError(409, "RECONCILIATION_NOT_ACTIVE", "Reconciliation is already reversed")
+    if len(locked_records) < len(endpoint_ids) or any(
+        locked[record_id].status != "CONCILIADO" for record_id in endpoint_ids
+    ):
+        raise ApiError(409, "RECORD_NOT_RECONCILED", "One or more records are no longer reconciled")
+
+    now = datetime.now(timezone.utc)
+    reconciliation.status = "REVERTIDA"
+    reconciliation.reversed_by = user_id
+    reconciliation.reversed_at = now
+    reconciliation.reversal_reason = reason.strip()
+    for record_id in endpoint_ids:
+        locked[record_id].status = "PENDIENTE"
+    db.flush()
+
+    proposals = generate_for_reversal(db, reconciliation, user_id, set(locked))
+    _event(
+        db,
+        user_id=user_id,
+        reconciliation_id=reconciliation.id,
+        event_type="CONCILIACION_REVERTIDA",
+        reason=reconciliation.reversal_reason,
+    )
+    db.flush()
+    return reconciliation, proposals

@@ -31,6 +31,19 @@ def generate_for_batch(db: Session, batch_id: int, owner_id: int) -> list[Reconc
         .where(ImportedRecord.batch_id == batch_id, ImportedRecord.status == "PENDIENTE", ImportBatch.user_id == owner_id)
         .order_by(ImportedRecord.id)
     ).all()
+    generated = _generate_for_records(db, records, owner_id, "LOTE", batch_id, None)
+    db.flush()
+    return generated
+
+
+def _generate_for_records(
+    db: Session,
+    records: list[ImportedRecord],
+    owner_id: int,
+    origin_type: str,
+    origin_batch_id: int | None,
+    reverted_reconciliation_id: int | None,
+) -> list[ReconciliationProposal]:
     movements = {row.record_id: (record, row) for record, row in db.execute(
         select(ImportedRecord, BankMovement).join(BankMovement, BankMovement.record_id == ImportedRecord.id)
         .join(ImportBatch, ImportBatch.id == ImportedRecord.batch_id)
@@ -81,8 +94,9 @@ def generate_for_batch(db: Session, batch_id: int, owner_id: int) -> list[Reconc
                 normalizer_version=NORMALIZER_VERSION,
                 rule_version=RULE_VERSION,
                 evaluation_fingerprint=fingerprint,
-                origin_type="LOTE",
-                origin_batch_id=batch_id,
+                origin_type=origin_type,
+                origin_batch_id=origin_batch_id,
+                reverted_reconciliation_id=reverted_reconciliation_id,
                 reference_score=result.reference_score,
                 exact_match=result.exact_match,
                 day_difference=result.day_difference,
@@ -97,3 +111,22 @@ def generate_for_batch(db: Session, batch_id: int, owner_id: int) -> list[Reconc
                     record.status = "CON_PROPUESTAS"
     db.flush()
     return generated
+
+
+def generate_for_reversal(
+    db: Session,
+    reconciliation: Reconciliation,
+    owner_id: int,
+    locked_record_ids: set[int],
+) -> list[ReconciliationProposal]:
+    movement = db.get(ImportedRecord, reconciliation.movement_id)
+    if movement is None or movement.id not in locked_record_ids:
+        return []
+    return _generate_for_records(
+        db,
+        [movement],
+        owner_id,
+        "REVERSION",
+        None,
+        reconciliation.id,
+    )

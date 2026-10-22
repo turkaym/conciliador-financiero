@@ -7,3 +7,4 @@
 - **Dependencias:** repositorios de propuestas, conciliaciones, registros y auditoría; comparte locks ascendentes.
 - **Exclusiones:** confirmación automática, borrado de historia y reapertura manual.
 - **MVP-07:** `POST /api/v1/proposals/{id}/confirm` y `/reject` son transiciones terminales autenticadas; `GET /api/v1/reconciliations/{id}` y `GET /api/v1/history` exponen detalle e historial con alcance por propietario.
+- **MVP-08:** `POST /api/v1/reconciliations/{id}/reverse` exige motivo, bloquea todos los registros involucrados por ID ascendente antes de bloquear la conciliación, libera ambos extremos, recompara y registra `CONCILIACION_REVERTIDA` en el mismo commit; una repetición devuelve conflicto.
