@@ -110,9 +110,9 @@ def test_authenticated_user_can_list_catalogs(catalog_client: TestClient):
     }
 
 
-def test_batch_submission_is_inspectable_without_row_validation(catalog_client: TestClient):
+def test_batch_submission_is_processed_and_inspectable(catalog_client: TestClient):
     headers = _auth_headers(catalog_client)
-    content = b"id_externo,fecha,monto\nMOV-1,2026-05-01,100.00\n"
+    content = b"id_externo,unknown\nMOV-1,2026-05-01\n"
 
     submitted = catalog_client.post(
         "/api/v1/batches",
@@ -123,7 +123,7 @@ def test_batch_submission_is_inspectable_without_row_validation(catalog_client: 
 
     assert submitted.status_code == 202
     body = submitted.json()
-    assert body["status"] == "RECIBIDO"
+    assert body["status"] == "FALLIDO"
     assert body["file_name"] == "movimientos.csv"
     assert body["requested_template_id"] == 1
     assert body["totals"] == {"total_rows": 0, "valid_rows": 0, "invalid_rows": 0}

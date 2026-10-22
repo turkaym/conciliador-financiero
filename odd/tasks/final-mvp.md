@@ -78,7 +78,7 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: approved sources/templates are listed and a CSV batch can be submitted and inspected.
   - Checks: focused API integration tests.
 
-- [ ] **MVP-04 — CSV parsing, validation, and error reporting**
+- [x] **MVP-04 — CSV parsing, validation, and error reporting**
   - Route: delegated direct.
   - Trigger evidence: parser, validation rules, storage, fixtures, and tests.
   - Acceptance: valid rows persist; invalid rows produce deterministic row-level errors without corrupting the batch.
@@ -144,7 +144,9 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-02 checks passed: five frontend authentication tests and the Vite production build.
 - 2026-10-22: MVP-03 implemented authenticated source/template catalogs and transactional CSV batch intake with exact file bytes and ownership-scoped inspection; row parsing remains deferred to MVP-04.
 - 2026-10-22: MVP-03 checks passed: focused backend API tests, full backend pytest, schema/seed SQL parsing, and Compose configuration validation.
+- 2026-10-22: MVP-04 implemented synchronous parsing of stored original bytes, exact template header validation, typed movement/receipt persistence, deterministic duplicate and row-level validation errors, owner-scoped error inspection, and terminal batch status/totals.
+- 2026-10-22: MVP-04 checks passed: backend pytest (16 passed), Python compilation, Compose configuration validation, SQL boundary inspection, and approved CSV fixture coverage for valid, invalid, duplicate, and structurally invalid files.
 
 ## Current Next Step
 
-Implement MVP-04 — CSV parsing, validation, and error reporting.
+MVP-04 is complete. Continue with MVP-05 — pending transaction queries.

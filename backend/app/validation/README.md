@@ -6,3 +6,5 @@
 - **RF:** RF-03–RF-06; RN-10, RN-11.
 - **Dependencias:** definiciones de plantilla y repositorios de registros/errores.
 - **Exclusiones:** cambiar originales, corrección difusa y generar propuestas.
+
+MVP-04 usa las columnas de la plantilla activa y conserva los valores originales. Los valores tipados solo se escriben para filas válidas; las filas inválidas y sus errores ordenados permanecen auditables.

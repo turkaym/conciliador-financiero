@@ -26,3 +26,20 @@ class BatchResponse(BaseModel):
     totals: BatchTotals
     received_at: datetime
     finished_at: datetime | None = None
+    original_batch_id: int | None = None
+
+
+class ValidationErrorResponse(BaseModel):
+    id: int
+    scope: str
+    row_number: int | None = None
+    field: str | None = None
+    code: str
+    message: str
+    original_record_id: int | None = None
+    created_at: datetime
+
+
+class ValidationErrorList(BaseModel):
+    total: int
+    items: list[ValidationErrorResponse]
