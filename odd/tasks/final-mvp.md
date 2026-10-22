@@ -108,7 +108,7 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: reversal restores both transactions to pending, records audit data, and prevents duplicate reversal.
   - Checks: transaction and concurrency-oriented integration tests.
 
-- [ ] **MVP-09 — Import, validation, and pending UI**
+- [x] **MVP-09 — Import, validation, and pending UI**
   - Route: delegated direct.
   - Trigger evidence: multiple pages, components, API integration, and tests.
   - Acceptance: users can upload both approved CSV types, inspect validation results, and browse pending records.
@@ -156,7 +156,10 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-08 implemented with owner-scoped atomic reversal, ascending imported-record locks followed by reconciliation locking, endpoint release, deterministic reversal-origin proposal regeneration, append-only reversal history, and duplicate/stale-state protection.
 - 2026-10-22: MVP-08 checks passed: focused reversal integration tests (3 passed), full backend pytest (31 passed), Python compilation, Compose validation, PostgreSQL 16 schema/seed initialization, and diff-whitespace validation. The existing Starlette/httpx deprecation warning remains; no multi-session PostgreSQL stress test was run.
 - 2026-10-22: MVP-08 work-unit commit: `3fdaefd` (`feat(reconciliation): add atomic reversal`).
+- 2026-10-22: MVP-09 implemented with bearer-authenticated catalog selection, approved MOVIMIENTO/COMPROBANTE CSV upload, backend-driven batch status/totals and row-level validation errors, pending movement/comprobante table, loading/error/empty states, and safe 401 logout redirection.
+- 2026-10-22: MVP-09 checks passed: frontend Vitest suite (9 tests), TypeScript project build/type check, and Vite production build. Tests cover both catalog types, multipart field selection, invalid-row reporting, pending records, empty/error states, logout, session persistence, expiry, and protected navigation.
+- 2026-10-22: MVP-09 work-unit commit: recorded in the feature branch commit for this task.
 
 ## Current Next Step
 
-MVP-08 is complete. Continue with MVP-09 — import, validation, and pending UI.
+MVP-09 is complete. Continue with MVP-10 — proposal, history, and reversal UI.

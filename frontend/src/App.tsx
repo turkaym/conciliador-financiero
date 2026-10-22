@@ -1,5 +1,7 @@
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { LoginForm, useAuth } from "./auth";
+import { ImportPage } from "./modules/imports/ImportPage";
+import { PendingPage } from "./modules/pending/PendingPage";
 import "./styles.css";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -26,14 +28,11 @@ function AppShell() {
           <button className="text-button" type="button" onClick={handleLogout}>Cerrar sesión</button>
         </div>
       </header>
-      <main className="workspace">
-        <p className="eyebrow">Panel de trabajo</p>
-        <h1>Bienvenido al conciliador</h1>
-        <p className="muted">Tu sesión está activa. Las cargas y conciliaciones estarán disponibles en las próximas etapas del MVP.</p>
-        <div className="status-card" role="status">
-          <span className="status-dot" aria-hidden="true" />
-          Sesión autenticada
-        </div>
+        <nav className="main-nav" aria-label="Navegación principal"><Link to="/">Importar</Link><Link to="/pending">Pendientes</Link></nav>
+        <main className="workspace">
+         <p className="eyebrow">Panel de trabajo</p>
+         <h1>Bienvenido al conciliador</h1>
+         <Routes><Route path="/" element={<ImportPage />} /><Route path="/pending" element={<PendingPage />} /></Routes>
       </main>
     </div>
   );
@@ -44,7 +43,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={session ? <Navigate to="/" replace /> : <LoginForm />} />
-      <Route path="/" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+      <Route path="/*" element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to={session ? "/" : "/login"} replace />} />
     </Routes>
   );
