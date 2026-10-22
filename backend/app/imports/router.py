@@ -26,6 +26,7 @@ from app.models import (
     User,
     ValidationError,
 )
+from app.proposals.service import generate_for_batch
 from app.validation.csv import ParsedFile, RowError, parse_csv
 
 router = APIRouter(prefix="/batches", tags=["batches"])
@@ -192,6 +193,7 @@ async def submit_batch(
         db.add(batch)
         db.flush()
         _process_batch(db, batch, template)
+        generate_for_batch(db, batch.id, user.id)
         db.commit()
         db.refresh(batch)
     except IntegrityError:

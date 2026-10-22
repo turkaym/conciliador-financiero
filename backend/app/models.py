@@ -115,6 +115,29 @@ class Receipt(Base):
     category: Mapped[str] = mapped_column("clase", String(20), nullable=False)
 
 
+class ReconciliationProposal(Base):
+    __tablename__ = "propuesta_conciliacion"
+
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
+    movement_id: Mapped[int] = mapped_column("movimiento_id", BigInteger, nullable=False)
+    receipt_id: Mapped[int] = mapped_column("comprobante_id", BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column("estado", String(20), nullable=False, default="GENERADA")
+    normalizer_version: Mapped[str] = mapped_column("normalizador_version", String(30), nullable=False)
+    rule_version: Mapped[str] = mapped_column("version_regla", String(30), nullable=False)
+    evaluation_fingerprint: Mapped[bytes] = mapped_column("huella_evaluacion", LargeBinary(32), nullable=False)
+    origin_type: Mapped[str] = mapped_column("origen_tipo", String(10), nullable=False)
+    origin_batch_id: Mapped[int | None] = mapped_column("lote_origen_id", BigInteger)
+    reverted_reconciliation_id: Mapped[int | None] = mapped_column("conciliacion_revertida_id", BigInteger)
+    reference_score: Mapped[Decimal] = mapped_column("score_referencia", Numeric(5, 4), nullable=False)
+    exact_match: Mapped[bool] = mapped_column("coincidencia_exacta", Boolean, nullable=False)
+    day_difference: Mapped[int] = mapped_column("diferencia_dias", Integer, nullable=False)
+    explanation: Mapped[dict] = mapped_column("explicacion", JSON, nullable=False)
+    decision_reason: Mapped[str | None] = mapped_column("motivo_decision", Text)
+    decided_by: Mapped[int | None] = mapped_column("decidida_por", BigInteger)
+    decided_at: Mapped[datetime | None] = mapped_column("decidida_en", DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column("creado_en", DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class Reconciliation(Base):
     __tablename__ = "conciliacion"
 

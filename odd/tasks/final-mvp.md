@@ -90,7 +90,7 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: unreconciled bank and collection transactions can be filtered and listed.
   - Checks: focused query tests.
 
-- [ ] **MVP-06 — Matching engine and proposal generation**
+- [x] **MVP-06 — Matching engine and proposal generation**
   - Route: delegated direct.
   - Trigger evidence: business algorithm, persistence, API, and deterministic tests.
   - Acceptance: only ARS, exact amount, and ±3-day candidates qualify; NFKD/Jaccard reference similarity ranks candidates but never changes eligibility.
@@ -148,7 +148,9 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-04 checks passed: backend pytest (16 passed), Python compilation, Compose configuration validation, SQL boundary inspection, and approved CSV fixture coverage for valid, invalid, duplicate, and structurally invalid files.
 - 2026-10-22: MVP-05 implemented with owner-scoped pending queries for bank and collection records, type/source/batch/state/date filters, stable creation-order pagination, original-reference serialization, and active-reconciliation exclusion.
 - 2026-10-22: MVP-05 checks passed: focused query tests (3 passed), full backend pytest (19 passed), Python compilation, Docker Compose configuration validation, PostgreSQL 16 schema initialization in an isolated container, and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
+- 2026-10-22: MVP-06 implemented with NFKD reference normalization, Jaccard ranking, mandatory ARS/exact-amount/inclusive ±3-day eligibility, deterministic ID tie-breaking, persisted proposal fingerprints, automatic generation after eligible batches, idempotent duplicate suppression, and owner-scoped proposal list/detail endpoints.
+- 2026-10-22: MVP-06 checks passed: focused proposal tests (5 passed), full backend pytest (24 passed), Python compilation, Docker Compose configuration validation, SQL proposal-table/index inspection, and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
 
 ## Current Next Step
 
-MVP-05 is complete. Continue with MVP-06 — matching engine and proposal generation.
+MVP-06 is complete. Continue with MVP-07 — proposal decision and history.

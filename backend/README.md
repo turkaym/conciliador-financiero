@@ -6,6 +6,8 @@ recepción autenticada de lotes CSV. MVP-04 procesa las filas contra la plantill
 seleccionada, persiste registros válidos y conserva errores deterministas por lote.
 MVP-05 agrega la consulta autenticada de pendientes con filtros de tipo, fuente,
 lote, estado y ventana de fechas.
+MVP-06 agrega matching determinista y propuestas persistidas, sin confirmar ni
+conciliar automáticamente los registros.
 
 ## Requisitos
 
