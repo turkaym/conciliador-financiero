@@ -152,7 +152,7 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-06 checks passed: focused proposal tests (5 passed), full backend pytest (24 passed), Python compilation, Docker Compose configuration validation, SQL proposal-table/index inspection, and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
 - 2026-10-22: MVP-07 implemented with atomic owner-scoped proposal confirmation/rejection, terminal transition protection, pending-record conflict detection, active reconciliation creation, append-only decision events, reconciliation detail, and history listing. Rejection restores endpoints to `PENDIENTE` when no other generated proposal remains.
 - 2026-10-22: MVP-07 checks passed: focused integration tests (4 passed), full backend pytest (28 passed), Python compilation, Docker Compose configuration validation, isolated PostgreSQL 16 schema/seed initialization (12 public tables), and diff-whitespace validation. Pytest reports one existing Starlette/httpx deprecation warning.
-- 2026-10-22: MVP-07 work-unit commit: pending commit on `feat/final-mvp`.
+- 2026-10-22: MVP-07 work-unit commit: `ecd1522` (`feat(reconciliation): add proposal decisions and history`).
 
 ## Current Next Step
 
