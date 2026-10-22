@@ -66,11 +66,11 @@ The repository contains an approved design and database model but no executable 
   - Acceptance: `/health` is healthy; demo credentials receive a valid token; invalid credentials are rejected; PostgreSQL schema and seed initialize deterministically.
   - Checks: Compose configuration; focused backend auth tests; startup smoke test.
 
-- [ ] **MVP-02 — Frontend shell and login flow**
+- [x] **MVP-02 — Frontend shell and login flow**
   - Route: delegated direct.
   - Trigger evidence: multiple React, routing, API-client, and test files.
   - Acceptance: the demo user can log in, session state is handled, and protected navigation rejects unauthenticated access.
-  - Checks: frontend unit tests and production build.
+  - Checks: frontend unit tests and production build passed.
 
 - [ ] **MVP-03 — Catalogs and batch intake**
   - Route: delegated direct.
@@ -140,7 +140,9 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-01 implemented with FastAPI health/login, JWT validation dependency, PostgreSQL 16 compose initialization, deterministic demo seed, and focused tests.
 - 2026-10-22: MVP-01 checks passed: backend pytest, Compose configuration validation, and import/startup smoke check.
 - 2026-10-22: Isolated PostgreSQL 16 initialization completed successfully; schema and seed ran in order, created 12 public tables, and produced the active demo user. The standard host-port startup was unavailable because `127.0.0.1:5432` was already occupied.
+- 2026-10-22: MVP-02 implemented with the React/Vite/TypeScript shell, shared auth API client, bearer session persistence with expiry handling, accessible login/error states, logout, and protected navigation redirect.
+- 2026-10-22: MVP-02 checks passed: five frontend authentication tests and the Vite production build.
 
 ## Current Next Step
 
-Implement MVP-02 — frontend shell and login flow.
+Implement MVP-03 — catalogs and batch intake.
