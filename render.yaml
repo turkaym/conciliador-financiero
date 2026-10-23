@@ -9,7 +9,8 @@ services:
     name: conciliador-api
     runtime: python
     plan: free
-    buildCommand: pip install ./backend
+    rootDir: backend
+    buildCommand: pip install .
     startCommand: python -m app.initialize_database && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000}
     healthCheckPath: /health
     envVars:
@@ -22,13 +23,14 @@ services:
       - key: CORS_ORIGINS
         sync: false
       - key: DATABASE_SCHEMA_PATH
-        value: database/schema.sql
+        value: ../database/schema.sql
       - key: DATABASE_SEED_PATH
-        value: database/seed.sql
+        value: ../database/seed.sql
 
   - type: web
     name: conciliador-frontend
     runtime: static
+    rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     envVars:
