@@ -7,6 +7,7 @@ class Settings:
     database_url: str
     jwt_secret_key: str
     access_token_expire_minutes: int
+    cors_origins: tuple[str, ...]
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -22,6 +23,11 @@ class Settings:
             jwt_secret_key=secret,
             access_token_expire_minutes=int(
                 os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+            ),
+            cors_origins=tuple(
+                origin.strip()
+                for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+                if origin.strip()
             ),
         )
 

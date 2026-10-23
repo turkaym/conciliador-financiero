@@ -161,7 +161,9 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-09 work-unit commit: `143914a` (`feat(frontend): add import validation and pending workflows`).
 - 2026-10-22: MVP-10 implemented with shared bearer-authenticated proposal, history, reconciliation detail, confirmation, rejection, and reversal API workflows; accessible protected navigation; loading, empty, error, conflict, success, and required-reason states; and mutation submission guards.
 - 2026-10-22: MVP-10 checks passed: frontend Vitest suite (13 tests), TypeScript project build/type check, Vite production build, and `git diff --check`. Tests cover proposal loading/detail, confirmation, rejection, stale reversal conflict, duplicate submission prevention, reversal reason validation, history navigation, and 401 logout protection.
+- 2026-10-23: MVP-11 prepared locally on `feat/final-mvp`: added `render.yaml` for one managed PostgreSQL database, one FastAPI web service, and one Vite static site; generated the JWT secret through Render; added explicit CORS/API URL configuration; and documented the one-time URL substitution and remote smoke test.
+- 2026-10-23: MVP-11 local checks passed in this work unit: Blueprint structure, backend compilation and tests, frontend tests/build, and diff validation. Render service creation, public URLs, remote initialization, and remote smoke testing remain blocked until explicit remote authorization.
 
 ## Current Next Step
 
-MVP-10 is complete. Continue with MVP-11 — deployment and demo environment.
+MVP-10 is complete. MVP-11 is locally prepared; continue with authorized Render service creation and remote smoke testing before marking it complete.

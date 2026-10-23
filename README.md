@@ -2,7 +2,7 @@
 
 Propuesta académica para la materia **Proyecto Final** de la **Tecnicatura Universitaria en Programación (UTN)**. La primera entrega, aprobada sin observaciones, queda como antecedente del problema, la estrategia de validación, el alcance y la propuesta técnica inicial.
 
-**Estado vigente:** segunda entrega documental corregida; relevamiento **no iniciado** y codificación del producto **no iniciada**. El repositorio incluye contratos y activos documentales verificables, no una aplicación implementada.
+**Estado vigente:** MVP implementado hasta la preparación local de MVP-11. No existe todavía una URL pública ni servicios Render creados.
 
 ## Integrantes y disponibilidad
 
@@ -161,3 +161,47 @@ Código y documentación del proyecto: [github.com/turkaym/conciliador-financier
 - [Plantillas y fixtures CSV](docs/segunda-entrega/csv/README.md)
 - [Wireframes del MVP](docs/segunda-entrega/wireframes/README.md)
 - [Esqueleto backend](backend/README.md), [esqueleto frontend](frontend/README.md) y [esquema PostgreSQL](database/README.md)
+
+## Ejecución local
+
+1. Copie `.env.example` como `.env` y defina un `JWT_SECRET_KEY` local.
+2. Ejecute `docker compose up --wait` desde la raíz. En un volumen nuevo, Compose ejecuta `database/schema.sql` y `database/seed.sql` una sola vez.
+3. Instale el backend con `backend\\.venv\\Scripts\\python.exe -m pip install -e backend[test]`.
+4. Inicie la API con `backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir backend --reload`.
+5. Inicie el frontend con `npm install && npm run dev` desde `frontend/`.
+
+La aplicación local usa `http://localhost:8000` como API y `http://localhost:5173` como origen permitido por defecto. El usuario demo es `demo@conciliador.local` / `Demo1234!`; son credenciales ficticias para desarrollo y no deben reutilizarse en un entorno público.
+
+## Preparación de despliegue en Render
+
+`render.yaml` define un Blueprint con una base PostgreSQL administrada, un web service FastAPI y un static site Vite. El Blueprint genera `JWT_SECRET_KEY` y referencia la conexión PostgreSQL; no contiene secretos.
+
+1. En Render, conecte el repositorio y seleccione el Blueprint `render.yaml`. Esta acción queda pendiente de autorización remota y no fue ejecutada desde este repositorio.
+2. En `conciliador-api`, defina `CORS_ORIGINS` con la URL final del static site, por ejemplo `https://<frontend>.onrender.com`.
+3. En `conciliador-frontend`, defina `VITE_API_BASE_URL` con la URL final del web service, por ejemplo `https://<api>.onrender.com`.
+4. Guarde los cambios y redeploye el frontend después de configurar `VITE_API_BASE_URL`, porque Vite incorpora esa variable durante el build.
+
+El comando de inicio del backend ejecuta `app.initialize_database`: adquiere un bloqueo transaccional, crea el esquema solamente si falta `public.usuario` y ejecuta el seed determinista e idempotente en cada arranque. No ejecuta un reset destructivo. Render inyecta `PORT` y Uvicorn escucha en `0.0.0.0`; `/health` es el health check.
+
+### Credenciales y variables requeridas
+
+- `DATABASE_URL`: la referencia del Blueprint a la base administrada.
+- `JWT_SECRET_KEY`: generado por Render; nunca lo agregue al repositorio.
+- `CORS_ORIGINS`: URL exacta del frontend público, sin barra final.
+- `VITE_API_BASE_URL`: URL exacta de la API pública, sin barra final.
+- `DATABASE_SCHEMA_PATH` y `DATABASE_SEED_PATH`: rutas versionadas usadas por el inicializador.
+
+El seed crea o reactiva el usuario demo y los catálogos. Para una demostración pública, cambie las credenciales documentadas o elimine el usuario demo mediante un procedimiento seguro antes de usar datos reales.
+
+### Smoke test posterior al despliegue
+
+Cuando los servicios existan y sus URLs estén disponibles, verifique desde una máquina autorizada:
+
+1. `curl -fsS https://<api>.onrender.com/health` devuelve `{"status":"healthy"}`.
+2. El frontend público carga sin errores de assets ni de consola.
+3. El login con las credenciales demo configuradas recibe un token.
+4. Se cargan los dos CSV de `docs/segunda-entrega/csv/fixtures/`, se inspeccionan errores y pendientes, y se verifica una propuesta.
+5. Se confirma una propuesta, se revisa historial, se revierte la conciliación y se confirma que ambos registros vuelven a pendientes.
+6. Se repite el arranque o redeploy del backend y se comprueba que el seed no duplica catálogos ni reinicia datos.
+
+MVP-11 queda preparado localmente, pero no se considera completo hasta crear los servicios Render y ejecutar este smoke test remoto con autorización explícita.
