@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from pwdlib import PasswordHash
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -108,6 +108,72 @@ def test_authenticated_user_can_list_catalogs(catalog_client: TestClient):
         "version": 1,
         "columns": ["id_externo", "fecha"],
     }
+
+
+@pytest.fixture
+def approved_schema_catalog_client():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    User.__table__.create(engine)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                CREATE TABLE fuente_datos (
+                    id BIGINT PRIMARY KEY,
+                    tipo_origen VARCHAR(20) NOT NULL,
+                    codigo VARCHAR(50) NOT NULL,
+                    nombre VARCHAR(120) NOT NULL,
+                    activa BOOLEAN NOT NULL
+                )
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO usuario (id, email, password_hash, activo)
+                VALUES (1, 'demo@conciliador.local', :password_hash, TRUE)
+                """
+            ),
+            {"password_hash": PasswordHash.recommended().hash("Demo1234!")},
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO fuente_datos (id, tipo_origen, codigo, nombre, activa)
+                VALUES (1, 'BANCO', 'BANCO_DEMO', 'Banco demo', TRUE)
+                """
+            )
+        )
+
+    def override_get_db():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
+    engine.dispose()
+
+
+def test_catalog_source_query_uses_approved_codigo_column(
+    approved_schema_catalog_client: TestClient,
+):
+    headers = _auth_headers(approved_schema_catalog_client)
+
+    response = approved_schema_catalog_client.get(
+        "/api/v1/catalog/sources?type=MOVIMIENTO", headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"] == [
+        {"id": 1, "code": "BANCO_DEMO", "name": "Banco demo", "type": "MOVIMIENTO"}
+    ]
 
 
 def test_batch_submission_is_processed_and_inspectable(catalog_client: TestClient):

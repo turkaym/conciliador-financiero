@@ -163,6 +163,7 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-10 checks passed: frontend Vitest suite (13 tests), TypeScript project build/type check, Vite production build, and `git diff --check`. Tests cover proposal loading/detail, confirmation, rejection, stale reversal conflict, duplicate submission prevention, reversal reason validation, history navigation, and 401 logout protection.
 - 2026-10-23: MVP-11 prepared locally on `feat/final-mvp`: added `render.yaml` for one managed PostgreSQL database, one FastAPI web service, and one Vite static site; generated the JWT secret through Render; added explicit CORS/API URL configuration; and documented the one-time URL substitution and remote smoke test.
 - 2026-10-23: MVP-11 local checks passed in this work unit: Blueprint structure, backend compilation and tests, frontend tests/build, and diff validation. Render service creation, public URLs, remote initialization, and remote smoke testing remain blocked until explicit remote authorization.
+- 2026-10-26: Fixed the confirmed production catalog query failure by mapping the Python `DataSource.code` attribute to the approved `fuente_datos.codigo` column; added a regression test against that physical schema. MVP-11 remains incomplete pending authorized deployment verification.
 
 ## Current Next Step
 

@@ -26,7 +26,7 @@ class DataSource(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     source_type: Mapped[str] = mapped_column("tipo_origen", String(20), nullable=False)
-    code: Mapped[str] = mapped_column(String(50), nullable=False)
+    code: Mapped[str] = mapped_column("codigo", String(50), nullable=False)
     name: Mapped[str] = mapped_column("nombre", String(120), nullable=False)
     active: Mapped[bool] = mapped_column("activa", Boolean, nullable=False)
 
