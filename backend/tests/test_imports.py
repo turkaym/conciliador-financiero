@@ -118,6 +118,8 @@ def approved_schema_catalog_client():
         poolclass=StaticPool,
     )
     User.__table__.create(engine)
+    ImportTemplate.__table__.create(engine)
+    TemplateField.__table__.create(engine)
     with engine.begin() as connection:
         connection.execute(
             text(
@@ -149,6 +151,24 @@ def approved_schema_catalog_client():
                 """
             )
         )
+        connection.execute(
+            text(
+                """
+                INSERT INTO plantilla_importacion
+                    (id, fuente_id, nombre, tipo, version, activa)
+                VALUES (1, 1, 'movimientos', 'MOVIMIENTO', 1, TRUE)
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO campo_plantilla
+                    (id, plantilla_id, columna_origen, campo_canonico)
+                VALUES (1, 1, 'id_externo', 'id_externo')
+                """
+            )
+        )
 
     def override_get_db():
         with Session(engine) as session:
@@ -173,6 +193,27 @@ def test_catalog_source_query_uses_approved_codigo_column(
     assert response.status_code == 200
     assert response.json()["items"] == [
         {"id": 1, "code": "BANCO_DEMO", "name": "Banco demo", "type": "MOVIMIENTO"}
+    ]
+
+
+def test_catalog_template_query_uses_approved_nombre_column(
+    approved_schema_catalog_client: TestClient,
+):
+    headers = _auth_headers(approved_schema_catalog_client)
+
+    response = approved_schema_catalog_client.get(
+        "/api/v1/catalog/templates?source_id=1&type=MOVIMIENTO", headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"] == [
+        {
+            "id": 1,
+            "name": "movimientos",
+            "type": "MOVIMIENTO",
+            "version": 1,
+            "columns": ["id_externo"],
+        }
     ]
 
 

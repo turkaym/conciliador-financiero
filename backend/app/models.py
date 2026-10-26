@@ -36,7 +36,7 @@ class ImportTemplate(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     source_id: Mapped[int] = mapped_column("fuente_id", BigInteger, nullable=False)
-    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    name: Mapped[str] = mapped_column("nombre", String(120), nullable=False)
     template_type: Mapped[str] = mapped_column("tipo", String(20), nullable=False)
     version: Mapped[int] = mapped_column(nullable=False)
     active: Mapped[bool] = mapped_column("activa", Boolean, nullable=False)
