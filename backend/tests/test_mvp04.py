@@ -33,10 +33,10 @@ def processing_client():
         receipt_columns = [("id_externo", "TEXTO", False), ("fecha", "FECHA", True), ("monto", "DECIMAL", True), ("moneda", "MONEDA", True), ("referencia", "TEXTO", False), ("clase", "CATEGORIA", True)]
         session.add_all([
             TemplateField(id=index, template_id=1, source_column=column, canonical_field=column, data_type=data_type, required=required)
-            for index, (column, data_type, required) in enumerate(movement_columns, 1)
+            for index, (column, data_type, required) in enumerate(reversed(movement_columns), 1)
         ] + [
             TemplateField(id=index + 10, template_id=2, source_column=column, canonical_field=column, data_type=data_type, required=required)
-            for index, (column, data_type, required) in enumerate(receipt_columns, 1)
+            for index, (column, data_type, required) in enumerate(reversed(receipt_columns), 1)
         ])
         session.commit()
 

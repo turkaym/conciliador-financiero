@@ -62,9 +62,18 @@ def catalog_client():
         )
         session.add_all(
             [
-                TemplateField(id=1, template_id=1, source_column="id_externo", canonical_field="id_externo"),
-                TemplateField(id=2, template_id=1, source_column="fecha", canonical_field="fecha"),
-                TemplateField(id=3, template_id=2, source_column="id_externo", canonical_field="id_externo"),
+                TemplateField(id=1, template_id=1, source_column="tipo_movimiento", canonical_field="tipo_movimiento"),
+                TemplateField(id=2, template_id=1, source_column="referencia", canonical_field="referencia"),
+                TemplateField(id=3, template_id=1, source_column="moneda", canonical_field="moneda"),
+                TemplateField(id=4, template_id=1, source_column="monto", canonical_field="monto"),
+                TemplateField(id=5, template_id=1, source_column="fecha", canonical_field="fecha"),
+                TemplateField(id=6, template_id=1, source_column="id_externo", canonical_field="id_externo"),
+                TemplateField(id=7, template_id=2, source_column="clase", canonical_field="clase"),
+                TemplateField(id=8, template_id=2, source_column="referencia", canonical_field="referencia"),
+                TemplateField(id=9, template_id=2, source_column="moneda", canonical_field="moneda"),
+                TemplateField(id=10, template_id=2, source_column="monto", canonical_field="monto"),
+                TemplateField(id=11, template_id=2, source_column="fecha", canonical_field="fecha"),
+                TemplateField(id=12, template_id=2, source_column="id_externo", canonical_field="id_externo"),
             ]
         )
         session.commit()
@@ -106,8 +115,16 @@ def test_authenticated_user_can_list_catalogs(catalog_client: TestClient):
         "name": "movimientos",
         "type": "MOVIMIENTO",
         "version": 1,
-        "columns": ["id_externo", "fecha"],
+        "columns": ["id_externo", "fecha", "monto", "moneda", "referencia", "tipo_movimiento"],
     }
+
+    comprobantes = catalog_client.get(
+        "/api/v1/catalog/templates?source_id=2&type=COMPROBANTE", headers=headers
+    )
+    assert comprobantes.status_code == 200
+    assert comprobantes.json()["items"][0]["columns"] == [
+        "id_externo", "fecha", "monto", "moneda", "referencia", "clase"
+    ]
 
 
 @pytest.fixture

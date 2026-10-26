@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.access.security import get_current_user
 from app.database import get_db
 from app.errors import ApiError
-from app.import_catalogs.schemas import CatalogItem, CatalogList, TemplateItem
+from app.import_catalogs.schemas import CatalogItem, CatalogList, TemplateItem, order_columns
 from app.models import DataSource, ImportTemplate, TemplateField, User
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
@@ -60,5 +60,13 @@ def list_templates(
             .where(TemplateField.template_id == template.id)
             .order_by(TemplateField.id)
         ).all()
-        items.append(TemplateItem(id=template.id, name=template.name, type=template.template_type, version=template.version, columns=columns))
+        items.append(
+            TemplateItem(
+                id=template.id,
+                name=template.name,
+                type=template.template_type,
+                version=template.version,
+                columns=order_columns(template.template_type, columns),
+            )
+        )
     return CatalogList(total=len(items), items=items)

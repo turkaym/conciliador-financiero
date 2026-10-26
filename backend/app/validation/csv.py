@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from app.import_catalogs.schemas import order_columns
+
 
 @dataclass(frozen=True)
 class RowError:
@@ -51,7 +53,9 @@ def parse_csv(content: bytes, record_type: str, source_id: int, columns: list[tu
     except (UnicodeDecodeError, csv.Error, StopIteration):
         return ParsedFile((), RowError(None, "CABECERA_INCOMPATIBLE", "The CSV header could not be read"))
 
-    expected = [column[0] for column in columns]
+    expected = order_columns(record_type, [column[0] for column in columns])
+    columns_by_name = {column[0]: column for column in columns}
+    columns = [columns_by_name[column] for column in expected]
     if header != expected:
         return ParsedFile((), RowError(None, "CABECERA_INCOMPATIBLE", "The CSV header does not match the selected template"))
 

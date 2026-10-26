@@ -165,6 +165,7 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-23: MVP-11 local checks passed in this work unit: Blueprint structure, backend compilation and tests, frontend tests/build, and diff validation. Render service creation, public URLs, remote initialization, and remote smoke testing remain blocked until explicit remote authorization.
 - 2026-10-26: Fixed the confirmed production catalog query failure by mapping the Python `DataSource.code` attribute to the approved `fuente_datos.codigo` column; added a regression test against that physical schema. MVP-11 remains incomplete pending authorized deployment verification.
 - 2026-10-26: Fixed the second confirmed production catalog query failure by mapping the Python `ImportTemplate.name` attribute to the approved `plantilla_importacion.nombre` column; added an endpoint regression test against that physical schema. MVP-11 remains incomplete pending authorized deployment verification.
+- 2026-10-26: Fixed the confirmed production template-order failure by applying deterministic approved MOVIMIENTO/COMPROBANTE column ordering in catalog responses and CSV validation, independent of retained `campo_plantilla` identity order; added reversed-order regression coverage using both valid fixtures. MVP-11 remains incomplete pending authorized deployment verification.
 
 ## Current Next Step
 
