@@ -14,6 +14,7 @@ from app.access.security import get_current_user
 from app.database import get_db
 from app.errors import ApiError
 from app.import_catalogs.router import _api_type
+from app.import_catalogs.schemas import order_columns
 from app.imports.schemas import BatchResponse, BatchTemplate, BatchTotals, ValidationErrorList, ValidationErrorResponse
 from app.models import (
     BankMovement,
@@ -61,7 +62,16 @@ def _template_columns(db: Session, template: ImportTemplate) -> list[tuple[str, 
         "moneda": ("MONEDA", True), "referencia": ("TEXTO", False), "tipo_movimiento": ("CATEGORIA", True),
         "clase": ("CATEGORIA", True),
     }
-    return [(field.source_column, field.data_type or defaults.get(field.canonical_field, ("TEXTO", True))[0], field.required if field.required is not None else defaults.get(field.canonical_field, ("TEXTO", True))[1]) for field in fields]
+    fields_by_column = {field.source_column: field for field in fields}
+    ordered_columns = order_columns(template.template_type, list(fields_by_column))
+    return [
+        (
+            field.source_column,
+            field.data_type or defaults.get(field.canonical_field, ("TEXTO", True))[0],
+            field.required if field.required is not None else defaults.get(field.canonical_field, ("TEXTO", True))[1],
+        )
+        for field in (fields_by_column[column] for column in ordered_columns)
+    ]
 
 
 def _set_totals(db: Session, batch: ImportBatch) -> None:

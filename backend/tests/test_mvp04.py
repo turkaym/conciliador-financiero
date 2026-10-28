@@ -64,8 +64,16 @@ def _submit(client: TestClient, template_id: int, batch_type: str, name: str) ->
 
 def test_valid_movement_and_receipt_rows_persist(processing_client):
     client, engine = processing_client
+    catalog = client.get("/api/v1/catalog/templates?source_id=1&type=MOVIMIENTO", headers=_headers())
+    receipt_catalog = client.get("/api/v1/catalog/templates?source_id=2&type=COMPROBANTE", headers=_headers())
     movement = _submit(client, 1, "MOVIMIENTO", "movimientos-validos.csv")
     receipt = _submit(client, 2, "COMPROBANTE", "comprobantes-validos.csv")
+    assert catalog.json()["items"][0]["columns"] == [
+        "id_externo", "fecha", "monto", "moneda", "referencia", "tipo_movimiento"
+    ]
+    assert receipt_catalog.json()["items"][0]["columns"] == [
+        "id_externo", "fecha", "monto", "moneda", "referencia", "clase"
+    ]
     assert movement["status"] == "PROCESADO"
     assert movement["totals"] == {"total_rows": 3, "valid_rows": 3, "invalid_rows": 0}
     assert receipt["status"] == "PROCESADO"
