@@ -76,7 +76,7 @@ def _seed_pending(engine) -> None:
         connection.exec_driver_sql(
             """
             INSERT INTO movimiento_bancario
-                (registro_id, date, amount, moneda, referencia_normalizada, es_credito)
+                (registro_id, fecha, monto, moneda, referencia_normalizada, es_credito)
             VALUES
                 (1, '2026-01-10', 100.00, 'ARS', NULL, TRUE),
                 (2, '2026-01-11', 200.00, 'ARS', NULL, TRUE),
@@ -87,7 +87,7 @@ def _seed_pending(engine) -> None:
         connection.exec_driver_sql(
             """
             INSERT INTO comprobante
-                (registro_id, date, amount, moneda, referencia_normalizada, clase)
+                (registro_id, fecha, monto, moneda, referencia_normalizada, clase)
             VALUES
                 (3, '2026-01-10', 100.00, 'ARS', NULL, 'VENTA'),
                 (6, '2026-01-13', 400.00, 'ARS', NULL, 'VENTA')

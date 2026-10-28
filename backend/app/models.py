@@ -97,8 +97,8 @@ class BankMovement(Base):
     __tablename__ = "movimiento_bancario"
 
     record_id: Mapped[int] = mapped_column("registro_id", BigInteger, primary_key=True)
-    date: Mapped[date] = mapped_column(Date, nullable=False)
-    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    date: Mapped[date] = mapped_column("fecha", Date, nullable=False)
+    amount: Mapped[Decimal] = mapped_column("monto", Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column("moneda", String(3), nullable=False)
     normalized_reference: Mapped[str | None] = mapped_column("referencia_normalizada", Text)
     is_credit: Mapped[bool] = mapped_column("es_credito", Boolean, nullable=False)
@@ -108,8 +108,8 @@ class Receipt(Base):
     __tablename__ = "comprobante"
 
     record_id: Mapped[int] = mapped_column("registro_id", BigInteger, primary_key=True)
-    date: Mapped[date] = mapped_column(Date, nullable=False)
-    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    date: Mapped[date] = mapped_column("fecha", Date, nullable=False)
+    amount: Mapped[Decimal] = mapped_column("monto", Numeric(18, 2), nullable=False)
     currency: Mapped[str] = mapped_column("moneda", String(3), nullable=False)
     normalized_reference: Mapped[str | None] = mapped_column("referencia_normalizada", Text)
     category: Mapped[str] = mapped_column("clase", String(20), nullable=False)
