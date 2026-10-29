@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from fastapi.testclient import TestClient
 from pwdlib import PasswordHash
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -80,6 +80,40 @@ def test_confirm_is_atomic_and_creates_history_and_detail():
     history = client.get("/api/v1/history", params={"event_type": "PROPUESTA_CONFIRMADA"})
     assert history.status_code == 200
     assert history.json()["total"] == 1
+    app.dependency_overrides.clear()
+    engine.dispose()
+
+
+def test_confirm_flushes_decision_before_postgresql_trigger_style_reconciliation_insert():
+    engine = make_engine()
+    with Session(engine) as db:
+        seed_proposal(db)
+        db.commit()
+        db.execute(text("""
+            CREATE TRIGGER preparar_conciliacion_activa
+            BEFORE INSERT ON conciliacion
+            WHEN NEW.estado = 'ACTIVA'
+             AND NOT EXISTS (
+                 SELECT 1
+                 FROM propuesta_conciliacion
+                 WHERE id = NEW.propuesta_id
+                   AND movimiento_id = NEW.movimiento_id
+                   AND comprobante_id = NEW.comprobante_id
+                   AND estado = 'CONFIRMADA'
+             )
+            BEGIN
+                SELECT RAISE(ABORT, 'conciliacion activa requiere propuesta confirmada para la misma pareja');
+            END
+        """))
+        db.commit()
+
+    client = client_for(engine, 1)
+    response = client.post("/api/v1/proposals/1/confirm", json={})
+    assert response.status_code == 200
+    assert response.json()["reconciliation"]["status"] == "ACTIVA"
+    with Session(engine) as db:
+        assert db.get(ReconciliationProposal, 1).status == "CONFIRMADA"
+        assert db.get(Reconciliation, 1).status == "ACTIVA"
     app.dependency_overrides.clear()
     engine.dispose()
 

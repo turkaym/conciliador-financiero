@@ -69,6 +69,7 @@ def confirm_proposal(db: Session, proposal_id: int, user_id: int) -> tuple[Recon
     proposal.decided_at = now
     locked[proposal.movement_id].status = "CONCILIADO"
     locked[proposal.receipt_id].status = "CONCILIADO"
+    db.flush()
     reconciliation = Reconciliation(
         proposal_id=proposal.id,
         movement_id=proposal.movement_id,
