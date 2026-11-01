@@ -1,207 +1,216 @@
-# CONCILIADOR — Plataforma de Conciliación Financiera y Contable
+# CONCILIADOR - Financial and Accounting Reconciliation Platform
 
-Propuesta académica para la materia **Proyecto Final** de la **Tecnicatura Universitaria en Programación (UTN)**. La primera entrega, aprobada sin observaciones, queda como antecedente del problema, la estrategia de validación, el alcance y la propuesta técnica inicial.
+Academic proposal for the **Final Project** course in the **University Technical Degree in Programming (UTN)**. The first submission, approved without observations, provides the background for the problem, validation strategy, scope, and initial technical proposal.
 
-**Estado vigente:** MVP implementado hasta la preparación local de MVP-11. No existe todavía una URL pública ni servicios Render creados.
+**Current status:** the MVP is implemented and deployed to Render. Remote login, both CSV imports, proposal generation, proposal confirmation, and history recording have been verified. Reversal smoke verification remains pending. This documentation translation covers only the allowed files listed in the delivery request; other academic documents remain in Spanish.
 
-## Integrantes y disponibilidad
+### Public deployment
 
-| Integrante | Usuario de GitHub | Rol principal previsto |
+- Frontend: https://conciliador-frontend-8djd.onrender.com
+- API: https://conciliador-api-bym3.onrender.com
+- Render Blueprint: `conciliador-financiero-mvp`
+- Demo credentials: `demo@conciliador.local` / `Demo1234!` (fictional credentials for demonstration only; change or remove them before using real data).
+
+The remote smoke test verified login, both valid CSV fixtures with 3/3 valid rows, pending records, three proposals, Proposal #1 confirmation, and the `PROPUESTA_CONFIRMADA` history event. Remote reversal verification is still pending, so MVP-11 remains open.
+
+## Team and availability
+
+| Member | GitHub user | Planned primary role |
 |---|---|---|
-| Hugo Tcach | `HugoTcach` | Backend, base de datos e infraestructura local |
-| Farid Salomón | `turkaym` | Análisis funcional, frontend, documentación y calidad |
+| Hugo Tcach | `HugoTcach` | Backend, database, and local infrastructure |
+| Farid Salomón | `turkaym` | Functional analysis, frontend, documentation, and quality |
 
-La disponibilidad conjunta es de aproximadamente **10 horas semanales**. Ambos integrantes participarán en el relevamiento, la revisión de cambios, las pruebas y la presentación. Se prevé aprendizaje cruzado para evitar que un área dependa de una sola persona.
+Joint availability is approximately **10 hours per week**. Both members will participate in discovery, change review, testing, and presentation. Cross-training is planned so that no area depends on a single person.
 
-## Problema e hipótesis inicial
+## Problem and initial hypothesis
 
-Se plantea que empresas y estudios contables pueden recibir movimientos bancarios y registros o comprobantes en fuentes separadas. La conciliación exige relacionar esos datos, detectar diferencias y conservar evidencia de las decisiones tomadas.
+Companies and accounting firms may receive bank transactions and records or receipts from separate sources. Reconciliation requires relating those data, detecting differences, and retaining evidence of decisions.
 
-Como hipótesis inicial, cuando este proceso se realiza con comparaciones manuales y herramientas no conectadas pueden aparecer tareas repetitivas, dificultades para identificar pendientes y poca trazabilidad sobre por qué dos registros fueron asociados o descartados. **Esta hipótesis todavía no fue validada mediante entrevistas ni métricas.**
+The initial hypothesis is that manual comparisons and disconnected tools can create repetitive work, difficulty identifying pending items, and limited traceability of why two records were matched or discarded. **This hypothesis has not yet been validated through interviews or metrics.**
 
-### Actores y necesidades por validar
+### Actors and needs to validate
 
-| Actor | Participación en el flujo | Necesidad propuesta |
+| Actor | Participation in the flow | Proposed need |
 |---|---|---|
-| Personal administrativo o contable | Reúne fuentes, compara registros y resuelve diferencias | Reducir comparaciones repetitivas sin perder control sobre la decisión |
-| Responsable del proceso | Supervisa el estado y revisa excepciones | Identificar pendientes y reconstruir decisiones |
-| Empresa o estudio contable | Define criterios y conserva documentación | Contar con un proceso consistente y trazable |
+| Administrative or accounting staff | Gather sources, compare records, and resolve differences | Reduce repetitive comparisons without losing control over decisions |
+| Process owner | Monitor status and review exceptions | Identify pending items and reconstruct decisions |
+| Company or accounting firm | Define criteria and retain documentation | Maintain a consistent and traceable process |
 
-### Flujo actual supuesto
+### Assumed current flow
 
-1. Se obtienen movimientos bancarios y registros o comprobantes desde fuentes separadas.
-2. Se revisan formatos y se normalizan datos cuando es necesario.
-3. Se comparan monto, fecha y referencias para buscar correspondencias.
-4. Se investigan diferencias y se decide qué elementos coinciden.
-5. Se registran resultados y quedan pendientes los casos no resueltos.
+1. Obtain bank transactions and records or receipts from separate sources.
+2. Review formats and normalize data when necessary.
+3. Compare amount, date, and references to find matches.
+4. Investigate differences and decide which items match.
+5. Record results and leave unresolved cases pending.
 
-Este flujo es una representación inicial que se validará y corregirá durante el relevamiento.
+This flow is an initial representation that will be validated and corrected during discovery.
 
-### Digitalizar y agregar valor
+### Digitization and added value
 
-Digitalizar sería trasladar la comparación a una pantalla sin cambiar el proceso. La propuesta busca agregar valor al asistir la comparación con reglas explicables, destacar excepciones, mantener la revisión humana y registrar la trazabilidad básica. No se presupone que ese valor esté demostrado: se evaluará con los actores y con pruebas del flujo.
+Digitization would move the comparison to a screen without changing the process. The proposal aims to add value by assisting comparison with explainable rules, highlighting exceptions, preserving human review, and recording basic traceability. This value is not assumed to be proven; it will be evaluated with actors and workflow tests.
 
-### Planteamiento formal
+### Formal statement
 
-**Pregunta del proyecto:** ¿cómo asistir la conciliación entre movimientos bancarios y registros o comprobantes para reducir la revisión repetitiva y hacer visibles las diferencias, sin reemplazar la decisión humana y conservando trazabilidad básica?
+**Project question:** How can reconciliation between bank transactions and records or receipts be assisted to reduce repetitive review and make differences visible, without replacing human decisions and while preserving basic traceability?
 
-## Estrategia de validación
+## Validation strategy
 
-No hay usuarios consultados, resultados ni mediciones disponibles en esta etapa. Para validar la relevancia se propone:
+No users, results, or measurements are available at this stage. The following activities are proposed to validate relevance:
 
-1. Identificar personas que realicen o supervisen conciliaciones en empresas o estudios contables.
-2. Realizar entrevistas semiestructuradas sobre fuentes utilizadas, pasos, excepciones, frecuencia y dificultades del proceso.
-3. Observar ejemplos anonimizados o datos ficticios representativos, sin solicitar información financiera sensible.
-4. Documentar el flujo real y contrastarlo con la hipótesis y los actores iniciales.
-5. Probar un prototipo del flujo con datos de prueba y registrar comprensión, utilidad percibida, errores y ajustes solicitados.
-6. Revisar el alcance si el problema no resulta recurrente, relevante o compatible con el tiempo de la materia.
+1. Identify people who perform or supervise reconciliation in companies or accounting firms.
+2. Conduct semi-structured interviews about sources, steps, exceptions, frequency, and process difficulties.
+3. Observe anonymized examples or representative fictional data without requesting sensitive financial information.
+4. Document the actual flow and compare it with the initial hypothesis and actors.
+5. Test a workflow prototype with test data and record understanding, perceived usefulness, errors, and requested changes.
+6. Revisit scope if the problem is not recurrent, relevant, or compatible with the course schedule.
 
-La relevancia se considerará respaldada cuando el relevamiento confirme la necesidad de relacionar fuentes separadas, resolver excepciones y conservar trazabilidad, y cuando el flujo propuesto pueda evaluarse con casos representativos. Las métricas y criterios cuantitativos se definirán después del relevamiento, no antes.
+Relevance will be considered supported when discovery confirms the need to relate separate sources, resolve exceptions, and preserve traceability, and when the proposed flow can be evaluated with representative cases. Metrics and quantitative criteria will be defined after discovery, not before.
 
-## Propuesta de valor y alternativas existentes
+## Value proposition and existing alternatives
 
-Se propone una herramienta acotada a la conciliación entre dos fuentes, con reglas visibles de coincidencia, revisión humana y trazabilidad de las decisiones.
+The proposal is a tool focused on reconciliation between two sources, with visible matching rules, human review, and decision traceability.
 
-| Categoría alternativa | Aporte habitual | Diferenciación que se evaluará |
+| Alternative category | Typical contribution | Differentiation to evaluate |
 |---|---|---|
-| Hojas de cálculo | Flexibilidad y acceso inmediato | Guiar el flujo, mostrar pendientes y registrar decisiones de manera consistente |
-| Portales bancarios aislados | Consulta de movimientos de una entidad | Relacionar movimientos con registros externos en un mismo flujo |
-| Sistemas contables o ERP generalistas | Cobertura amplia de procesos administrativos | Concentrarse en una experiencia mínima de conciliación explicable y revisable |
+| Spreadsheets | Flexibility and immediate access | Guide the flow, show pending items, and record decisions consistently |
+| Isolated banking portals | Transaction lookup for one institution | Relate transactions to external records in one flow |
+| General accounting systems or ERPs | Broad administrative-process coverage | Focus on a minimal, explainable, reviewable reconciliation experience |
 
-La diferenciación es una propuesta a validar y no implica superioridad demostrada frente a esas categorías.
+The differentiation is a proposal to validate and does not imply demonstrated superiority over these categories.
 
-## Alcance priorizado
+## Prioritized scope
 
-### MVP esencial
+### Essential MVP
 
-- Carga manual de dos conjuntos de datos de prueba: movimientos bancarios y registros o comprobantes.
-- Validación de estructura y campos requeridos.
-- Propuestas de coincidencia por monto, fecha y referencia.
-- Revisión manual para confirmar o rechazar propuestas.
-- Visualización de elementos pendientes.
-- Trazabilidad básica del origen de los datos y de las decisiones.
+- Manual upload of two test-data sets: bank transactions and records or receipts.
+- Validation of structure and required fields.
+- Matching proposals based on amount, date, and reference.
+- Manual review to confirm or reject proposals.
+- Display of pending items.
+- Basic traceability of data origin and decisions.
 
 ### Nice to have
 
-- Búsqueda aproximada de referencias con `pg_trgm`.
-- Importación asincrónica para archivos grandes.
-- Dashboard básico.
-- Exportación de resultados.
-- Despliegue en una plataforma PaaS.
+- Approximate reference search with `pg_trgm`.
+- Asynchronous import for large files.
+- Basic dashboard.
+- Result export.
+- Deployment on a PaaS platform.
 
-### Fuera de alcance
+### Out of scope
 
-- Inteligencia artificial y modelos predictivos.
+- Artificial intelligence and predictive models.
 - OCR.
-- Integración productiva con AFIP.
-- Integraciones bancarias reales.
-- Kubernetes y servidores propios.
+- Production integration with AFIP.
+- Real banking integrations.
+- Kubernetes and self-managed servers.
 - Multi-tenancy.
-- Monetización o modalidad SaaS.
-- Analítica avanzada.
+- Monetization or SaaS model.
+- Advanced analytics.
 
-## Propuesta técnica inicial
+## Initial technical proposal
 
-### Stack previsto para el MVP
+### Planned MVP stack
 
-| Área | Tecnologías | Criterio de elección |
+| Area | Technologies | Selection criterion |
 |---|---|---|
-| Frontend | TypeScript, React y Vite | Tipado, ecosistema maduro, documentación abundante y aprendizaje transferible |
-| Backend | Python, FastAPI y Pydantic | API acotada, validación explícita y comunidad amplia |
-| Persistencia | SQLAlchemy y Alembic | Acceso estructurado y evolución controlada del esquema |
-| Base de datos | PostgreSQL | Integridad relacional, transacciones y trazabilidad |
-| Colaboración | Git y GitHub | Control de versiones y revisión conjunta |
-| Entorno local | Docker Compose | Entorno reproducible sin convertir la infraestructura en el objetivo del proyecto |
+| Frontend | TypeScript, React, and Vite | Typing, mature ecosystem, extensive documentation, and transferable learning |
+| Backend | Python, FastAPI, and Pydantic | Focused API, explicit validation, and broad community |
+| Persistence | SQLAlchemy and Alembic | Structured access and controlled schema evolution |
+| Database | PostgreSQL | Relational integrity, transactions, and traceability |
+| Collaboration | Git and GitHub | Version control and joint review |
+| Local environment | Docker Compose | Reproducible environment without making infrastructure the project goal |
 
-La elección considera el problema, la escala académica del MVP, la madurez de las herramientas, el entorno de desarrollo y el costo de aprendizaje. Se prioriza un stack pequeño, estable y respaldado por documentación y comunidades activas. Mantener estas tecnologías durante el proyecto permitirá concentrar el esfuerzo en el problema y evitar costos innecesarios de capacitación, integración y pruebas derivados de un cambio de stack.
+The choice considers the problem, the academic scale of the MVP, tool maturity, the development environment, and learning cost. A small, stable stack supported by active documentation and communities is preferred. Keeping these technologies throughout the project focuses effort on the problem and avoids unnecessary training, integration, and testing costs caused by a stack change.
 
-### Base relacional frente a NoSQL
+### Relational database versus NoSQL
 
-Las conciliaciones relacionan movimientos, registros, propuestas, decisiones y estados pendientes. PostgreSQL favorece este caso por su consistencia, integridad referencial y soporte transaccional. Una base NoSQL podría ser apropiada para datos muy variables o patrones de escala diferentes, pero esas necesidades no están justificadas para el MVP. La decisión se revisará si el relevamiento descubre requisitos incompatibles con el modelo relacional.
+Reconciliation relates transactions, records, proposals, decisions, and pending states. PostgreSQL suits this case through consistency, referential integrity, and transactional support. A NoSQL database could suit highly variable data or different scaling patterns, but those needs are not justified for the MVP. The decision will be revisited if discovery finds requirements incompatible with the relational model.
 
-### Alternativas de despliegue
+### Deployment alternatives
 
-- **Desarrollo inicial:** ejecución local reproducible mediante Docker Compose.
-- **Alternativa posterior:** PaaS, si se necesita publicar una demostración con menor carga operativa.
-- **Fuera del alcance inicial:** administración de servidores propios y Kubernetes, porque agregan complejidad que no valida el problema central.
+- **Initial development:** reproducible local execution through Docker Compose.
+- **Later alternative:** PaaS, if a demonstration needs to be published with less operational overhead.
+- **Initially out of scope:** self-managed servers and Kubernetes, because they add complexity without validating the core problem.
 
-## Plan de trabajo
+## Work plan
 
-La secuencia se ajustará al calendario final de la materia y a los hallazgos del relevamiento.
+The sequence will be adjusted to the final course schedule and discovery findings.
 
-| Secuencia | Etapa | Responsables | Estado factual | Entregable previsto |
+| Sequence | Stage | Owners | Factual status | Planned deliverable |
 |---:|---|---|---|---|
-| 1 | Relevamiento y validación | Hugo y Farid | **No iniciado** | Entrevistas, flujo revisado y necesidades priorizadas |
-| 2 | Formatos y diseño | Hugo y Farid | **Documentado** | Formatos ficticios, modelo relacional, reglas y wireframes |
-| 3 | Prototipo del flujo | Hugo y Farid | **No iniciado** | Recorrido MVP ejecutable con datos de prueba acordados |
-| 4 | Verificación del producto | Hugo y Farid | **No iniciada** | Casos funcionales, pruebas técnicas y limitaciones |
-| 5 | Presentación | Hugo y Farid | **No iniciada** | Demostración y documentación final |
+| 1 | Discovery and validation | Hugo and Farid | **Not started** | Interviews, reviewed flow, and prioritized needs |
+| 2 | Formats and design | Hugo and Farid | **Documented** | Fictional formats, relational model, rules, and wireframes |
+| 3 | Workflow prototype | Hugo and Farid | **Not started** | Executable MVP flow with agreed test data |
+| 4 | Product verification | Hugo and Farid | **Not started** | Functional cases, technical tests, and limitations |
+| 5 | Presentation | Hugo and Farid | **Not started** | Demonstration and final documentation |
 
-Cada etapa reservará tiempo para aprendizaje, integración y revisión conjunta. No se incorporará un nice to have mientras falte un criterio de finalización del MVP esencial.
+Each stage reserves time for learning, integration, and joint review. No nice-to-have item will be added while an essential MVP completion criterion is missing.
 
-## Viabilidad
+## Feasibility
 
-| Dimensión | Evaluación inicial | Medida prevista |
+| Dimension | Initial assessment | Planned measure |
 |---|---|---|
-| Técnica | El flujo puede resolverse con reglas explícitas y tecnologías maduras adecuadas para la escala del MVP | Construir por etapas, usar datos de prueba y validar primero el recorrido mínimo |
-| Temporal | La disponibilidad conjunta es de unas 10 horas semanales | Priorizar el MVP, limitar trabajo simultáneo y ajustar estimaciones al calendario final de la materia |
-| Operativa | El sistema requiere formatos claros y participación humana para resolver excepciones | Validar el flujo con actores y mantener reglas y estados comprensibles |
-| Conocimientos | La formación académica del equipo brinda una base común y el stack seleccionado cuenta con documentación y comunidades amplias | Organizar aprendizaje cruzado, revisiones conjuntas y documentación de decisiones |
+| Technical | The flow can be solved with explicit rules and mature technologies suitable for MVP scale | Build in stages, use test data, and validate the minimum flow first |
+| Schedule | Joint availability is approximately 10 hours per week | Prioritize the MVP, limit parallel work, and adjust estimates to the final course schedule |
+| Operational | The system requires clear formats and human participation to resolve exceptions | Validate the flow with actors and keep rules and states understandable |
+| Knowledge | The team's academic background provides a common foundation, and the selected stack has broad documentation and communities | Organize cross-training, joint reviews, and decision documentation |
 
-La viabilidad se reevaluará al finalizar el relevamiento y cada etapa. Si el tiempo o el aprendizaje requerido superan lo previsto, se reducirá el alcance antes de agregar infraestructura o funciones secundarias.
+Feasibility will be reassessed after discovery and each stage. If the required time or learning exceeds expectations, scope will be reduced before adding infrastructure or secondary features.
 
-## Repositorio
+## Repository
 
-Código y documentación del proyecto: [github.com/turkaym/conciliador-financiero](https://github.com/turkaym/conciliador-financiero)
+Project code and documentation: [github.com/turkaym/conciliador-financiero](https://github.com/turkaym/conciliador-financiero)
 
-## Documentación
+## Documentation
 
-- [Segunda entrega corregida: índice y recorrido de revisión](docs/segunda-entrega/README.md)
-- [Contrato API `/api/v1`](docs/segunda-entrega/09-contrato-api.md)
-- [Plantillas y fixtures CSV](docs/segunda-entrega/csv/README.md)
-- [Wireframes del MVP](docs/segunda-entrega/wireframes/README.md)
-- [Esqueleto backend](backend/README.md), [esqueleto frontend](frontend/README.md) y [esquema PostgreSQL](database/README.md)
+- [Second delivery: index and review path](docs/segunda-entrega/README.md)
+- [API contract `/api/v1`](docs/segunda-entrega/09-contrato-api.md)
+- [CSV templates and fixtures](docs/segunda-entrega/csv/README.md)
+- [MVP wireframes](docs/segunda-entrega/wireframes/README.md)
+- [Backend skeleton](backend/README.md), [frontend skeleton](frontend/README.md), and [PostgreSQL schema](database/README.md)
 
-## Ejecución local
+## Local execution
 
-1. Copie `.env.example` como `.env` y defina un `JWT_SECRET_KEY` local.
-2. Ejecute `docker compose up --wait` desde la raíz. En un volumen nuevo, Compose ejecuta `database/schema.sql` y `database/seed.sql` una sola vez.
-3. Instale el backend con `backend\\.venv\\Scripts\\python.exe -m pip install -e backend[test]`.
-4. Inicie la API con `backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir backend --reload`.
-5. Inicie el frontend con `npm install && npm run dev` desde `frontend/`.
+1. Copy `.env.example` to `.env` and define a local `JWT_SECRET_KEY`.
+2. Run `docker compose up --wait` from the root. On a new volume, Compose runs `database/schema.sql` and `database/seed.sql` once.
+3. Install the backend with `backend\\.venv\\Scripts\\python.exe -m pip install -e backend[test]`.
+4. Start the API with `backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir backend --reload`.
+5. Start the frontend with `npm install && npm run dev` from `frontend/`.
 
-La aplicación local usa `http://localhost:8000` como API y `http://localhost:5173` como origen permitido por defecto. El usuario demo es `demo@conciliador.local` / `Demo1234!`; son credenciales ficticias para desarrollo y no deben reutilizarse en un entorno público.
+The local application uses `http://localhost:8000` as the API and `http://localhost:5173` as the default allowed origin. The demo user is `demo@conciliador.local` / `Demo1234!`; these are fictional development credentials and must not be reused in a public environment.
 
-## Preparación de despliegue en Render
+## Render deployment
 
-`render.yaml` define un Blueprint con una base PostgreSQL administrada, un web service FastAPI y un static site Vite. El Blueprint genera `JWT_SECRET_KEY` y referencia la conexión PostgreSQL; no contiene secretos.
+`render.yaml` defines a Blueprint with a managed PostgreSQL database, a FastAPI web service, and a Vite static site. The Blueprint generates `JWT_SECRET_KEY` and references the PostgreSQL connection; it contains no secrets. The deployed Blueprint is `conciliador-financiero-mvp`.
 
-1. En Render, conecte el repositorio y seleccione el Blueprint `render.yaml`. Esta acción queda pendiente de autorización remota y no fue ejecutada desde este repositorio.
-2. En `conciliador-api`, defina `CORS_ORIGINS` con la URL final del static site, por ejemplo `https://<frontend>.onrender.com`.
-3. En `conciliador-frontend`, defina `VITE_API_BASE_URL` con la URL final del web service, por ejemplo `https://<api>.onrender.com`.
-4. Guarde los cambios y redeploye el frontend después de configurar `VITE_API_BASE_URL`, porque Vite incorpora esa variable durante el build.
+1. In Render, connect the repository and select the `render.yaml` Blueprint.
+2. In `conciliador-api`, set `CORS_ORIGINS` to the final static-site URL, such as `https://<frontend>.onrender.com`.
+3. In `conciliador-frontend`, set `VITE_API_BASE_URL` to the final web-service URL, such as `https://<api>.onrender.com`.
+4. Save the changes and redeploy the frontend after configuring `VITE_API_BASE_URL`, because Vite embeds this variable during the build.
 
-El comando de inicio del backend ejecuta `app.initialize_database`: adquiere un bloqueo transaccional, crea el esquema solamente si falta `public.usuario` y ejecuta el seed determinista e idempotente en cada arranque. No ejecuta un reset destructivo. Render inyecta `PORT` y Uvicorn escucha en `0.0.0.0`; `/health` es el health check.
+The backend start command runs `app.initialize_database`: it acquires a transactional lock, creates the schema only when `public.usuario` is missing, and runs the deterministic idempotent seed on every start. It does not perform a destructive reset. Render injects `PORT`, Uvicorn listens on `0.0.0.0`, and `/health` is the health check.
 
-### Credenciales y variables requeridas
+### Credentials and required variables
 
-- `DATABASE_URL`: la referencia del Blueprint a la base administrada.
-- `JWT_SECRET_KEY`: generado por Render; nunca lo agregue al repositorio.
-- `CORS_ORIGINS`: URL exacta del frontend público, sin barra final.
-- `VITE_API_BASE_URL`: URL exacta de la API pública, sin barra final.
-- `DATABASE_SCHEMA_PATH` y `DATABASE_SEED_PATH`: rutas versionadas usadas por el inicializador.
+- `DATABASE_URL`: the Blueprint reference to the managed database.
+- `JWT_SECRET_KEY`: generated by Render; never add it to the repository.
+- `CORS_ORIGINS`: exact public frontend URL, without a trailing slash.
+- `VITE_API_BASE_URL`: exact public API URL, without a trailing slash.
+- `DATABASE_SCHEMA_PATH` and `DATABASE_SEED_PATH`: versioned paths used by the initializer.
 
-El seed crea o reactiva el usuario demo y los catálogos. Para una demostración pública, cambie las credenciales documentadas o elimine el usuario demo mediante un procedimiento seguro antes de usar datos reales.
+The seed creates or reactivates the demo user and catalogs. For a public demonstration, change the documented credentials or remove the demo user through a secure procedure before using real data.
 
-### Smoke test posterior al despliegue
+### Post-deployment smoke test
 
-Cuando los servicios existan y sus URLs estén disponibles, verifique desde una máquina autorizada:
+Verify from an authorized machine:
 
-1. `curl -fsS https://<api>.onrender.com/health` devuelve `{"status":"healthy"}`.
-2. El frontend público carga sin errores de assets ni de consola.
-3. El login con las credenciales demo configuradas recibe un token.
-4. Se cargan los dos CSV de `docs/segunda-entrega/csv/fixtures/`, se inspeccionan errores y pendientes, y se verifica una propuesta.
-5. Se confirma una propuesta, se revisa historial, se revierte la conciliación y se confirma que ambos registros vuelven a pendientes.
-6. Se repite el arranque o redeploy del backend y se comprueba que el seed no duplica catálogos ni reinicia datos.
+1. `curl -fsS https://<api>.onrender.com/health` returns `{"status":"healthy"}`.
+2. The public frontend loads without asset or console errors.
+3. Login with the configured demo credentials receives a token.
+4. Upload both CSVs from `docs/segunda-entrega/csv/fixtures/`, inspect errors and pending records, and verify a proposal.
+5. Confirm a proposal, inspect history, reverse the reconciliation, and verify that both records return to pending.
+6. Restart or redeploy the backend and confirm that the seed does not duplicate catalogs or reset data.
 
-MVP-11 queda preparado localmente, pero no se considera completo hasta crear los servicios Render y ejecutar este smoke test remoto con autorización explícita.
+MVP-11 is deployed, but it is not complete until the reversal step in this remote smoke test is verified explicitly.

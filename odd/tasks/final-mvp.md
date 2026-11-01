@@ -36,7 +36,7 @@ The repository contains an approved design and database model but no executable 
 - Deadline: Sunday.
 - Preserve the approved API, SQL model, CSV formats, and business rules.
 - PostgreSQL 16 is the required database.
-- New code, identifiers, and comments use English; the existing Spanish UI and public documentation remain Spanish.
+- New code, identifiers, and comments use English; the user-facing React UI remains Spanish. This documentation-only work translates only the authorized documentation surfaces and does not claim that every repository document is translated.
 - `.atl/` is local generated tooling and must not be committed.
 - Hugo and Farid must create their own genuine contributions; authorship must not be fabricated.
 
@@ -162,14 +162,17 @@ The repository contains an approved design and database model but no executable 
 - 2026-10-22: MVP-10 implemented with shared bearer-authenticated proposal, history, reconciliation detail, confirmation, rejection, and reversal API workflows; accessible protected navigation; loading, empty, error, conflict, success, and required-reason states; and mutation submission guards.
 - 2026-10-22: MVP-10 checks passed: frontend Vitest suite (13 tests), TypeScript project build/type check, Vite production build, and `git diff --check`. Tests cover proposal loading/detail, confirmation, rejection, stale reversal conflict, duplicate submission prevention, reversal reason validation, history navigation, and 401 logout protection.
 - 2026-10-23: MVP-11 prepared locally on `feat/final-mvp`: added `render.yaml` for one managed PostgreSQL database, one FastAPI web service, and one Vite static site; generated the JWT secret through Render; added explicit CORS/API URL configuration; and documented the one-time URL substitution and remote smoke test.
-- 2026-10-23: MVP-11 local checks passed in this work unit: Blueprint structure, backend compilation and tests, frontend tests/build, and diff validation. Render service creation, public URLs, remote initialization, and remote smoke testing remain blocked until explicit remote authorization.
+- 2026-10-23: MVP-11 local checks passed in this work unit: Blueprint structure, backend compilation and tests, frontend tests/build, and diff validation. Render service creation, public URLs, remote initialization, and remote smoke testing remained blocked until explicit remote authorization.
 - 2026-10-26: Fixed the confirmed production catalog query failure by mapping the Python `DataSource.code` attribute to the approved `fuente_datos.codigo` column; added a regression test against that physical schema. MVP-11 remains incomplete pending authorized deployment verification.
 - 2026-10-26: Fixed the second confirmed production catalog query failure by mapping the Python `ImportTemplate.name` attribute to the approved `plantilla_importacion.nombre` column; added an endpoint regression test against that physical schema. MVP-11 remains incomplete pending authorized deployment verification.
 - 2026-10-26: Fixed the confirmed production template-order failure by applying deterministic approved MOVIMIENTO/COMPROBANTE column ordering in catalog responses and CSV validation, independent of retained `campo_plantilla` identity order; added reversed-order regression coverage using both valid fixtures. MVP-11 remains incomplete pending authorized deployment verification.
 - 2026-10-28: Fixed the remaining production upload-order failure by applying the shared canonical MOVIMIENTO/COMPROBANTE ordering directly when building template columns for validation; added regression assertions that stale `campo_plantilla` identity order still yields canonical catalog headers and successfully processes both valid fixtures. MVP-11 remains incomplete pending authorized deployment verification.
 - 2026-10-28: Fixed the confirmed production upload persistence failure by mapping the Python movement and receipt `date`/`amount` attributes to the approved physical `fecha`/`monto` columns; added persistence regression coverage against tables exposing only those physical names. MVP-11 remains incomplete pending authorized deployment verification.
 - 2026-10-29: Fixed the confirmed production proposal-confirmation failure by flushing the proposal and endpoint `CONFIRMADA`/`CONCILIADO` updates before inserting the active reconciliation; added PostgreSQL-trigger-style regression coverage for the confirmation invariant. MVP-11 remains incomplete pending authorized deployment verification.
+- 2026-10-30: The authorized Render Blueprint `conciliador-financiero-mvp` created the managed PostgreSQL database, `conciliador-api` web service, and `conciliador-frontend` static site. Public URLs are `https://conciliador-api-bym3.onrender.com` and `https://conciliador-frontend-8djd.onrender.com`.
+- 2026-10-30: Production fixes for catalog column mappings, canonical template ordering, upload validation ordering, date/amount persistence, and proposal confirmation were deployed and verified remotely. The demo login works; both valid CSV fixtures process 3/3 valid rows; pending records and three proposals appear; Proposal #1 confirmation succeeds; and history records `PROPUESTA_CONFIRMADA`.
+- 2026-10-30: Remote reversal smoke verification remains pending. MVP-11 stays unchecked until reversal confirms that both records return to pending and the corresponding history evidence is present.
 
 ## Current Next Step
 
-MVP-10 is complete. MVP-11 is locally prepared; continue with authorized Render service creation and remote smoke testing before marking it complete.
+MVP-10 is complete. MVP-11 is deployed and partially verified; complete the remote reversal smoke test before marking it complete. MVP-12 remains pending.

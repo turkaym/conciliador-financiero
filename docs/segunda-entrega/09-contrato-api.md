@@ -1,70 +1,70 @@
-# Contrato HTTP `/api/v1`
+# HTTP Contract `/api/v1`
 
-Contrato previo a codificación para el monolito modular. Todas las operaciones salvo login requieren autenticación. JSON usa UTF-8, nombres `snake_case`, fechas de negocio `YYYY-MM-DD` y tiempos UTC RFC 3339. Los IDs son enteros positivos y los importes se serializan como cadenas decimales.
+Pre-coding contract for the modular monolith. All operations except login require authentication. JSON uses UTF-8, `snake_case` names, `YYYY-MM-DD` business dates, and RFC 3339 UTC timestamps. IDs are positive integers and amounts are serialized as decimal strings.
 
-## Convenciones
+## Conventions
 
-Las listas responden `{ "page": 1, "page_size": 25, "total": 0, "items": [] }`. `page >= 1`; `page_size` admite `1..100` y vale `25` por defecto. Orden estable: criterio declarado y luego `id ASC`.
+Lists respond with `{ "page": 1, "page_size": 25, "total": 0, "items": [] }`. `page >= 1`; `page_size` accepts `1..100` and defaults to `25`. Stable ordering uses the declared criterion followed by `id ASC`.
 
-El modelo API traduce nombres físicos sin cambiar su significado: `normalizador_version`→`normalizer_version`, `version_regla`→`rule_version`, `score_referencia`→`reference_score`, `coincidencia_exacta`→`exact_match`, `diferencia_dias`→`day_difference` y `explicacion`→`ranking`.
+The API model translates physical names without changing their meaning: `normalizador_version` -> `normalizer_version`, `version_regla` -> `rule_version`, `score_referencia` -> `reference_score`, `coincidencia_exacta` -> `exact_match`, `diferencia_dias` -> `day_difference`, and `explicacion` -> `ranking`.
 
-Los errores usan:
+Errors use:
 
 ```json
-{"code":"CODIGO_ESTABLE","message":"Explicación","field":"campo_opcional","details":{},"trace_id":"uuid"}
+{"code":"CODIGO_ESTABLE","message":"Explanation","field":"optional_field","details":{},"trace_id":"uuid"}
 ```
 
 | HTTP | Uso |
 |---:|---|
-| 400 | Request/multipart/parámetro mal formado. |
-| 401 | Credencial ausente o inválida. |
-| 404 | Recurso inexistente o no visible. |
-| 409 | Estado, duplicidad o concurrencia incompatible. |
-| 422 | Regla de dominio o campo semánticamente inválido. |
-| 500 | Fallo inesperado; `trace_id` permite correlación sin filtrar secretos. |
+| 400 | Malformed request, multipart body, or parameter. |
+| 401 | Missing or invalid credential. |
+| 404 | Resource does not exist or is not visible. |
+| 409 | Incompatible state, duplicate, or concurrency condition. |
+| 422 | Domain rule or semantically invalid field. |
+| 500 | Unexpected failure; `trace_id` enables correlation without exposing secrets. |
 
-## Acceso y catálogos
+## Access and catalogs
 
-| Método y ruta | Entrada | Respuesta | Errores | RF |
+| Method and path | Input | Response | Errors | RF |
 |---|---|---|---|---|
 | `POST /api/v1/auth/login` | JSON `{email,password}` | `200 {access_token,token_type:"bearer",expires_in,user:{id,email}}` | 400, 401, 422 | RF-01 |
-| `GET /api/v1/catalog/sources` | Query `type?=MOVIMIENTO\|COMPROBANTE` | Lista `{id,code,name,type}` activa | 400, 401 | RF-02 |
-| `GET /api/v1/catalog/templates` | Query `source_id,type` | Lista `{id,name,type,version,columns[]}` compatible | 400, 401, 404 | RF-02 |
+| `GET /api/v1/catalog/sources` | Query `type?=MOVIMIENTO\|COMPROBANTE` | Active list `{id,code,name,type}` | 400, 401 | RF-02 |
+| `GET /api/v1/catalog/templates` | Query `source_id,type` | Compatible list `{id,name,type,version,columns[]}` | 400, 401, 404 | RF-02 |
 
-Login nunca informa si el email existe. El token y su almacenamiento se definirán durante codificación; el contrato no expone hashes.
+Login never reveals whether an email exists. Token handling and storage are implementation details; the contract does not expose hashes.
 
-## Lotes, errores y pendientes
+## Batches, errors, and pending records
 
-### Crear lote
+### Create batch
 
-`POST /api/v1/batches` recibe `multipart/form-data`: `source_id` (ID), `template_id` (ID exacto del catálogo), `type` (`MOVIMIENTO|COMPROBANTE`) y `file` (un CSV). Nombre y versión son informativos en `GET /catalog/templates`; la selección y resolución usan exclusivamente `template_id`. Responde `202` con:
+`POST /api/v1/batches` receives `multipart/form-data`: `source_id` (ID), `template_id` (exact catalog ID), `type` (`MOVIMIENTO|COMPROBANTE`), and `file` (one CSV). Name and version are informational in `GET /catalog/templates`; selection and resolution use only `template_id`. It responds with `202`:
 
 ```json
-{"id":31,"status":"PROCESSED_WITH_ERRORS","requested_template_id":17,"template":{"id":17,"name":"bank","version":1},"file_name":"movimientos.csv","received_at":"2026-05-01T12:00:00Z"}
+{"id":31,"status":"PROCESADO_CON_ERRORES","requested_template_id":17,"template":{"id":17,"name":"bank","version":1},"file_name":"movimientos.csv","received_at":"2026-05-01T12:00:00Z"}
 ```
 
-La implementación puede responder cuando termina el procesamiento síncrono aunque conserve `202`. Una estructura reconocida procesada por completo con `totals.total_rows = totals.invalid_rows > 0` y `totals.valid_rows = 0` devuelve `PROCESSED_WITHOUT_VALID_ROWS`; mezcla usa `PROCESSED_WITH_ERRORS`. Plantilla desconocida, estructura no interpretable y fallo técnico usan `FAILED` con `UNKNOWN_TEMPLATE`, `INVALID_FILE_STRUCTURE` o `PROCESSING_FAILED`, sin filas procesadas. `FAILED` conserva intento/error pero no reserva huella, por lo que los mismos bytes pueden reenviarse. Un conflicto de reserva crea directamente `DUPLICATE` terminal con `original_batch_id`, evento y cero filas. Si el dueño concurrente falla, el duplicado no se promociona: hace falta otro envío. Errores HTTP: 400 multipart ilegible, 401, 404 fuente, 409 conflicto, 422 tipo/archivo.
+The implementation may respond after synchronous processing completes while retaining `202`. A recognized structure processed with zero valid rows returns `PROCESADO_SIN_VALIDOS`; a mixed result uses `PROCESADO_CON_ERRORES`; a fully valid result uses `PROCESADO`. An unknown template, uninterpretable structure, or technical failure uses `FALLIDO` with `UNKNOWN_TEMPLATE`, `INVALID_FILE_STRUCTURE`, or `PROCESSING_FAILED`, without processed rows. `FALLIDO` preserves the attempt/error but does not reserve the fingerprint, so the same bytes can be submitted again. A reservation conflict directly creates terminal `DUPLICADO` with `original_batch_id`, an event, and zero rows. If the concurrent owner fails, the duplicate is not promoted and another submission is required. HTTP errors: 400 unreadable multipart, 401, 404 source, 409 conflict, 422 type/file.
 
-| Método y ruta | Entrada/filtros | Respuesta | Errores | RF |
+| Method and path | Input/filters | Response | Errors | RF |
 |---|---|---|---|---|
 | `GET /api/v1/batches/{batch_id}` | Path ID | `{id,source,template?:{id,name,version},requested_template_id,type,file_name,status,totals,original_batch_id?,received_at,finished_at?}` | 401, 404 | RF-02, RF-03, RF-06 |
 | `GET /api/v1/batches/{batch_id}/errors` | `page,page_size,scope?,field?` | Lista de `{id,scope,row_number?,field?,code,message,original_record_id?,created_at}` | 400, 401, 404 | RF-03, RF-06 |
-| `GET /api/v1/pending` | `type?,batch_id?,state?,page,page_size` | Lista ordenada por `created_at,id` de `{record_id,type,batch_id,external_id?,date,amount,currency,reference_original,state,cause}` | 400, 401, 404 | RF-07 |
+| `GET /api/v1/pending` | `type?,batch_id?,state?,page,page_size` | List ordered by `created_at,id` of `{record_id,type,batch_id,external_id?,date,amount,currency,reference_original,state,cause}` | 400, 401, 404 | RF-07 |
 
-Los estados API en inglés mapean 1:1 a los estados SQL documentados; la tabla de mapeo queda en el glosario. La respuesta nunca sustituye ni modifica el original.
+The current implementation returns the Spanish status values used by the API and UI, including `PROCESADO`, `PROCESADO_CON_ERRORES`, `PROCESADO_SIN_VALIDOS`, `FALLIDO`, and `DUPLICADO`. These values map 1:1 to the documented SQL states; the response never translates or modifies the original implementation values.
 
-## Propuestas
+## Proposals
 
-Las propuestas nacen automáticamente cuando un lote termina `PROCESSED` o `PROCESSED_WITH_ERRORS`, y durante una reversión. Cada registro habilitado se compara con pendientes opuestos históricos. `PROCESSED_WITHOUT_VALID_ROWS`, `FAILED` y `DUPLICATE` no disparan comparación.
+Proposals are generated automatically when a batch ends in `PROCESADO` or `PROCESADO_CON_ERRORES`, and during a reversal. Each eligible record is compared with historical opposite pending records. `PROCESADO_SIN_VALIDOS`, `FALLIDO`, and `DUPLICADO` do not trigger matching.
 
-`GET /api/v1/proposals` acepta `status?`, `batch_id?`, `page`, `page_size`; ordena por `exact_match DESC`, `reference_score DESC`, `absolute_day_difference ASC`, `movement_id ASC`, `receipt_id ASC`. Devuelve ítems resumidos con IDs, fechas, montos, estado, score y versiones. RF-08, RF-09.
+`GET /api/v1/proposals` accepts `status?`, `batch_id?`, `page`, and `page_size`; it orders by `exact_match DESC`, `reference_score DESC`, `absolute_day_difference ASC`, `movement_id ASC`, and `receipt_id ASC`. It returns summarized items with IDs, dates, amounts, status, score, and versions. RF-08, RF-09.
 
 `GET /api/v1/proposals/{proposal_id}` devuelve:
 
 ```json
 {
   "id": 81,
-  "status": "GENERATED",
+"status": "GENERADA",
   "evaluation_fingerprint": "sha256:base64url",
   "movement": {"record_id": 11, "batch_id": 3, "date": "2026-04-10", "amount": "1500.00", "currency": "ARS", "reference_original": "FACTURA 100"},
   "receipt": {"record_id": 24, "batch_id": 7, "date": "2026-04-11", "amount": "1500.00", "currency": "ARS", "reference_original": "Factura-100"},
@@ -74,29 +74,29 @@ Las propuestas nacen automáticamente cuando un lote termina `PROCESSED` o `PROC
 }
 ```
 
-Errores: 401, 404. La referencia explica y ordena; ARS, monto exacto y fecha ±3 días determinan elegibilidad.
+Errors: 401, 404. The reference explains and ranks; ARS, exact amount, and a date within ±3 days determine eligibility.
 
-### Decisiones
+### Decisions
 
-| Método y ruta | Entrada | Respuesta | Errores | RF |
+| Method and path | Input | Response | Errors | RF |
 |---|---|---|---|---|
-| `POST /api/v1/proposals/{proposal_id}/confirm` | JSON vacío `{}` | `200 {proposal:{id,status:"CONFIRMED",decided_by,decided_at},reconciliation:{id,status:"ACTIVE"}}` | 401, 404, 409 estado/carrera, 422 inelegible | RF-10 |
-| `POST /api/v1/proposals/{proposal_id}/reject` | JSON `{reason}` no vacío | `200 {id,status:"REJECTED",reason,decided_by,decided_at}` | 401, 404, 409 terminal, 422 motivo | RF-11 |
+| `POST /api/v1/proposals/{proposal_id}/confirm` | Empty JSON `{}` | `200 {proposal:{id,status:"CONFIRMADA",decided_by,decided_at},reconciliation:{id,status:"ACTIVA"}}` | 401, 404, 409 state/race, 422 ineligible | RF-10 |
+| `POST /api/v1/proposals/{proposal_id}/reject` | Non-empty JSON `{reason}` | `200 {id,status:"RECHAZADA",reason,decided_by,decided_at}` | 401, 404, 409 terminal, 422 reason | RF-11 |
 
-Generar y confirmar comparten protocolo: bloquean registros con `SELECT ... FOR UPDATE ORDER BY id` y revalidan. Confirmar lee primero IDs inmutables, bloquea registros, luego propuesta, cambia a `CONFIRMED`, crea conciliación y caduca incompatibles. Pareja, evaluación, procedencia y terminales son inmutables. Pareja + `rule_version` + `evaluation_fingerprint` suprime un rechazo idéntico; datos o regla nuevos permiten otra evaluación, nunca reapertura.
+Generation and confirmation share a protocol: they lock records with `SELECT ... FOR UPDATE ORDER BY id` and revalidate. Confirmation first reads immutable IDs, locks records, then the proposal, changes it to `CONFIRMADA`, creates the reconciliation, and expires incompatible proposals. Pair, evaluation, origin, and terminal values are immutable. Pair + `rule_version` + `evaluation_fingerprint` suppresses an identical rejection; new data or rules allow another evaluation, never reopening a terminal record.
 
-## Conciliaciones e historial
+## Reconciliations and history
 
-| Método y ruta | Entrada/filtros | Respuesta | Errores | RF |
+| Method and path | Input/filters | Response | Errors | RF |
 |---|---|---|---|---|
 | `GET /api/v1/reconciliations/{reconciliation_id}` | Path ID | `{id,status,proposal_id,movement,receipt,confirmed_by,confirmed_at,reversal?}` | 401, 404 | RF-10, RF-12 |
-| `POST /api/v1/reconciliations/{reconciliation_id}/reverse` | JSON `{reason}` no vacío | `200 {id,status:"REVERSED",reversal:{reason,actor,occurred_at},generated_proposals:[{id,origin:{type:"REVERSAL",reverted_reconciliation_id}}]}` | 401, 404, 409 repetición/carrera, 422 motivo | RF-12 |
-| `GET /api/v1/history` | `target_type?,target_id?,event_type?,from?,to?,page,page_size` | Lista por `occurred_at DESC,id DESC` de `{id,event_type,target,actor?,reason?,data,occurred_at}` | 400, 401, 404 | RF-13 |
+| `POST /api/v1/reconciliations/{reconciliation_id}/reverse` | Non-empty JSON `{reason}` | `200 {id,status:"REVERTIDA",reversal:{reason,actor,occurred_at},generated_proposals:[{id,origin:{type:"REVERSAL",reverted_reconciliation_id}}]}` | 401, 404, 409 repetition/race, 422 reason | RF-12 |
+| `GET /api/v1/history` | `target_type?,target_id?,event_type?,from?,to?,page,page_size` | List ordered by `occurred_at DESC,id DESC` of `{id,event_type,target,actor?,reason?,data,occurred_at}` | 400, 401, 404 | RF-13 |
 
-Revertir lee IDs inmutables, reúne candidatos y bloquea globalmente todos los `registro_importado` por `id ASC`; después bloquea la conciliación y revalida `ACTIVE`. En una única transacción la marca `REVERSED`, libera extremos, recompara inmediatamente, omite rechazos y la pareja recién revertida con iguales datos/regla, crea propuestas nuevas con origen `REVERSAL` y agrega auditoría. Un cambio relevante o `rule_version` nuevo permite que esa pareja reaparezca. Cualquier error hace rollback total; terminales no cambian.
+Reversal reads immutable IDs, gathers candidates, and globally locks all `registro_importado` rows by `id ASC`; it then locks the reconciliation and revalidates `ACTIVA`. In one transaction it marks it `REVERTIDA`, releases both endpoints, rematches immediately, skips rejections and the recently reversed pair with identical data/rule, creates new proposals with `REVERSION` origin, and adds audit data. A relevant change or new `rule_version` allows that pair to reappear. Any error rolls back the whole operation; terminal states do not change.
 
-## Normalización y ranking canónicos
+## Canonical normalization and ranking
 
-`ref-nfkd-v1` aplica, exactamente en este orden: Unicode **NFKD**; eliminación de marcas combinantes; conversión a mayúsculas; cada signo de puntuación a espacio; colapso de espacios y `trim`; conjunto de tokens únicos. Conserva originales fuera de esta copia.
+`ref-nfkd-v1` applies, exactly in this order: Unicode **NFKD**; removal of combining marks; uppercase conversion; each punctuation mark becomes a space; whitespace collapse and `trim`; unique token set. Originals are preserved outside this copy.
 
-Jaccard es `|A ∩ B| / |A ∪ B|`; si la unión está vacía vale `0`. La igualdad exacta exige dos normalizados iguales **y no vacíos**; dos vacíos producen `false`. El desempate total es: igualdad exacta descendente, Jaccard descendente, diferencia absoluta de días ascendente, ID de movimiento ascendente e ID de comprobante ascendente.
+Jaccard is `|A ∩ B| / |A ∪ B|`; an empty union is `0`. Exact equality requires two equal **and non-empty** normalized values; two empty values produce `false`. The complete tie-break order is: exact match descending, Jaccard descending, absolute day difference ascending, movement ID ascending, and receipt ID ascending.
