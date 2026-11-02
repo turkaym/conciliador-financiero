@@ -1,0 +1,24 @@
+http:
+  routers:
+    # 1. Enrutador para el Backend (API Gateway)
+    api-router:
+      rule: "Host(`api.htsolution.org`)"
+      service: api-service
+
+    # 2. Enrutador para el Frontend (App React)
+    app-router:
+      rule: "Host(`app.htsolution.org`)"
+      service: app-service
+
+  services:
+    # Servicio destino: Backend
+    api-service:
+      loadBalancer:
+        servers:
+          - url: "http://conciliador_api:80"
+
+    # Servicio destino: Frontend
+    app-service:
+      loadBalancer:
+        servers:
+          - url: "http://conciliador_frontend:5173"

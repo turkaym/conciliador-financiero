@@ -1,23 +1,377 @@
 services:
-  postgres:
-    image: postgres:16
+  # --- TUNEL CLOUDFLARE ---
+  cloudflare:
+    image: cloudflare/cloudflared:latest
+    container_name: conciliador_tunnel
+    command: tunnel run
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-conciliador}
-      POSTGRES_USER: ${POSTGRES_USER:-conciliador}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-conciliador_local_only}
-    ports:
-      - "127.0.0.1:5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/002-seed.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 5s
+      - TUNNEL_TOKEN=${CLOUDFLARE_TOKEN}
+    networks:
+      - conciliador_net
     restart: unless-stopped
 
+  # --- PROXY REVERSO ---
+  traefik:
+    image: traefik:v3.0
+    container_name: conciliador_proxy
+    command:
+      - "--api.insecure=true"
+      - "--entrypoints.web.address=:80"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./traefik_dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - conciliador_net
+    restart: unless-stopped
+
+  # --- FRONTEND ---
+  frontend:
+    image: node:24-alpine
+    container_name: conciliador_frontend
+    volumes:
+      - ./frontend/app:/app
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev"
+    environment:
+      # 🌟 FIX ARQUITECTURA: Vite debe apuntar al dominio público, no al host interno de Docker
+      - VITE_API_URL=https://api.htsolution.org
+    networks:
+      - conciliador_net
+    restart: unless-stopped
+
+  # --- BASES DE DATOS & CACHÉ (CON HEALTHCHECKS) ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: conciliador_db
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: conciliador_master
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - conciliador_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d conciliador_master"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- MULTIPLEXOR DE CONEXIONES ---
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: conciliador_pgbouncer
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - AUTH_TYPE=plain
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=2000
+      - DEFAULT_POOL_SIZE=20
+      - IGNORE_STARTUP_PARAMETERS=extra_float_digits
+    ports:
+      - "6432:5432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - conciliador_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: conciliador_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - conciliador_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: conciliador_rabbit
+    env_file: .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${DB_USER}
+      RABBITMQ_DEFAULT_PASS: ${DB_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq
+    networks:
+      - conciliador_net
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- MICROSERVICIOS ---
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: conciliador_api
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - PROMETEO_API_KEY=${PROMETEO_API_KEY}
+      - PROMETEO_ENV=${PROMETEO_ENV}
+      - TZ=UTC
+      - DB_HOST=pgbouncer
+      - DB_PORT=5432
+    ports:
+      - "8000:80"
+    volumes:
+      - ./services/api-gateway/main.py:/app/main.py
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./scripts:/app/scripts
+      - ./alembic:/app/alembic
+      - ./alembic_master:/app/alembic_master
+      - ./alembic_tenants:/app/alembic_tenants
+      - ./alembic.ini:/app/alembic.ini
+      - ./tenants_data:/app/tenants_data
+      - ./services/api-gateway/manage.py:/app/manage.py
+      - afip_certs:/app/certs
+    networks:
+      - conciliador_net
+
+  # --- ESCUADRÓN 1: INTEGRACIÓN AFIP & PADRONES ---
+  # Prioridad: Alta memoria, operaciones largas.
+  worker-afip:
+    build: ./services/api-gateway
+    container_name: conciliador_worker_afip
+    command: celery -A core.tasks.celery_config worker -n afip_worker@%h -c 2 -Q afip_queue --loglevel=info -E
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - PROMETEO_API_KEY=${PROMETEO_API_KEY}
+      - PROMETEO_ENV=${PROMETEO_ENV}
+      - TZ=UTC
+      - DB_HOST=pgbouncer
+      - DB_PORT=5432
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+    volumes:
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./alembic:/app/alembic
+      - ./alembic_master:/app/alembic_master
+      - ./alembic_tenants:/app/alembic_tenants
+      - ./alembic.ini:/app/alembic.ini
+      - ./tenants_data:/app/tenants_data
+      - afip_certs:/app/certs
+    tmpfs:
+      - /tmp
+    networks:
+      - conciliador_net
+
+  # --- ESCUADRÓN 2: CONTABILIDAD Y BANCOS ---
+  # Prioridad: Alta velocidad, streaming I/O, ingestas masivas.
+  worker-accounting:
+    build: ./services/api-gateway
+    container_name: conciliador_worker_accounting
+    command: celery -A core.tasks.celery_config worker -n accounting_worker@%h -c 4 -Q accounting_queue --loglevel=info -E
+    restart: unless-stopped
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=UTC
+      - DB_HOST=pgbouncer
+      - DB_PORT=5432
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+    volumes:
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./alembic:/app/alembic
+      - ./alembic_master:/app/alembic_master
+      - ./alembic_tenants:/app/alembic_tenants
+      - ./alembic.ini:/app/alembic.ini
+    tmpfs:
+      - /tmp
+    networks:
+      - conciliador_net
+
+  # --- ESCUADRÓN 3: MOTOR DE MATCHING E INTELIGENCIA ---
+  # Prioridad: Alta CPU, operaciones cortas, crons.
+  worker-matching:
+    build: ./services/api-gateway
+    container_name: conciliador_worker_matching
+    command: celery -A core.tasks.celery_config worker -n matching_worker@%h -c 4 -Q matching_queue,default --loglevel=info -E
+    restart: unless-stopped
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=UTC
+      - DB_HOST=pgbouncer
+      - DB_PORT=5432
+    volumes:
+      - ./core:/app/core
+      - ./config:/app/config
+    tmpfs:
+      - /tmp
+    networks:
+      - conciliador_net
+
+# --- ESCUADRÓN 4: COPILOTO IA Y MOTOR VECTORIAL (SIDECAR) ---
+  # Prioridad: Ejecución de LangGraph, Tool Calling y Embeddings Locales.
+  worker-ai:
+    build: ./services/api-gateway
+    container_name: conciliador_worker_ai
+    # Concurrency 2: Ideal para balancear tareas de I/O (API de OpenAI) y CPU (Vectorización local)
+    command: celery -A core.tasks.celery_config worker -n ai_worker@%h -c 2 -Q ai_queue --loglevel=info -E
+    restart: unless-stopped
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=UTC
+      - DB_HOST=pgbouncer
+      - DB_PORT=5432
+      # 🌟 Inyección de la API Key comercial para el razonamiento B2B
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./core:/app/core
+      - ./config:/app/config
+    tmpfs:
+      - /tmp
+    # 🌟 Aislamiento Cgroups: Límite estricto para evitar colapsos por Out-Of-Memory en procesamiento NLP
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+    networks:
+      - conciliador_net
+
+  celery-beat:
+    build: ./services/api-gateway
+    container_name: conciliador_celery_beat
+    command: celery -A core.tasks.celery_config beat -l info
+    restart: unless-stopped
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+      - TZ=UTC
+      - DB_HOST=pgbouncer
+      - DB_PORT=5432
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./alembic:/app/alembic
+      - ./alembic_master:/app/alembic_master
+      - ./alembic_tenants:/app/alembic_tenants
+      - ./alembic.ini:/app/alembic.ini
+    networks:
+      - conciliador_net
+
+  # --- OBSERVABILIDAD ---
+  flower:
+    build: ./services/api-gateway
+    container_name: conciliador_flower
+    command: celery -A core.tasks.celery_config flower --port=5555 --basic_auth=${FLOWER_BASIC_AUTH}
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - PYTHONPATH=/app
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./core:/app/core
+      - ./config:/app/config
+    networks:
+      - conciliador_net
+
+  # --- STORAGE ---
+  minio:
+    image: minio/minio:latest
+    container_name: conciliador_storage
+    command: server /data --console-address ":9001"
+    env_file: .env
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - conciliador_net
+
+networks:
+  conciliador_net:
+    driver: bridge
+
 volumes:
-  postgres_data:
+  pg_data:
+  redis_data:
+  rabbit_data:
+  minio_data:
+  afip_certs:
