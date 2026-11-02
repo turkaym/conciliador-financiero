@@ -25,7 +25,7 @@ export function useSessionManager() {
     const idleCheckInterval = setInterval(() => {
       const now = Date.now();
       if (now - lastActivity.current >= IDLE_TIMEOUT_MS) {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.warn("🔒 Sesión expirada por inactividad. Cerrando bóveda.");
         }
         logout();
@@ -45,7 +45,7 @@ export function useSessionManager() {
 
       // Si otra pestaña tomó el candado y renovó el token en los últimos 30 segundos, abortamos
       if (now - lastRefresh < 30000) {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.log("🔄 [Sesión] Otra pestaña ya renovó el token. Omitiendo petición duplicada.");
         }
         return;

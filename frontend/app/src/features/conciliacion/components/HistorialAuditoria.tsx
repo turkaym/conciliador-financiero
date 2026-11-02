@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, CheckCircle2, Undo2, AlertTriangle } from "lucide-react"
+import { Loader2, CheckCircle2, Undo2 } from "lucide-react"
 
 // Import apuntando a utils
 import { formatearMonedaSegura } from "../utils/formatters"

@@ -106,6 +106,7 @@ export default function LogisticaTable() {
   };
 
   const handleAnularOrden = async (id: number) => {
+    if (!entidadActiva) return;
     if (!window.confirm("¿Estás seguro de que deseas anular esta Orden de Pago?\n\nSi la orden ya fue pagada pero no conciliada, los fondos retornarán virtualmente a la caja y la deuda con el proveedor se reabrirá. Esta acción quedará registrada en la auditoría.")) {
       return;
     }

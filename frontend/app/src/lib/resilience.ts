@@ -1,14 +1,15 @@
 import api from '@/api/axios';
+import type { AxiosRequestConfig } from 'axios';
 
 /**
  * 📡 [OFFLINE-FIRST] Exponential Backoff
  * Blindaje para reintentar peticiones ante cortes de red.
  */
-export const fetchWithBackoff = async (url: string, payload: any, maxRetries = 3) => {
+export const fetchWithBackoff = async (url: string, payload: any, config?: AxiosRequestConfig, maxRetries = 3) => {
   let retries = 0;
   while (retries < maxRetries) {
     try {
-      return await api.post(url, payload);
+      return await api.post(url, payload, config);
     } catch (error: any) {
       if (error.response) throw error; // Error de servidor (4xx, 500), no reintentamos.
       retries++;
@@ -18,6 +19,7 @@ export const fetchWithBackoff = async (url: string, payload: any, maxRetries = 3
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
+  throw new Error("Conexión inestable. El servidor no respondió.");
 };
 
 /**

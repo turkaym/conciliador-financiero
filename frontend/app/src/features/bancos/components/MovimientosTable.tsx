@@ -104,11 +104,13 @@ export function MovimientosTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                movimientos.map((mov) => (
+                movimientos.map((mov) => {
+                  const amount = Number(mov.monto);
+                  return (
                   /* 🌟 FIX FASE 2.2: Clave compuesta para prevenir colisiones entre SOLICITUD y MOVIMIENTO */
                   <TableRow key={`${mov.tipo_registro}-${mov.id}`} className="hover:bg-slate-50/80 transition-colors group">
                     <TableCell className="text-center hidden sm:table-cell">
-                      {mov.monto >= 0 ?
+                      {amount >= 0 ?
                         <ArrowDownRight className="h-5 w-5 text-emerald-500 mx-auto group-hover:scale-110 transition-transform" /> :
                         <ArrowUpRight className="h-5 w-5 text-red-500 mx-auto group-hover:scale-110 transition-transform" />}
                     </TableCell>
@@ -156,8 +158,8 @@ export function MovimientosTable({
                       </Tooltip>
                     </TableCell>
 
-                    <TableCell className={`text-right font-bold whitespace-nowrap text-xs sm:text-sm ${mov.monto >= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {formatCurrency(mov.monto, mov.moneda)}
+                    <TableCell className={`text-right font-bold whitespace-nowrap text-xs sm:text-sm ${amount >= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                      {formatCurrency(amount, mov.moneda)}
                     </TableCell>
 
                     <TableCell className="text-center pr-2 sm:pr-4">
@@ -187,7 +189,8 @@ export function MovimientosTable({
                       )}
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>

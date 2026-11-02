@@ -61,7 +61,7 @@ export default function DashboardPage() {
         await api.get<EntidadBackend[]>(`/v1/entidades/${tenant_id}`)
       } catch (err) {
         const error = err as AxiosError;
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.warn("Dashboard Warming Error:", error.response?.status);
         }
       } finally {

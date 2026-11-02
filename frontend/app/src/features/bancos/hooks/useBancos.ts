@@ -63,7 +63,7 @@ export const useBancos = () => {
   const entidadId = entidadActiva?.id;
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     return () => {

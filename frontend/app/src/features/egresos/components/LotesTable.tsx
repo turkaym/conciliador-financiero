@@ -155,7 +155,7 @@ export default function LotesTable() {
 
                 <div className="flex justify-between items-center text-sm font-bold">
                   <span className="text-slate-500">Monto Lote</span>
-                  <span className="text-slate-800 text-base">{formatCurrency(lote.monto_total_lote, lote.moneda_pago)}</span>
+                  <span className="text-slate-800 text-base">{formatCurrency(lote.monto_total_lote, 'ARS')}</span>
                 </div>
 
                 <div className="pt-2 flex justify-end">
@@ -242,7 +242,7 @@ export default function LotesTable() {
                         </span>
                       </td>
                       <td className="px-4 py-3 font-bold text-slate-800 text-right text-base">
-                        {formatCurrency(lote.monto_total_lote, lote.moneda_pago)}
+                        {formatCurrency(lote.monto_total_lote, 'ARS')}
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
                         {lote.estado_lote === 'DRAFT' && (

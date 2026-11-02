@@ -31,7 +31,7 @@ export const useComprobantes = () => {
   const [isSyncingAfip, setIsSyncingAfip] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const [cajasDisponibles, setCajasDisponibles] = useState<{id: number, nombre: string}[]>([]);
+  const [cajasDisponibles, setCajasDisponibles] = useState<{id: number, nombre: string, moneda: string}[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [globalMessage, setGlobalMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [syncFeedback, setSyncFeedback] = useState<{ active: boolean, text: string } | null>(null);
@@ -132,7 +132,8 @@ export const useComprobantes = () => {
 
       setCajasDisponibles(cajasOperativas.map(c => ({
         id: c.id,
-        nombre: c.banco || c.nombre || "Caja/Cuenta sin nombre"
+        nombre: c.banco || c.nombre || "Caja/Cuenta sin nombre",
+        moneda: c.moneda
       })));
 
     } catch (error) {

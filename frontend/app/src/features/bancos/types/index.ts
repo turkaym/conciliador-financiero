@@ -29,6 +29,8 @@ export interface CuentaBancaria extends CuentaBancariaRequest {
   is_syncing: boolean;
   saldo_retenido: string | number;
   last_task_id?: string | null;
+  progress?: number | null;
+  status_msg?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 
@@ -57,13 +59,15 @@ export interface MovimientoBancario extends Omit<MovimientoBancarioRequest, "con
   concepto_interno?: string | null;
   hash_transaccional?: string;
   concepto?: string;
+  moneda: MonedaEnum;
 
   saldo_pendiente?: string | number;
   saldo_resultante?: string | number | null;
   anulado?: boolean;
 
   estado: string; // PENDING_APPROVAL, APROBADO, RECHAZADO, CONCILIADO
-  usuario_creador_id: string;
+  usuario_creador_id?: string | null;
+  usuario_creador_nombre?: string | null;
   usuario_resolutor_id?: string | null;
   motivo_rechazo?: string | null;
 

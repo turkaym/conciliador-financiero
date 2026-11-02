@@ -9,21 +9,23 @@ import { useAuthStore } from '@/store/useAuthStore';
 export interface IncompleteInvoice {
   // 🌟 FIX POLIMORFISMO: El ID ahora es string para soportar CBT-X u OP-Y
   id: string;
-  numero_formateado?: string;
+  numero_formateado: string;
   razon_social: string;
   fecha: string;
   numero?: string;
   monto: number;
-  moneda?: string;
+  moneda: string;
   clase_documento?: string;
   tipo_operacion?: string;
 }
 
 export interface IncompleteMovement {
   id: number;
+  fecha: string;
+  referencia: string;
   concepto: string;
   monto: number;
-  moneda?: string;
+  moneda: string;
 }
 
 export interface ConciliacionStatusResponse {

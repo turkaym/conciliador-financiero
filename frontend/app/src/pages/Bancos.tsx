@@ -86,9 +86,9 @@ export default function BancosPage() {
     else setPage(0)
   }
 
-  const handleResolucion = async (id: number, accion: 'aprobar' | 'rechazar', motivoRechazo?: string) => {
+  const handleResolucion = async (id: number, tipoRegistro: 'MOVIMIENTO' | 'SOLICITUD', accion: 'aprobar' | 'rechazar', motivoRechazo?: string) => {
     if (resolverAprobacion) {
-      const exito = await resolverAprobacion(id, accion, motivoRechazo);
+      const exito = await resolverAprobacion(id, tipoRegistro, accion, motivoRechazo);
       if (exito) handleDataRefresh();
     }
   }
@@ -277,7 +277,7 @@ export default function BancosPage() {
                     cuentaId={selectedCuentaId} isLoading={isLoadingMovs || isPolling} errorMsg={errorMovs}
                     onSubmit={uploadExtracto} onAnalyzeFormat={procesarPreVuelo} onConfirmDynamic={confirmarIngesta}
                     isPolling={isPolling} onClearError={() => setErrorMovs(null)} onCancelProcess={cancelarIngesta}
-                    statusMsg={cuentaSeleccionadaData?.status_msg} progress={cuentaSeleccionadaData?.progress}
+                    statusMsg={cuentaSeleccionadaData?.status_msg ?? undefined} progress={cuentaSeleccionadaData?.progress ?? undefined}
                   />
                   <NuevoMovimientoModal
                     cuentaId={selectedCuentaId} isLoading={isLoadingMovs || isPolling} errorMsg={errorMovs}

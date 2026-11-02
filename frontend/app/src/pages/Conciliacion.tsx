@@ -72,11 +72,10 @@ function ConciliacionContenido() {
 
   const clearSelection = () => { setSelectedMovs([]); setSelectedCbtes([]); setMobileStep(1); setModalAjusteOpen(false) }
 
-  const pendingsNode = data?.pendings || {}
-  const currentFlowData = (flowTab === 'COBROS' ? pendingsNode.ar : pendingsNode.ap) || {}
+  const currentFlowData = flowTab === 'COBROS' ? data?.pendings.ar : data?.pendings.ap
 
-  const movimientosPendientes = currentFlowData.bank_movements || []
-  const comprobantesPendientes = currentFlowData.invoices || []
+  const movimientosPendientes = currentFlowData?.bank_movements || []
+  const comprobantesPendientes = currentFlowData?.invoices || []
   const historial = historyData?.items || []
 
   const preVincular = () => {
@@ -115,8 +114,9 @@ function ConciliacionContenido() {
 
   const handleDesconciliar = async (matchId: number) => {
     if (window.confirm("¿Estás seguro de deshacer esta conciliación? Los saldos volverán a las cuentas origen.")) {
-      await triggerUnmatch(matchId)
+      return triggerUnmatch(matchId)
     }
+    return false
   }
 
   if (!entidadActiva) {

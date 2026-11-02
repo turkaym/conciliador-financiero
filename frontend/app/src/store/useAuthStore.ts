@@ -7,6 +7,9 @@ export interface Entidad {
   nombre_fantasia: string;
   razon_social: string;
   condicion_fiscal: "RESPONSABLE_INSCRIPTO" | "MONOTRIBUTO" | "EXENTO" | "CONSUMIDOR_FINAL" | "NO_CATEGORIZADO";
+  has_afip_credentials: boolean;
+  afip_cert_expiration: string | null;
+  afip_last_sync_at: string | null;
 }
 
 export interface User {

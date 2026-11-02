@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, Receipt, Landmark, ShieldAlert, CheckCircle2, Calculator, Building2, CheckSquare, Square, ChevronsUpDown, Check, Search, Edit3, Layers, Send, Building } from "lucide-react";
+import { Loader2, Receipt, Landmark, ShieldAlert, Calculator, CheckSquare, Square, ChevronsUpDown, Check, Search, Edit3, Layers, Send, Building } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";

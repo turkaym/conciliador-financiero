@@ -10,7 +10,7 @@ interface BandejaAprobacionesProps {
   pendientes: MovimientoBancario[];
   isLoading: boolean;
   // 🌟 FIX TIPADO: Ahora soporta el parámetro opcional de rechazo
-  onResolver: (id: number, accion: 'aprobar' | 'rechazar', motivoRechazo?: string) => Promise<boolean | void>;
+  onResolver: (id: number, tipoRegistro: MovimientoBancario['tipo_registro'], accion: 'aprobar' | 'rechazar', motivoRechazo?: string) => Promise<boolean | void>;
 }
 
 export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: BandejaAprobacionesProps) {
@@ -33,7 +33,7 @@ export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: Bande
     setIsSubmittingRechazo(true);
 
     // Disparamos la resolución hacia el Backend
-    await onResolver(rechazoId, 'rechazar', motivo.trim());
+    await onResolver(rechazoId, 'SOLICITUD', 'rechazar', motivo.trim());
 
     setIsSubmittingRechazo(false);
     setRechazoId(null); // Cerramos el modal
@@ -94,7 +94,7 @@ export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: Bande
               <Button
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200 transition-colors border-transparent"
                 disabled={isLoading}
-                onClick={() => onResolver(mov.id, 'aprobar')}
+                onClick={() => onResolver(mov.id, mov.tipo_registro, 'aprobar')}
               >
                 <CheckCircle className="h-4 w-4 mr-2" /> Aprobar
               </Button>

@@ -187,7 +187,8 @@ export const usePadrones = () => {
     }
   }, [showMessage, handleProgressUpdate, fetchHistorial]);
 
-  const uploadPadron = async (jurisdiccion: string, periodo: string, file: File) => {
+  const uploadPadron = async (jurisdiccion: string, periodo: string, file: File): Promise<boolean> => {
+    if (!entidadActiva?.id) return false;
     setIsLoading(true);
     setErrorMsg(null);
 
@@ -240,7 +241,7 @@ export const usePadrones = () => {
            periodo: periodoNormalizado,
            final_object_name: final_object_name,
            source_objects: sourceObjects
-        }, { headers: { 'x-entity-id': entidadActiva?.id } });
+         }, { headers: { 'x-entity-id': entidadActiva.id } });
 
         if (confirmRes && (confirmRes.status === 202 || confirmRes.data?.task_id)) {
            showMessage("Padrón consolidado y encolado.", "success");
@@ -248,6 +249,8 @@ export const usePadrones = () => {
            listenToTaskStream(confirmRes.data.task_id);
            return true;
         }
+
+        throw new Error("Respuesta inusual del orquestador multipart.");
 
       } else {
         const presignedRes = await api.get(`/v1/ingesta/upload-url`, {
@@ -275,7 +278,7 @@ export const usePadrones = () => {
 
         const confirmRes = await api.post(`/v1/padrones/ingesta/confirm`, confirmFormData, {
           headers: {
-            'x-entity-id': entidadActiva?.id,
+            'x-entity-id': entidadActiva.id,
             'Content-Type': 'multipart/form-data'
           }
         });

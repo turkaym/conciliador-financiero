@@ -1,12 +1,12 @@
 // 🌟 FIX FASE 11: Tipos Híbridos para PostgreSQL JSONB
 export interface SubtotalIva {
-  id_alicuota_afip: "3" | "4" | "5" | "6" | "8" | "9";
+  id_alicuota_afip: 3 | 4 | 5 | 6 | 8 | 9;
   base_imponible: number;
   importe: number;
 }
 
 export interface OtroTributo {
-  id_tributo_afip: "1" | "2" | "3" | "4" | "99";
+  id_tributo_afip: 1 | 2 | 3 | 4 | 99;
   descripcion?: string;
   base_imponible: number;
   alicuota: number;
@@ -32,6 +32,8 @@ export interface Comprobante {
   importe_no_gravado: number;
   importe_exento: number;
   importe_total: number;
+  moneda: string;
+  saldo_pendiente: string | number;
 
   subtotales_iva?: SubtotalIva[];
   otros_tributos?: OtroTributo[];

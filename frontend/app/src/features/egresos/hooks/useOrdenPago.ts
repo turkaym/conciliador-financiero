@@ -3,7 +3,13 @@ import api from "@/api/axios";
 import { toast } from "react-toastify";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { Comprobante } from "@/features/comprobantes/types";
-import type { ContactoComercial } from "@/features/ingesta/types";
+import type { CuentaBancaria } from "@/features/bancos/types";
+
+interface ContactoComercial {
+  id: number;
+  razon_social: string;
+  cuit: string;
+}
 
 interface RetencionCalculada {
   tipo_impuesto: string;
@@ -13,13 +19,13 @@ interface RetencionCalculada {
 }
 
 export function useOrdenPago() {
-  const entidadActiva = useAuthStore((state: any) => state.entidadActiva);
-  const user = useAuthStore((state: any) => state.user);
+  const entidadActiva = useAuthStore((state) => state.entidadActiva);
+  const user = useAuthStore((state) => state.user);
 
   const isAdminRole = ["admin", "editor", "dueño"].includes(user?.role?.toLowerCase() || "");
 
   const [proveedores, setProveedores] = useState<ContactoComercial[]>([]);
-  const [cuentas, setCuentas] = useState<any[]>([]);
+  const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
   const [facturasDelProveedor, setFacturasDelProveedor] = useState<Comprobante[]>([]);
 
   const [isLoadingMaestros, setIsLoadingMaestros] = useState(true);
@@ -38,7 +44,7 @@ export function useOrdenPago() {
 
   const [netoCalculadoMotor, setNetoCalculadoMotor] = useState<number>(0);
 
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!entidadActiva?.id) return;
@@ -150,7 +156,9 @@ export function useOrdenPago() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(fetchRetenciones, 500);
 
-    return () => clearTimeout(debounceRef.current);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [montoAbonar, facturasSeleccionadasIds, tipoCambio, cuentaOrigenId, proveedorId, cuentas, entidadActiva?.id]);
 
   // 🌟 FIX DEUDA TÉCNICA: Se añade el parámetro customRetenciones para evitar mutaciones directas del estado desde el formulario

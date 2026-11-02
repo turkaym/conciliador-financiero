@@ -12,7 +12,6 @@ import {
   DialogTrigger
 } from "@/components/ui/dialog"
 import { Plus, Loader2, AlertCircle, BookOpenCheck } from "lucide-react"
-import type { MovimientoBancarioCreate } from "../types"
 import { usePlanCuentas } from "@/hooks/usePlanCuentas" // 🌟 FIX FASE A: Inyección del plan de cuentas
 
 interface NuevoMovimientoModalProps {

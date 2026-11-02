@@ -1,16 +1,28 @@
 import { useAuthStore } from '@/store/useAuthStore';
-import { Lock, CreditCard } from 'lucide-react';
+import { Lock, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { ReactNode } from 'react';
 
-export default function DataGuard({ children }: { children: React.ReactNode }) {
+interface DataGuardProps {
+  children: ReactNode;
+  isLoading?: boolean;
+}
+
+export default function DataGuard({ children, isLoading = false }: DataGuardProps) {
   const { isDataLocked } = useAuthStore();
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" aria-busy={isLoading}>
       {/* 🌟 El contenido real (Libro Mayor, Bancos, etc.) */}
-      <div className={isDataLocked ? "pointer-events-none select-none" : ""}>
+      <div className={isDataLocked || isLoading ? "pointer-events-none select-none" : ""}>
         {children}
       </div>
+
+      {isLoading && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/60 backdrop-blur-[1px] rounded-xl">
+          <Loader2 className="h-7 w-7 animate-spin text-indigo-600" />
+        </div>
+      )}
 
       {/* 🌟 El Muro de Vidrio (Backdrop Blur) */}
       {isDataLocked && (

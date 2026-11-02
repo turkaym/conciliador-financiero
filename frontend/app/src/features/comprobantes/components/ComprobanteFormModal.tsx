@@ -214,7 +214,7 @@ export function ComprobanteFormModal({ entidadActiva, remitosPendientes, cajasDi
         const ivaImporte = total - neto - noGrav - exento;
         subtotalesIva.push({
           // 🌟 FIX TIPADO: Se purga el 'as any' usando tipado numérico explícito
-          id_alicuota_afip: Number(alicuota),
+          id_alicuota_afip: Number(alicuota) as SubtotalIva['id_alicuota_afip'],
           base_imponible: neto,
           importe: parseFloat(ivaImporte.toFixed(2))
         });
@@ -242,8 +242,8 @@ export function ComprobanteFormModal({ entidadActiva, remitosPendientes, cajasDi
       subtotales_iva: subtotalesIva,
       otros_tributos: [],
       // 🌟 FIX SANITIZACIÓN: Asegurar valores lógicos para la base de datos
-      moneda: formData.moneda,
-      cotizacion: formData.moneda === "ARS" ? 1.0 : parseFloat(formData.cotizacion || "1.0"),
+      moneda: divisaOperacion,
+      cotizacion: divisaOperacion === "ARS" ? 1.0 : parseFloat(formData.cotizacion || "1.0"),
       comprobante_origen_id: formData.comprobante_origen_id !== "none" ? parseInt(formData.comprobante_origen_id) : null,
       es_fiscal: !isRemito,
       condicion_fiscal_receptor: isRemito ? "NO_CATEGORIZADO" : formData.condicion_fiscal_receptor,

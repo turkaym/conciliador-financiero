@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, FileText, CheckCircle2, Loader2 } from "lucide-react"
 import type { RetencionSufridaPayload } from "../hooks/useConciliacion"
