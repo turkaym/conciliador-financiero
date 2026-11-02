@@ -35,7 +35,7 @@ Restore a reproducible production build for the imported advanced frontend witho
 
 ## Current Next Step
 
-Commit the verified build-recovery work unit without pushing or opening a pull request.
+Address inherited lint debt and dependency vulnerabilities as separate work units; do not push or open a pull request without explicit authorization.
 
 ## Evidence
 
@@ -62,6 +62,14 @@ Commit the verified build-recovery work unit without pushing or opening a pull r
 - `npm run lint` reports inherited debt: 142 errors and 13 warnings. The remaining findings are primarily existing explicit `any`, React hook/compiler rules, unused catches, and hook dependency warnings; dependency-unrelated lint cleanup remains out of scope.
 - `npm audit --json` reports 32 vulnerabilities: 2 low, 15 moderate, 15 high, and 0 critical. No audit fix or dependency change was applied.
 - The production build reports a stale `caniuse-lite` dataset warning; updating browser data is dependency maintenance and remains out of scope.
+
+### Commit And Review Assessment
+
+- Work-unit commit: `0bb286df410c9088d377afee4a3bb79916cf9729` (`fix(frontend): restore production build`).
+- Authored size: 365 lines across 27 authorized paths.
+- Parent verification reran `npm run build`: exit 0, 2,020 modules transformed.
+- Native risk assessment: `medium` because executable frontend behavior changed.
+- Review outcome: `under_budget`; no candidate review was due for the 365-line range.
 
 ## Rollback Boundary
 
