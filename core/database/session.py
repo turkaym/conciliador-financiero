@@ -37,6 +37,7 @@ engine = create_engine(
     settings.DATABASE_URL,
     poolclass=pool_class,
     pool_pre_ping=True,
+    connect_args={"prepare_threshold": None},
     **pool_kwargs
 )
 

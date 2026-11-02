@@ -10,30 +10,20 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
-
-class Settings(BaseSettings):
-    # --- Configuración Básica ---
-    PROJECT_NAME: str = "Conciliador ERP"
-    VERSION: str = "1.0.0"
-
-    # --- Seguridad (Obligatorios) ---
-    SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     ENCRYPTION_KEY_MASTER: str
 
     # --- Variables de Base de Datos (Leen del .env) ---
 
     # --- Variables de Base de Datos (Leen del .env) ---
-    DB_USER: str = "admin"
-    DB_PASSWORD: str = "password"
+    DB_USER: str
+    DB_PASSWORD: str
     DB_HOST: str = "postgres"
     DB_PORT: str = "5432"
     DB_NAME: str = "conciliador_master"
 
     # --- Caché y Colas ---
     REDIS_URL: str = "redis://redis:6379/0"
-    RABBITMQ_URL: str = ""
+    RABBITMQ_URL: str
 
     # --- Integraciones Externas (Opcionales) ---
     PROMETEO_API_KEY: Optional[str] = None

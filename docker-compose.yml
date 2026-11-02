@@ -2,10 +2,10 @@ services:
   # --- TUNEL CLOUDFLARE ---
   cloudflare:
     image: cloudflare/cloudflared:latest
-    container_name: conciliador_tunnel
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TOKEN}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TOKEN:-}
+    profiles: ["edge"]
     networks:
       - conciliador_net
     restart: unless-stopped
@@ -13,45 +13,45 @@ services:
   # --- PROXY REVERSO ---
   traefik:
     image: traefik:v3.0
-    container_name: conciliador_proxy
     command:
       - "--api.insecure=true"
       - "--entrypoints.web.address=:80"
       - "--providers.file.filename=/etc/traefik/dynamic.yml"
     ports:
-      - "80:80"
-      - "8080:8080"
+      - "127.0.0.1:${TRAEFIK_HTTP_PORT:-18080}:80"
+      - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-18081}:8080"
     volumes:
       - ./traefik_dynamic.yml:/etc/traefik/dynamic.yml:ro
     networks:
       - conciliador_net
+    profiles: ["edge"]
     restart: unless-stopped
 
   # --- FRONTEND ---
   frontend:
-    image: node:24-alpine
-    container_name: conciliador_frontend
-    volumes:
-      - ./frontend/app:/app
-    working_dir: /app
+    build:
+      context: ./frontend/app
     ports:
-      - "5173:5173"
-    command: sh -c "npm install && npm run dev"
-    environment:
-      # 🌟 FIX ARQUITECTURA: Vite debe apuntar al dominio público, no al host interno de Docker
-      - VITE_API_URL=https://api.htsolution.org
+      - "127.0.0.1:${FRONTEND_PORT:-15173}:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
     networks:
       - conciliador_net
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # --- BASES DE DATOS & CACHÉ (CON HEALTHCHECKS) ---
   postgres:
     image: postgres:16-alpine
-    container_name: conciliador_db
     env_file: .env
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USER:?Set DB_USER in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       POSTGRES_DB: conciliador_master
     volumes:
       - pg_data:/var/lib/postgresql/data
@@ -67,10 +67,9 @@ services:
   # --- MULTIPLEXOR DE CONEXIONES ---
   pgbouncer:
     image: edoburu/pgbouncer:latest
-    container_name: conciliador_pgbouncer
     environment:
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_USER=${DB_USER:?Set DB_USER in .env}
+      - DB_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in .env}
       - DB_HOST=postgres
       - DB_PORT=5432
       - AUTH_TYPE=plain
@@ -79,7 +78,7 @@ services:
       - DEFAULT_POOL_SIZE=20
       - IGNORE_STARTUP_PARAMETERS=extra_float_digits
     ports:
-      - "6432:5432"
+      - "127.0.0.1:${PGBOUNCER_PORT:-16432}:5432"
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,10 +92,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: conciliador_redis
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-16379}:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -109,14 +107,13 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: conciliador_rabbit
     env_file: .env
     environment:
-      RABBITMQ_DEFAULT_USER: ${DB_USER}
-      RABBITMQ_DEFAULT_PASS: ${DB_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD in .env}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:${RABBITMQ_PORT:-15672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15673}:15672"
     volumes:
       - rabbit_data:/var/lib/rabbitmq
     networks:
@@ -128,10 +125,35 @@ services:
       retries: 5
 
   # --- MICROSERVICIOS ---
+  migrate:
+    build: ./services/api-gateway
+    command: sh -c "alembic -n master upgrade head && python init_db.py"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      PYTHONPATH: /app
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_HOST_DIRECT: postgres
+      DB_PORT_DIRECT: 5432
+    volumes:
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./alembic_master:/app/alembic_master
+      - ./alembic_tenants:/app/alembic_tenants
+      - ./alembic.ini:/app/alembic.ini
+      - ./init_db.py:/app/init_db.py
+    networks:
+      - conciliador_net
+    restart: "no"
+
   api-gateway:
     build: ./services/api-gateway
-    container_name: conciliador_api
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       pgbouncer:
         condition: service_healthy
       redis:
@@ -147,7 +169,7 @@ services:
       - DB_HOST=pgbouncer
       - DB_PORT=5432
     ports:
-      - "8000:80"
+      - "127.0.0.1:${API_PORT:-18000}:80"
     volumes:
       - ./services/api-gateway/main.py:/app/main.py
       - ./core:/app/core
@@ -162,14 +184,22 @@ services:
       - afip_certs:/app/certs
     networks:
       - conciliador_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   # --- ESCUADRÓN 1: INTEGRACIÓN AFIP & PADRONES ---
   # Prioridad: Alta memoria, operaciones largas.
   worker-afip:
     build: ./services/api-gateway
-    container_name: conciliador_worker_afip
     command: celery -A core.tasks.celery_config worker -n afip_worker@%h -c 2 -Q afip_queue --loglevel=info -E
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       pgbouncer:
         condition: service_healthy
       redis:
@@ -200,15 +230,17 @@ services:
       - /tmp
     networks:
       - conciliador_net
+    restart: unless-stopped
 
   # --- ESCUADRÓN 2: CONTABILIDAD Y BANCOS ---
   # Prioridad: Alta velocidad, streaming I/O, ingestas masivas.
   worker-accounting:
     build: ./services/api-gateway
-    container_name: conciliador_worker_accounting
     command: celery -A core.tasks.celery_config worker -n accounting_worker@%h -c 4 -Q accounting_queue --loglevel=info -E
     restart: unless-stopped
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       pgbouncer:
         condition: service_healthy
       redis:
@@ -240,10 +272,11 @@ services:
   # Prioridad: Alta CPU, operaciones cortas, crons.
   worker-matching:
     build: ./services/api-gateway
-    container_name: conciliador_worker_matching
     command: celery -A core.tasks.celery_config worker -n matching_worker@%h -c 4 -Q matching_queue,default --loglevel=info -E
     restart: unless-stopped
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       pgbouncer:
         condition: service_healthy
       redis:
@@ -268,11 +301,12 @@ services:
   # Prioridad: Ejecución de LangGraph, Tool Calling y Embeddings Locales.
   worker-ai:
     build: ./services/api-gateway
-    container_name: conciliador_worker_ai
     # Concurrency 2: Ideal para balancear tareas de I/O (API de OpenAI) y CPU (Vectorización local)
     command: celery -A core.tasks.celery_config worker -n ai_worker@%h -c 2 -Q ai_queue --loglevel=info -E
     restart: unless-stopped
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       pgbouncer:
         condition: service_healthy
       redis:
@@ -303,10 +337,11 @@ services:
 
   celery-beat:
     build: ./services/api-gateway
-    container_name: conciliador_celery_beat
     command: celery -A core.tasks.celery_config beat -l info
     restart: unless-stopped
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       pgbouncer:
         condition: service_healthy
       redis:
@@ -333,7 +368,6 @@ services:
   # --- OBSERVABILIDAD ---
   flower:
     build: ./services/api-gateway
-    container_name: conciliador_flower
     command: celery -A core.tasks.celery_config flower --port=5555 --basic_auth=${FLOWER_BASIC_AUTH}
     depends_on:
       redis:
@@ -344,7 +378,7 @@ services:
     environment:
       - PYTHONPATH=/app
     ports:
-      - "5555:5555"
+      - "127.0.0.1:${FLOWER_PORT:-15555}:5555"
     volumes:
       - ./core:/app/core
       - ./config:/app/config
@@ -353,17 +387,22 @@ services:
 
   # --- STORAGE ---
   minio:
-    image: minio/minio:latest
-    container_name: conciliador_storage
-    command: server /data --console-address ":9001"
+    image: bitnamilegacy/minio:2025.4.22-debian-12-r1
+    command: server /bitnami/minio/data --console-address ":9001"
     env_file: .env
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:${MINIO_API_PORT:-19000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-19001}:9001"
     volumes:
-      - minio_data:/data
+      - minio_data:/bitnami/minio/data
     networks:
       - conciliador_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   conciliador_net:
