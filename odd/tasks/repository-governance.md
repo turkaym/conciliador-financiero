@@ -32,7 +32,7 @@ Establish reproducible pull-request checks and mutual Hugo/Farid review ownershi
 
 ## Current Next Step
 
-Complete local parity and validation for GOV-01, then configure GOV-02 only after explicit remote authorization.
+Configure GOV-02 only after explicit remote authorization, then validate the hosted checks through a pull request.
 
 ## GOV-01 Implementation
 
@@ -61,3 +61,11 @@ GOV-02 remains unchecked and owns all GitHub ruleset/branch-protection mutation 
 - CODEOWNERS is exactly `* @turkaym @HugoTcach`. The sensitive-path guard passed against the staged tree and allows a benign documentation CSV while rejecting sensitive examples.
 - Existing Compose services remained running: API and frontend were healthy and returned HTTP 200; the disabled Reconciliation probe returned 404. No container was stopped or recreated.
 - Staged `git diff --check` passed. The cohesive work unit is below the 400-line review budget; final commit identity and clean-status evidence follow in the commit record.
+
+## Commit And Review Record
+
+- Work-unit commit: `d14da0815d32870b51d6ca229783add3adf19389` (`ci: add pull request quality gates`).
+- Authored size: 326 additions across seven files.
+- Native risk assessment: `high` because the Compose guard starts a process and the workflow contains shell commands.
+- Review outcome: `declined_this_candidate`; the user skipped independent review for this change only. Future reviews remain enabled.
+- Parent spot checks reconfirmed the sensitive-path guard, a clean worktree, and HTTP 200 from both API and frontend.
