@@ -41,7 +41,7 @@ class FeatureManifestTests(unittest.TestCase):
 
         self.assertEqual(dict(state.enabled), AUTHORIZED_DEFAULTS)
         self.assertFalse(state.enabled["reconciliation"])
-        self.assertFalse(IMPLEMENTATION_READINESS["ai_rules"])
+        self.assertTrue(IMPLEMENTATION_READINESS["ai_rules"])
         self.assertTrue(all(set(item) == {"identifier", "enabled", "implemented", "usable"} for item in state.capabilities))
         self.assertTrue(all(item["usable"] == (item["enabled"] and item["implemented"]) for item in state.capabilities))
 

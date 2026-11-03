@@ -22,6 +22,7 @@ const EquipoPage = lazy(() => import("./pages/Equipo"))
 const ConciliacionPage = lazy(() => import("./pages/Conciliacion"))
 const PadronesPage = lazy(() => import("./pages/Padrones"))
 const EgresosPage = lazy(() => import("./pages/Egresos"))
+const ReglasIAPage = lazy(() => import("./pages/ReglasIA"))
 
 // 🌟 FIX ARQUITECTURA: Importamos el nuevo módulo MDM de Proveedores
 const ProveedoresPage = lazy(() => import("./pages/Proveedores"))
@@ -29,6 +30,7 @@ const ProveedoresPage = lazy(() => import("./pages/Proveedores"))
 import { useAuthStore } from "./store/useAuthStore"
 import { fetchCapabilities } from "./api/axios"
 import { isFeatureUsable } from "./featureFlags"
+import { aiRulesAccess } from "./features/ai-rules/model"
 import { useSessionManager } from "./hooks/useSessionManager"
 
 // 1. GUARDIA DIRECCIONAL ENTERPRISE: Autenticación, Zero Trust y Empty State
@@ -100,6 +102,16 @@ const UnavailablePage = () => (
     <div><h1 className="text-2xl font-bold text-slate-900">Módulo no disponible</h1><p className="mt-2 text-slate-500">La ruta solicitada no está habilitada.</p></div>
   </main>
 )
+
+const AiRulesRoute = () => {
+  const capabilities = useAuthStore((state) => state.capabilities)
+  const features = useAuthStore((state) => state.features)
+  const role = useAuthStore((state) => state.user?.role)
+  const access = aiRulesAccess(capabilities, features, role)
+  if (access === "unavailable") return <UnavailablePage />
+  if (access === "unauthorized") return <main className="p-8 text-center"><h1 className="text-2xl font-bold text-slate-900">Acceso no autorizado</h1><p className="mt-2 text-slate-500">Tu plan o rol no permite administrar reglas IA.</p></main>
+  return <ReglasIAPage />
+}
 
 // 3. WELCOME PANEL
 const WelcomePanel = () => {
@@ -189,6 +201,7 @@ export default function App() {
               {isFeatureUsable(capabilities, "team") && <Route path="equipo" element={<EquipoPage />} />}
               {isFeatureUsable(capabilities, "tax_registries") && <Route path="padrones" element={<PadronesPage />} />}
               {isFeatureUsable(capabilities, "expenses_payments") && <Route path="egresos" element={<EgresosPage />} />}
+              <Route path="reglas-ia" element={<AiRulesRoute />} />
             </Route>
           </Route>
 

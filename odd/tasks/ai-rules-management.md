@@ -25,7 +25,7 @@ Provide tenant-scoped administration for deterministic learned matching rules wi
   - Acceptance: authorized users can list, inspect, create, update activation state, and delete eligible rules in their own tenant; invalid/cross-tenant/conflicting operations fail deterministically; existing matching consumers remain compatible; `ai_rules` remains `implemented: false` until UI completion.
   - Checks: model/schema mapping, service tests, route/auth/RBAC tests, running-tenant API smoke, existing feature-composition tests, migration state, and rollback proof.
 
-- [ ] **AI-RULES-02 — Add rules management UI and activate readiness**
+- [x] **AI-RULES-02 — Add rules management UI and activate readiness**
   - Route: delegated direct.
   - Acceptance: enabled and entitled users can administer deterministic rules through the frontend; disabled/unimplemented states remain fail-closed; only after API/UI proof does capability readiness become true.
   - Checks: frontend contract tests, route/navigation proof, production build, API integration smoke, and feature capability response.
@@ -39,7 +39,34 @@ Provide tenant-scoped administration for deterministic learned matching rules wi
 
 ## Current Next Step
 
-Implement AI-RULES-02 without changing the API contract below, then mount the router and flip readiness only after UI and composition proof are green.
+AI-RULES-02 is complete. Keep Reconciliation, AI Copilot, and B2B Integrations disabled unless separately authorized and proven.
+
+## AI-RULES-02 Evidence
+
+### Composition And Entitlement
+
+- `/v1/ai-rules` is mounted only when the versioned manifest enables `ai_rules` and implementation readiness is true. The final capability is enabled true, implemented true, usable true.
+- The router independently requires tenant feature `ai_rules` plus global role `admin` or `dueño`; tenant/schema authority is never accepted in request payloads. Unauthenticated access reaches the mounted auth boundary with HTTP 401.
+- `init_db.py` idempotently adds only `ai_rules` to the existing demo tenant feature map for fresh and existing local bootstrap runs. It does not grant Reconciliation, AI Copilot, or B2B Integrations.
+
+### UI Contract
+
+- `/dashboard/reglas-ia` has deterministic unavailable and unauthorized direct-route states and appears in navigation only for a globally usable, entitled `admin`/`dueño` session.
+- The Spanish page exposes loading, empty, validation, conflict, and retryable failure states; filters normalized concept/CUIT data; creates only `concepto_cuit`; and uses `expected_updated_at` for state changes.
+- A 409 refreshes the affected server record while preserving the create form. “Desactivar con auditoría” communicates the API's audited soft-deactivation behavior; no tenant/schema selector or external AI request exists.
+
+### RED, GREEN, And Runtime Proof
+
+- RED: backend readiness failed because `IMPLEMENTATION_READINESS["ai_rules"]` was false; the dependency-free frontend contract failed because its access/conflict model did not exist.
+- GREEN: 14 focused backend tests passed in the API image, including enabled/ready composition, 401/403, entitlement denial, CRUD, optimistic conflict, and Reconciliation fail-closed behavior. Both Node contract proofs and `npm run build` passed.
+- `docker compose -p conciliador-financiero-dev config --quiet` passed. The migration/bootstrap job completed idempotently; only API and frontend were rebuilt/recreated. Existing workers remained running and untouched.
+- Runtime `/v1/capabilities` reported `ai_rules` true/true/true; unauthenticated `/v1/ai-rules` returned 401; authenticated demo list/create/toggle/deactivate passed without printing tokens; frontend and direct route returned 200; Reconciliation remained HTTP 404.
+- No external AI endpoint is referenced by the client. `.env` remains ignored and unstaged.
+
+### Remaining Risks And Rollback
+
+- Concurrent duplicate creation still lacks a database unique constraint, inherited from AI-RULES-01. Browser-level visual automation is not installed; route/navigation/access/conflict behavior is covered by dependency-free contract proof and the production build.
+- Rollback sets `ai_rules` readiness false, removes the conditional gateway mount, frontend route/navigation/page/client, router entitlement dependency, and bootstrap grant. Existing rules and audit rows remain intact; Reconciliation stays disabled.
 
 ## AI-RULES-01 Evidence
 

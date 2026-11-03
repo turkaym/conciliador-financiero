@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, stat
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from core.api.deps import CachedUser, RoleChecker, get_current_user, get_tenant_db_session
+from core.api.deps import CachedUser, FeatureChecker, RoleChecker, get_current_user, get_tenant_db_session
 from core.schemas.ai_rules import RuleCreate, RuleList, RuleResponse, RuleUpdate
 from core.services.ai_rules_service import (
     RuleConflict, RuleNotFound, RuleStorageError, ai_rules_service, serialize_rule,
@@ -15,7 +15,7 @@ from core.services.ai_rules_service import (
 router = APIRouter(
     prefix="/ai-rules",
     tags=["Reglas determinísticas"],
-    dependencies=[Depends(RoleChecker(["admin", "dueño"]))],
+    dependencies=[Depends(FeatureChecker("ai_rules")), Depends(RoleChecker(["admin", "dueño"]))],
 )
 EntityId = Annotated[int, Header(alias="X-Entity-ID", ge=1)]
 

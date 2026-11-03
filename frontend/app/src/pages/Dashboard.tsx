@@ -7,7 +7,7 @@ import EntitySelector from "@/components/EntitySelector"
 import NotificationBell from "@/components/NotificationBell"
 
 // 🌟 FIX UX: Agregamos el ícono Building2 para el Directorio
-import { LogOut, LayoutDashboard, FileText, Landmark, Lock, Calculator, Loader2, Users, Menu, X, ClipboardList, AlertCircle, CreditCard, Wallet, Building2 } from "lucide-react"
+import { LogOut, LayoutDashboard, FileText, Landmark, Lock, Calculator, Loader2, Users, Menu, X, ClipboardList, AlertCircle, CreditCard, Wallet, Building2, BrainCircuit } from "lucide-react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { AxiosError } from "axios"
 
@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [isRedirectingToBilling, setIsRedirectingToBilling] = useState(false)
 
   const isAdmin = ["admin", "dueño", "editor"].includes(user?.role?.toLowerCase() || "");
+  const canManageAiRules = ["admin", "dueño"].includes(user?.role?.toLowerCase() || "");
   const isActive = (path: string) => location.pathname === path
 
   const handleNavigation = (path: string) => {
@@ -147,6 +148,12 @@ export default function DashboardPage() {
             <Calculator className={`mr-3 h-5 w-5 ${isActive('/dashboard/conciliacion') ? 'text-indigo-400' : 'text-slate-500'}`} /> Conciliación
           </Button>
           </FeatureGuard>
+
+          {canManageAiRules && <FeatureGuard feature="ai_rules" tenantFeature="ai_rules">
+            <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/reglas-ia') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/reglas-ia')}>
+              <BrainCircuit className={`mr-3 h-5 w-5 ${isActive('/dashboard/reglas-ia') ? 'text-indigo-400' : 'text-slate-500'}`} /> Reglas IA
+            </Button>
+          </FeatureGuard>}
 
           {isAdmin && (
             <>

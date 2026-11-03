@@ -198,6 +198,9 @@ if feature_flags.usable("tax_registries"):
 if feature_flags.usable("b2b_integrations"):
     from core.api.v1.endpoints.b2b_setup import router as b2b_router
     admin_router.include_router(b2b_router, prefix="/b2b", tags=["B2B Integrations"])
+if feature_flags.usable("ai_rules"):
+    from core.api.v1.endpoints.ai_rules import router as ai_rules_router
+    admin_router.include_router(ai_rules_router)
 admin_router.include_router(dlq_router, prefix="/dlq", tags=["Administración DLQ"])
 
 app.include_router(system_router, prefix="/v1", tags=["Sistema"])

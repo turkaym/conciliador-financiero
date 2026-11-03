@@ -1,6 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from config.feature_flags import feature_flags
 from core.api.v1.endpoints.system import get_capabilities
@@ -25,6 +26,21 @@ def route_paths(app):
 
 
 class FeatureCompositionTests(unittest.TestCase):
+    def test_ai_rules_route_requires_enabled_and_implemented_state(self):
+        class FeatureStateOverride:
+            def __init__(self, enabled, implemented):
+                self.enabled = enabled
+                self.implemented = implemented
+
+            def usable(self, identifier):
+                if identifier == "ai_rules":
+                    return self.enabled and self.implemented
+                return feature_flags.usable(identifier)
+
+        for state in (FeatureStateOverride(False, True), FeatureStateOverride(True, False)):
+            with self.subTest(state=state.__dict__), patch("config.feature_flags.feature_flags", state):
+                self.assertNotIn("/v1/ai-rules", route_paths(load_gateway_app()))
+
     def test_disabled_and_enabled_api_routes_are_composed_from_manifest(self):
         app = load_gateway_app()
         paths = route_paths(app)
@@ -32,6 +48,8 @@ class FeatureCompositionTests(unittest.TestCase):
         self.assertNotIn("/v1/matching/status/{schema_name}", paths)
         self.assertNotIn("/v1/ai/chat", paths)
         self.assertNotIn("/v1/b2b/api-keys", paths)
+        self.assertIn("/v1/ai-rules", paths)
+        self.assertIn("/v1/ai-rules/{rule_id}", paths)
         self.assertIn("/v1/bancos/cuentas", paths)
         self.assertIn("/v1/pagos/ordenes", paths)
         self.assertIn("/v1/padrones/historial", paths)
@@ -39,6 +57,10 @@ class FeatureCompositionTests(unittest.TestCase):
 
         capabilities = get_capabilities()
         self.assertTrue(all(set(item) == {"identifier", "enabled", "implemented", "usable"} for item in capabilities))
+        ai_rules = next(item for item in capabilities if item["identifier"] == "ai_rules")
+        self.assertEqual(ai_rules, {
+            "identifier": "ai_rules", "enabled": True, "implemented": True, "usable": True,
+        })
 
     def test_disabled_feature_schedules_are_absent(self):
         schedule = celery_app.conf.beat_schedule

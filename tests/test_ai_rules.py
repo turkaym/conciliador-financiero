@@ -32,8 +32,11 @@ def make_session():
     return sessionmaker(bind=engine, expire_on_commit=False)()
 
 
-def make_user(role="admin", tenant_id=1, schema="tenant_a"):
-    tenant = CachedTenant(tenant_id, schema, True, subscription_status="active")
+def make_user(role="admin", tenant_id=1, schema="tenant_a", entitled=True):
+    tenant = CachedTenant(
+        tenant_id, schema, True, features={"ai_rules": True} if entitled else {},
+        subscription_status="active",
+    )
     return CachedUser(7, "admin@example.com", role, True, tenant, "admin@example.com")
 
 
@@ -162,6 +165,10 @@ class AiRulesTests(unittest.TestCase):
         del self.app.dependency_overrides[get_current_user]
         response = self.client.get("/v1/ai-rules", headers=self.headers)
         self.assertEqual(response.status_code, 401)
+
+    def test_tenant_without_entitlement_is_rejected(self):
+        self.user = make_user(entitled=False)
+        self.assertEqual(self.client.get("/v1/ai-rules", headers=self.headers).status_code, 403)
 
 
 if __name__ == "__main__":

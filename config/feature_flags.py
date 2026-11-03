@@ -21,7 +21,7 @@ IMPLEMENTATION_READINESS = MappingProxyType({
     "expenses_payments": True,
     "tax_registries": True,
     "team": True,
-    "ai_rules": False,
+    "ai_rules": True,
     "reconciliation": True,
     "ai_copilot": True,
     "b2b_integrations": True,
