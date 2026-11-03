@@ -54,7 +54,7 @@ Expenses and Payments includes local treasury, attachments/MinIO, multi-currency
 
 ## Current Next Step
 
-Obtain a `size:exception` decision for the cohesive work unit, then create the pending Conventional Commit without amending or publishing it.
+Implement the standalone deterministic AI Rules management API and UI before changing its implementation readiness; keep Reconciliation disabled until the user enables it through a reviewed pull request.
 
 ## FLAGS-01 Evidence
 
@@ -113,3 +113,11 @@ System health, authentication, tenant administration, billing, DLQ administratio
 
 - AI Rules still require a standalone management API and imported UI before implementation readiness can become true.
 - AI Copilot and B2B Integrations have backend routes but no imported frontend modules; B2B outbox scheduling also depends on implementing the currently referenced sweeper task before enabling the feature.
+
+### Commit And Review Assessment
+
+- The maintainer explicitly authorized `size:exception` for the cohesive 595-line cross-layer transaction.
+- Work-unit commit: `64fbf41` (`feat(flags): enforce MVP module composition`).
+- Parent verification reran the production build successfully, observed eight capability records, and confirmed `/v1/matching` returns 404.
+- Native risk assessment: `medium`; review was due because the 595-line slice budget was reached.
+- Candidate review outcome: explicitly declined for this candidate; future reviews remain enabled.
