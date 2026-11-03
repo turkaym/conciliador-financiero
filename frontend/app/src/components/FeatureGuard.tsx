@@ -1,16 +1,19 @@
 import type { ReactNode } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
+import { isFeatureUsable, type FeatureIdentifier } from "@/featureFlags"
 
 interface FeatureGuardProps {
-  feature: string
+  feature: FeatureIdentifier
+  tenantFeature?: string
   fallback?: ReactNode
   children: ReactNode
 }
 
-export function FeatureGuard({ feature, fallback = null, children }: FeatureGuardProps) {
+export function FeatureGuard({ feature, tenantFeature, fallback = null, children }: FeatureGuardProps) {
   const features = useAuthStore((state) => state.features);
+  const capabilities = useAuthStore((state) => state.capabilities);
 
-  if (features[feature] !== true) {
+  if (!isFeatureUsable(capabilities, feature) || (tenantFeature && features[tenantFeature] !== true)) {
     return <>{fallback}</>
   }
 

@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react"
+import { Suspense, lazy, useEffect, useState } from "react"
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom"
 import { Loader2 } from "lucide-react"
 
@@ -27,6 +27,8 @@ const EgresosPage = lazy(() => import("./pages/Egresos"))
 const ProveedoresPage = lazy(() => import("./pages/Proveedores"))
 
 import { useAuthStore } from "./store/useAuthStore"
+import { fetchCapabilities } from "./api/axios"
+import { isFeatureUsable } from "./featureFlags"
 import { useSessionManager } from "./hooks/useSessionManager"
 
 // 1. GUARDIA DIRECCIONAL ENTERPRISE: Autenticación, Zero Trust y Empty State
@@ -93,6 +95,12 @@ const PageLoader = () => (
   </div>
 )
 
+const UnavailablePage = () => (
+  <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-center">
+    <div><h1 className="text-2xl font-bold text-slate-900">Módulo no disponible</h1><p className="mt-2 text-slate-500">La ruta solicitada no está habilitada.</p></div>
+  </main>
+)
+
 // 3. WELCOME PANEL
 const WelcomePanel = () => {
   const user = useAuthStore((state) => state.user)
@@ -133,6 +141,18 @@ const WelcomePanel = () => {
 
 export default function App() {
   useSessionManager()
+  const [capabilitiesLoaded, setCapabilitiesLoaded] = useState(false)
+  const capabilities = useAuthStore((state) => state.capabilities)
+  const setCapabilities = useAuthStore((state) => state.setCapabilities)
+
+  useEffect(() => {
+    fetchCapabilities()
+      .then(setCapabilities)
+      .catch(() => setCapabilities([]))
+      .finally(() => setCapabilitiesLoaded(true))
+  }, [setCapabilities])
+
+  if (!capabilitiesLoaded) return <PageLoader />
 
   return (
     <>
@@ -161,18 +181,18 @@ export default function App() {
               <Route index element={<WelcomePanel />} />
 
               {/* 🌟 FIX ARQUITECTURA: Rutas inyectadas */}
-              <Route path="directorio" element={<ProveedoresPage />} />
+              {isFeatureUsable(capabilities, "b2b_directory") && <Route path="directorio" element={<ProveedoresPage />} />}
               <Route path="comprobantes" element={<ComprobantesPage />} />
-              <Route path="bancos" element={<BancosPage />} />
-              <Route path="conciliacion" element={<ConciliacionPage />} />
+              {isFeatureUsable(capabilities, "expenses_payments") && <Route path="bancos" element={<BancosPage />} />}
+              {isFeatureUsable(capabilities, "reconciliation") && <Route path="conciliacion" element={<ConciliacionPage />} />}
               <Route path="reportes" element={<ReportesPage />} />
-              <Route path="equipo" element={<EquipoPage />} />
-              <Route path="padrones" element={<PadronesPage />} />
-              <Route path="egresos" element={<EgresosPage />} />
+              {isFeatureUsable(capabilities, "team") && <Route path="equipo" element={<EquipoPage />} />}
+              {isFeatureUsable(capabilities, "tax_registries") && <Route path="padrones" element={<PadronesPage />} />}
+              {isFeatureUsable(capabilities, "expenses_payments") && <Route path="egresos" element={<EgresosPage />} />}
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<UnavailablePage />} />
         </Routes>
       </Router>
 
