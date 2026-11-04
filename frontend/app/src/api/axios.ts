@@ -30,9 +30,6 @@ api.interceptors.request.use(
     const token = state.token;
     const entidadActiva = state.entidadActiva;
 
-    // Aseguramos la existencia de headers para prevenir fallos en versiones de Axios
-    if (!config.headers) config.headers = {} as any;
-
     if (token) {
       if (config.headers.set) config.headers.set('Authorization', `Bearer ${token}`);
       else config.headers['Authorization'] = `Bearer ${token}`;

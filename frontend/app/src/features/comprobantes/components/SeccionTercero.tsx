@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link2, ShieldAlert } from "lucide-react";
 import api from "@/api/axios";
-import type { Comprobante } from "../types";
+import type { Comprobante, ComprobanteFormData } from "../types";
 
 interface ContactoAgenda {
   id: number;
@@ -14,8 +14,8 @@ interface ContactoAgenda {
 }
 
 interface SeccionTerceroProps {
-  formData: any;
-  setFormData: React.Dispatch<React.SetStateAction<any>>;
+  formData: ComprobanteFormData;
+  setFormData: React.Dispatch<React.SetStateAction<ComprobanteFormData>>;
   cuitError: string | null;
   isVenta: boolean;
   isRemito: boolean;
@@ -46,7 +46,7 @@ export function SeccionTercero({
     let isMounted = true;
     const fetchAgenda = async () => {
       try {
-        const res = await api.get('/v1/pagos/proveedores');
+        const res = await api.get<ContactoAgenda[]>('/v1/pagos/proveedores');
         if (isMounted) setAgendaContactos(res.data);
       } catch (error) {
         console.error("No se pudo cargar la base de contactos B2B", error);
@@ -67,7 +67,7 @@ export function SeccionTercero({
       : [];
 
   const handleSeleccionarContacto = (contacto: ContactoAgenda) => {
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       cuit_tercero: contacto.cuit,
       razon_social_receptor: contacto.razon_social,

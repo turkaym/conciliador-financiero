@@ -7,8 +7,25 @@ import { useNavigate } from "react-router-dom"
 interface AlertaFiscal {
   estado_salud: "OPTIMO" | "CRITICO"
   total_alertas: number
-  alertas_dlq: any[]
-  alertas_cae: any[]
+  alertas_dlq: AlertaDlq[]
+  alertas_cae: AlertaCae[]
+}
+
+interface AlertaDlq {
+  id_registro: number
+  punto_venta: number
+  tipo_cbte_afip: number
+  numero: number
+  error: string
+  fecha_falla: string | null
+}
+
+interface AlertaCae {
+  id_comprobante: number
+  punto_venta: number
+  numero_interno: number
+  fecha_creacion: string | null
+  riesgo: string
 }
 
 export default function NotificationBell() {

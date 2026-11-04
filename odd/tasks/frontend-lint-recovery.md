@@ -47,7 +47,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
   - Route: delegated direct.
   - Acceptance: remaining hook dependency/purity findings reach zero; intervals, polling and cleanup remain deterministic.
 
-- [ ] **LINT-05 — Model shared, auth, banking and comprobantes type boundaries**
+- [x] **LINT-05 — Model shared, auth, banking and comprobantes type boundaries**
   - Route: delegated direct.
   - Acceptance: replace relevant explicit `any` uses with error, API and domain types without unsafe assertions.
 
@@ -125,7 +125,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 
 ## LINT-04 Evidence
 
-- Work-unit: `fix(frontend): stabilize hook synchronization`, parent `9f32b43`; native review remains pending for this new slice alone.
+- Work-unit commit: `6e321c8` (`fix(frontend): stabilize hook synchronization`), parent `9f32b43`. Its native assessment against `9f32b43` was `medium / under_budget`, with `review_due=false`; the current cumulative review boundary remains `9f32b43`.
 - Root causes: loaders used render-local function identities without declaring them; bank and registry progress throttles wrapped opaque callbacks; bank retry timers were not owned by lifecycle cleanup; account selection followed completed requests through state-setting effects; tenant-sensitive lot/account hydration omitted the entity transition; and session activity called `Date.now()` during render.
 - Synchronization contracts: entity, supplier, report and AI Rules loaders now have stable identities with complete dependencies. AI Rules still loads once per search/state change; report loading remains gated by role, tenant and active entity; comprobantes uses an Effect Event so tenant changes read current applied filter state without making draft filter edits refetch.
 - Synchronization contracts: bank tenant transitions reset page/view selection from the auth-store event, clear movement data, fetch accounts once, and select the saved or first account only when that request completes. Account/page changes still fetch one 50-row page and page zero still replaces while later pages append. Lote pagination and account hydration now also react to entity changes.
@@ -140,6 +140,21 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 - Test-gap exception: no deterministic component runner covers these hook transitions, SSE retries or idle timeout. No browser behavioral result is claimed; evidence is static RED→GREEN, build/contracts, source-level cadence/transition/cleanup proof and non-destructive runtime health/capability checks.
 - Rollback: revert this LINT-04 work-unit commit to restore the ten source synchronization implementations and this evidence record together; no dependency, configuration, endpoint, feature-gate, tenant-data, service or remote rollback is required.
 
+## LINT-05 Evidence
+
+- Work unit: `refactor(frontend): type shared data boundaries`, parent `6e321c8`; the cumulative LINT-05 native review remains pending against boundary `9f32b43`.
+- Owned contracts: shared Axios/FastAPI error detail parsing now accepts `unknown` and validates Pydantic detail items; Axios request headers use the library-owned `AxiosHeaders` boundary; backoff and throttle preserve generic payload/callback types. Entity, fiscal alert and AFIP vault responses use their backend fields without open index signatures.
+- Owned contracts: banking models now match manual movement, clearing-provider, presigned upload, SSE progress/result and four-eyes resolution payloads. Comprobantes models now own the complete form/create payload, dynamic association filters and typed bank-account projection used for cash accounts; existing shared bank and comprobante domain types are reused.
+- Static RED: before edits, focused JSON lint over `src/api`, `src/lib`, top-level `src/components/*.tsx`, `src/features/bancos` and `src/features/comprobantes` reported exactly 35 `no-explicit-any` errors across 12 files.
+- Static GREEN: the same focused lint reports zero `no-explicit-any` findings. Remaining focused findings are 9 unrelated errors across 4 files: 4 `no-unused-vars` errors and 5 `prefer-const` errors; these remain owned by LINT-08.
+- Full baseline: `npm run lint -- --format json` exits 1 with 68 errors and 2 warnings across 24 files. Relative to LINT-04, `no-explicit-any` changed 74 to 39 and its files changed 28 to 13; `no-unused-vars` remains 18, `prefer-const` 5, `no-useless-catch` 4, `react-refresh/only-export-components` 2, and the 2 valid TanStack Virtual `react-hooks/incompatible-library` warnings remain visible.
+- Verification: `npx --no-install tsc -b` passed with no output; feature-flag contract printed `Frontend feature route/navigation proof passed`; AI Rules contract printed `AI Rules route and conflict contract proof passed`; `npm run build` passed with 2,030 modules transformed; `git diff --check` passed.
+- Behavioral proof: backend string and Pydantic validation details retain their existing user-facing extraction and fallbacks. The Axios interceptor still injects bearer, active `X-Entity-ID` and mutation idempotency headers. Banking account/manual movement/import/analyze/confirm/resolution payload keys, page size 50 replacement/append behavior and SSE result messages are unchanged. Comprobante draft/apply filters, association routing by buyer/seller CUIT, complete form payload, explicit tenant header, page size 50 pagination and optimistic delete rollback are unchanged.
+- Runtime evidence: read-only probes returned API `/health` HTTP 200 with `status=online`, frontend `/` HTTP 200, and eight capabilities with `ai_rules=true/true/true` and `reconciliation=false/true/false`; disabled Reconciliation `/v1/matching` returned HTTP 404. No service was started or rebuilt and no tenant financial data was mutated.
+- Test-gap exception: no deterministic component/API mock suite covers every typed interaction. No behavioral RED/GREEN result is claimed; evidence is the observed lint RED→GREEN, strict type/build/contracts, source-level contract proof and non-destructive runtime health/capability checks.
+- Residual risk: runtime response validation remains owned by Axios/backend contracts rather than a schema parser, and browser-level upload, autocomplete, account creation and comprobante submission remain unautomated. Cumulative native review is pending from boundary `9f32b43`.
+- Rollback: revert the LINT-05 work-unit commit to restore the shared/API/auth/top-level component, banking and comprobantes type boundaries plus this evidence record; no dependency, configuration, endpoint, feature-gate, tenant-data, service or remote rollback is required.
+
 ## Current Next Step
 
-Implement LINT-05 by modeling shared, auth, banking and comprobantes type boundaries without unsafe assertions.
+Implement LINT-06 by modeling reconciliation, expenses and reporting type boundaries without unsafe assertions.

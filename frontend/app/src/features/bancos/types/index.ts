@@ -42,13 +42,15 @@ export type CuentaBancariaCreate = CuentaBancariaRequest;
 
 export interface MovimientoBancarioRequest {
   cuenta_id: number;
+  cuenta_contable_id: number;
   fecha: string;
-  concepto: string;
+  concepto_bancario_crudo: string;
+  concepto_interno?: string | null;
   monto: string | number;
   referencia_banco: string;
 }
 
-export interface MovimientoBancario extends Omit<MovimientoBancarioRequest, "concepto"> {
+export interface MovimientoBancario extends MovimientoBancarioRequest {
   id: number;
 
   // 🌟 FIX FASE 2.2: Discriminador explícito proveniente de Pydantic

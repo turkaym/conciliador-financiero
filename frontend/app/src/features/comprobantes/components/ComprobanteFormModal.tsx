@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Plus, Loader2, AlertCircle, Lock, Unlock, Calculator, ArrowDownUp, Landmark, TriangleAlert, BookOpenCheck } from "lucide-react"
 
-import type { Comprobante, SubtotalIva } from "../types"
+import type { Comprobante, ComprobanteCreateInput, ComprobanteFormData, SubtotalIva } from "../types"
 import { usePlanCuentas } from "@/hooks/usePlanCuentas"
 import { SeccionTercero } from "./SeccionTercero"
 import { useComprobantes } from "../hooks/useComprobantes"
@@ -20,7 +20,7 @@ interface ComprobanteFormModalProps {
   errorMsg: string | null;
   onOpen: (cuit?: string) => void;
   onClose: () => void;
-  onSubmit: (payload: any) => Promise<boolean>;
+  onSubmit: (payload: ComprobanteCreateInput) => Promise<boolean>;
 }
 
 export function ComprobanteFormModal({ entidadActiva, remitosPendientes, cajasDisponibles, isSaving, errorMsg, onOpen, onClose, onSubmit }: ComprobanteFormModalProps) {
@@ -28,7 +28,7 @@ export function ComprobanteFormModal({ entidadActiva, remitosPendientes, cajasDi
   const { cuentasImputables, fetchCuentasImputables, isLoadingCuentas } = usePlanCuentas();
   const { facturasAsociables, fetchFacturasParaAsociar } = useComprobantes();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ComprobanteFormData>({
     clase_documento: "FACTURA",
     tipo_operacion: "VENTA",
     fecha_emision: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
@@ -227,7 +227,7 @@ export function ComprobanteFormModal({ entidadActiva, remitosPendientes, cajasDi
         if (cajaSeleccionada) divisaOperacion = cajaSeleccionada.moneda;
     }
 
-    const payload = {
+    const payload: ComprobanteCreateInput = {
       clase_documento: formData.clase_documento,
       tipo_operacion: formData.tipo_operacion,
       fecha_emision: formData.fecha_emision,

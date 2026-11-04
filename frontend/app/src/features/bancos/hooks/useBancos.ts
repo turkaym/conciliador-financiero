@@ -39,9 +39,28 @@ export interface TaskProgressEvent {
   status: 'PENDING' | 'STARTED' | 'PROCESSING' | 'SUCCESS' | 'FAILURE' | 'REVOKED';
   progress?: number;
   message?: string;
-  result?: any;
+  result?: TaskProgressData;
   error?: string;
-  meta?: any;
+  meta?: TaskProgressData;
+}
+
+interface TaskProgressData {
+  progress?: number;
+  message?: string;
+  insertados?: number;
+}
+
+interface PresignedUploadResponse {
+  upload_url: string;
+  form_fields: Record<string, string>;
+  object_name: string;
+}
+
+interface ResolutionPayload {
+  registro_id: number;
+  tipo_registro: "MOVIMIENTO" | "SOLICITUD";
+  accion: 'aprobar' | 'rechazar';
+  motivo_rechazo?: string;
 }
 
 export const useBancos = () => {
@@ -137,7 +156,7 @@ export const useBancos = () => {
   const listenToTaskStream = useCallback(async (taskId: string, cuentaId?: string | number, retryCount: number = 0) => {
     setIsPolling(true);
     try {
-      const authRes = await api.post('/v1/auth/sse-token');
+      const authRes = await api.post<{ sse_token: string }>('/v1/auth/sse-token');
       const sseToken = authRes.data.sse_token;
       const baseURL = api.defaults.baseURL || "http://localhost:80";
 
@@ -228,7 +247,7 @@ export const useBancos = () => {
       }
 
       const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-      const presignedRes = await api.get(`/v1/ingesta/upload-url`, {
+      const presignedRes = await api.get<PresignedUploadResponse>(`/v1/ingesta/upload-url`, {
         params: { modulo: "bancos", extension: ext }
       });
       const { upload_url, form_fields, object_name } = presignedRes.data;
@@ -280,7 +299,7 @@ export const useBancos = () => {
           params: { object_name: objectName }
       });
       return { objectName, analysis: res.data };
-    } catch(err: any) {
+    } catch(err: unknown) {
       setErrorMovs(`⚠️ ${extractApiError(err, 'Fallo al analizar la estructura del archivo.')}`);
       return null;
     } finally {
@@ -321,7 +340,7 @@ export const useBancos = () => {
         return true;
       }
       throw new Error("Respuesta inválida del orquestador.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMovs(`⚠️ ${extractApiError(err, 'Fallo crítico al confirmar el procesamiento.')}`);
       return false;
     } finally {
@@ -335,7 +354,7 @@ export const useBancos = () => {
           setErrorMovs(null);
           const objectName = await uploadToVault(file);
           return await confirmarIngesta(cuentaId, cuentaContableId, objectName, parserCode);
-      } catch (err: any) {
+       } catch (err: unknown) {
           setErrorMovs(`⚠️ ${extractApiError(err, 'Fallo crítico al subir el archivo.')}`);
           setIsLoadingMovs(false);
           return false;
@@ -373,7 +392,7 @@ export const useBancos = () => {
   const fetchProveedoresClearing = useCallback(async () => {
     if (!entidadId) return;
     try {
-      const response = await api.get('/v1/bancos/proveedores-clearing'); // 🌟 FIX: URL corregida para coincidir con el backend
+      const response = await api.get<Array<{ id: number; razon_social: string; cuit: string }>>('/v1/bancos/proveedores-clearing'); // 🌟 FIX: URL corregida para coincidir con el backend
       setProveedoresClearing(response.data);
     } catch (err) {
       console.error("No se pudieron cargar los proveedores", err);
@@ -436,7 +455,7 @@ export const useBancos = () => {
       const idempotencyKey = crypto.randomUUID();
 
       // 🌟 FIX FASE 2.2: Payload estructurado estricto (Desacople de URL)
-      const payload: any = {
+      const payload: ResolutionPayload = {
         registro_id: registroId,
         tipo_registro: tipoRegistro,
         accion
@@ -455,7 +474,7 @@ export const useBancos = () => {
 
       showMessage(`Transacción ${accion === 'aprobar' ? 'aprobada' : 'rechazada'} exitosamente.`, "success");
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMovs(`⚠️ ${extractApiError(err, 'Fallo al procesar la autorización.')}`);
       return false;
     } finally {
@@ -486,7 +505,7 @@ export const useBancos = () => {
       setCuentas(prev => prev.map(c => c.id === Number(cuentaId) ? { ...c, is_syncing: false } : c));
       showMessage("Ingesta abortada. Cambios revertidos por seguridad.", "success");
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Si falla la red, el spinner sigue girando para no desincronizar la UI con la realidad
       showMessage(extractApiError(err, 'No se pudo abortar el proceso en el motor.'), "error");
       return false;

@@ -4,6 +4,7 @@ import { useAuthStore } from "@/store/useAuthStore"
 import type { Entidad } from "@/store/useAuthStore"
 import { Building2, ChevronDown, Check, Loader2, AlertCircle, Plus, Lock } from "lucide-react"
 import NuevaEmpresaModal from "./NuevaEmpresaModal"
+import axios from "axios"
 
 export default function EntitySelector() {
   // 🌟 FIX: Agregamos isDataLocked para escuchar el estado del Paywall
@@ -20,7 +21,7 @@ export default function EntitySelector() {
     setLoading(true)
     setError(false)
     try {
-      const { data } = await api.get(`/v1/entidades/${id}`)
+      const { data } = await api.get<Entidad[]>(`/v1/entidades/${id}`)
       setEntidades(data)
       const activeEntity = useAuthStore.getState().entidadActiva
 
@@ -32,9 +33,9 @@ export default function EntitySelector() {
         const stillExists = data.find((e: Entidad) => e.id === activeEntity.id)
         if (!stillExists) setEntidadActiva(data[0])
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 🌟 FIX UX: Ignoramos el error 402 porque el interceptor ya activó isDataLocked.
-      if (err.response?.status !== 402) {
+      if (!axios.isAxiosError(err) || err.response?.status !== 402) {
         console.error("Error cargando entidades:", err)
         setError(true)
       }
