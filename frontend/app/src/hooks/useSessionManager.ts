@@ -8,10 +8,17 @@ const LOCK_KEY = 'auth_refresh_lock'; // 🌟 FIX: Llave para el candado multi-p
 
 export function useSessionManager() {
   const { token, logout, setAuth } = useAuthStore();
-  const lastActivity = useRef<number>(Date.now());
+  const lastActivity = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      lastActivity.current = null;
+      return;
+    }
+
+    if (lastActivity.current === null) {
+      lastActivity.current = Date.now();
+    }
 
     // 1. RASTREADOR DE ACTIVIDAD
     const updateActivity = () => {
@@ -24,7 +31,7 @@ export function useSessionManager() {
     // 2. EL GUARDIA: Revisa la inactividad cada 60 segundos
     const idleCheckInterval = setInterval(() => {
       const now = Date.now();
-      if (now - lastActivity.current >= IDLE_TIMEOUT_MS) {
+      if (now - (lastActivity.current ?? now) >= IDLE_TIMEOUT_MS) {
         if (import.meta.env.DEV) {
           console.warn("🔒 Sesión expirada por inactividad. Cerrando bóveda.");
         }
@@ -35,7 +42,7 @@ export function useSessionManager() {
     // 3. EL NEGOCIADOR (Blindado contra multi-pestañas)
     const refreshInterval = setInterval(async () => {
       const now = Date.now();
-      const isUserActive = (now - lastActivity.current) < IDLE_TIMEOUT_MS;
+      const isUserActive = (now - (lastActivity.current ?? now)) < IDLE_TIMEOUT_MS;
 
       if (!isUserActive) return;
 

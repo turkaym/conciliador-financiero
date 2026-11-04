@@ -43,7 +43,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
   - Surface: notification, account, third-party, payment-order and comprobantes UI state.
   - Acceptance: five `set-state-in-effect` errors removed without extra network requests or render loops.
 
-- [ ] **LINT-04 — Complete hook dependencies and session purity**
+- [x] **LINT-04 — Complete hook dependencies and session purity**
   - Route: delegated direct.
   - Acceptance: remaining hook dependency/purity findings reach zero; intervals, polling and cleanup remain deterministic.
 
@@ -77,7 +77,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 
 ## LINT-01 Evidence
 
-- Work-unit commit: `6d1ec22` (`fix(frontend): stabilize polling lifecycle callbacks`). Native assessment against `a21969b`: `medium`, `review_due=false`, `review_due_reason=under_budget`.
+- Work-unit commit: `6d1ec22` (`fix(frontend): stabilize polling lifecycle callbacks`). Its incremental assessment against `a21969b` was provisional; LINT-01, LINT-02 and LINT-03 accumulated into one 481-line native-review candidate rather than three independent final candidates.
 - Changed behavior: extract and registry polling synchronization now cancels queued state work during dependency cleanup; successful completion still closes once by resetting `isSubmitted`, modal visibility, form state and errors through the existing close semantics. Manual close uses the same reset path.
 - Changed behavior: reconciliation entity changes clear selections after starting the existing status/history refreshes, while actual flow and tab transitions clear movement/document selections, restore the first mobile step and close the adjustment modal before changing views. Same-tab clicks remain no-ops and no feature gate or API payload changed.
 - Static RED: focused lint reported 8 findings across the three files: 6 errors and 2 warnings (`react-hooks/immutability` 3, `react-hooks/exhaustive-deps` 2, `@typescript-eslint/no-explicit-any` 2 and `@typescript-eslint/no-unused-vars` 1).
@@ -92,7 +92,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 
 ## LINT-02 Evidence
 
-- Work-unit commit: `8a059ad` (`fix(frontend): separate Sifon ref boundary`). Native assessment against `6d1ec22`: `medium`, `review_due=false`, `review_due_reason=under_budget`.
+- Work-unit commit: `8a059ad` (`fix(frontend): separate Sifon ref boundary`). Its incremental assessment against `6d1ec22` was provisional and became part of the cumulative LINT-01→03 candidate.
 - Root cause: `useSifonFiscal` returned `fileInputRef` in the same object as render state and callbacks. The React hooks analyzer therefore treated ordinary `h.*` render reads as ref-derived and reported 17 `react-hooks/refs` errors in `SifonFiscalForm.tsx`.
 - Contract change: the hidden file input ref is now component-owned and used only by its input binding and upload-area click handler. The hook remains the owner of selected-file, preview, compression, clear/reset and submit state; no effect, duplicate state, callback memoization, payload, endpoint, calculation, copy or feature-gate changed. Local response shapes and caught errors were typed only as required to clear every focused finding.
 - Static RED: before edits, `npx --no-install eslint src/features/egresos/hooks/useSifonFiscal.ts src/features/egresos/components/SifonFiscalForm.tsx` reported 27 errors: `react-hooks/refs` 17, `@typescript-eslint/no-explicit-any` 8 and `@typescript-eslint/no-unused-vars` 2.
@@ -108,6 +108,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 
 ## LINT-03 Evidence
 
+- Work-unit commit: `9f32b43` (`fix(frontend): remove effect-driven state resets`). The consolidated LINT-01→03 candidate against `a21969b` was 481 authored lines and received the exact outcome `medium / slice_budget_reached / declined_this_candidate`. The user declined only that candidate; future native reviews remain enabled.
 - Root causes: notification data was synchronously cleared by the polling effect; account channel changes normalized related fields in an effect; contact suggestions copied render inputs into state; payment retention suggestions were copied into editable state; and tenant changes reset the comprobantes page inside the fetch effect.
 - Semantic changes: notification state is keyed by active entity, so tenant changes start with closed, empty UI state while retaining one immediate request plus the existing interval; request completion and optimistic rollback cannot update state after unmount. Account channel normalization now occurs in the channel event, close/success still restores all defaults, and active edits remain untouched. Third-party suggestions derive from the active field, current text and loaded agenda, while deliberate field/contact changes remain event-owned.
 - Semantic changes: editable payment retentions use defaults until an edit is made and retain edits only while provider, selected invoices, account, exchange rate and engine suggestions share the same key. Comprobantes resets only the page through the entity-selection event; draft filters, filter visibility, delete selection, explicit apply/clear behavior and page-zero tenant fetch remain unchanged.
@@ -119,9 +120,26 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 - Behavioral proof: source inspection confirmed keyed notification remount/cleanup and event-owned optimistic interactions; modal close/success default restoration and channel-owned clearing normalization; render-derived contact suggestions with event-owned edits; keyed retention defaults/overrides submitted unchanged; and entity-event page reset with existing apply/clear filters. No API payload, validation, UI copy, tenant header, feature flag or request cadence changed.
 - Runtime evidence: the existing Compose API and frontend remained healthy; API `/health` returned `status=online`, frontend `/` returned HTTP 200 and disabled Reconciliation `/v1/matching` returned HTTP 404. No service was rebuilt or tenant financial data mutated.
 - Test-gap exception: no deterministic component runner covers these transitions. No behavioral test result is claimed; evidence is the observed lint RED/GREEN, build/contracts, source-level transition proof and non-destructive runtime health checks.
-- Residual risk: browser-level open/close/reopen, contact autocomplete, optimistic notification rollback and edited-retention interaction remain unautomated. Native review is pending for the LINT-03 work-unit commit against parent `8a059ad`.
+- Residual risk: browser-level open/close/reopen, contact autocomplete, optimistic notification rollback and edited-retention interaction remain unautomated. The cumulative native-review outcome is recorded above; it does not disable review for later work units.
 - Rollback: revert the LINT-03 work-unit commit to restore the five state-transition implementations and this evidence record together; no dependency, configuration, API, feature-gate, tenant-data, service or remote rollback is required.
+
+## LINT-04 Evidence
+
+- Work-unit: `fix(frontend): stabilize hook synchronization`, parent `9f32b43`; native review remains pending for this new slice alone.
+- Root causes: loaders used render-local function identities without declaring them; bank and registry progress throttles wrapped opaque callbacks; bank retry timers were not owned by lifecycle cleanup; account selection followed completed requests through state-setting effects; tenant-sensitive lot/account hydration omitted the entity transition; and session activity called `Date.now()` during render.
+- Synchronization contracts: entity, supplier, report and AI Rules loaders now have stable identities with complete dependencies. AI Rules still loads once per search/state change; report loading remains gated by role, tenant and active entity; comprobantes uses an Effect Event so tenant changes read current applied filter state without making draft filter edits refetch.
+- Synchronization contracts: bank tenant transitions reset page/view selection from the auth-store event, clear movement data, fetch accounts once, and select the saved or first account only when that request completes. Account/page changes still fetch one 50-row page and page zero still replaces while later pages append. Lote pagination and account hydration now also react to entity changes.
+- Synchronization contracts: bank and registry SSE progress remains leading-edge throttled at 250 ms. Bank reconnect cadence remains 1/2/4/8 seconds, the 15-second status refresh remains unchanged, and both queued retry/status timers plus the EventSource are cleared on unmount or entity change. Existing registry EventSource teardown remains intact.
+- Session semantics: activity time is initialized inside the authenticated effect, reset only after a real logged-out state, updated by the same five browser events, checked every 60 seconds against the same 30-minute timeout, and refreshed every 14 minutes only while active. Token rotation therefore preserves accumulated inactivity while a later login starts a fresh idle window; interval and storage listeners retain deterministic cleanup.
+- Static RED: focused JSON lint across the ten resolved files reported 37 errors and 10 warnings in all 10 files. Targets were exactly 10 `react-hooks/exhaustive-deps` warnings and 1 `react-hooks/purity` error; unrelated findings were 29 `no-explicit-any` errors and 7 `no-unused-vars` errors.
+- Static GREEN: the same focused lint reports 36 errors, 0 warnings across 7 files, with both target rules at zero. The remaining focused findings are unchanged unrelated type/dead-code work: 29 `no-explicit-any` and 7 `no-unused-vars` errors.
+- Full baseline: `npm run lint -- --format json` exits 1 with 103 errors and 2 warnings across 33 files. Relative to LINT-03, `react-hooks/purity` changed 1 to 0 and `react-hooks/exhaustive-deps` changed 10 to 0; every other rule count is unchanged. Remaining rules are 74 `no-explicit-any`, 18 `no-unused-vars`, 5 `prefer-const`, 4 `no-useless-catch`, 2 `react-refresh/only-export-components`, and 2 visible `react-hooks/incompatible-library` TanStack Virtual warnings.
+- Verification: feature-flag contract printed `Frontend feature route/navigation proof passed`; AI Rules contract printed `AI Rules route and conflict contract proof passed`; `npm run build` passed with 2,030 modules transformed; `git diff --check` passed.
+- Runtime evidence: the existing Compose API and frontend remained healthy without rebuild or mutation; API `/health` returned `status=online`, frontend `/` returned HTTP 200, capabilities returned eight records with `ai_rules=true/true/true` and `reconciliation=false/true/false`, and disabled Reconciliation `/v1/matching` returned HTTP 404.
+- Behavioral proof: source inspection confirms request triggers remain tenant/entity, page, filter or explicit-event owned; pagination replacement/append semantics and filter apply/clear behavior are unchanged; SSE terminal paths still close streams and refresh data; report and AI Rules endpoints, payloads and copy are unchanged; and all intervals, storage listeners and queued bank retries have cleanup. No tenant financial API or data was mutated.
+- Test-gap exception: no deterministic component runner covers these hook transitions, SSE retries or idle timeout. No browser behavioral result is claimed; evidence is static RED→GREEN, build/contracts, source-level cadence/transition/cleanup proof and non-destructive runtime health/capability checks.
+- Rollback: revert this LINT-04 work-unit commit to restore the ten source synchronization implementations and this evidence record together; no dependency, configuration, endpoint, feature-gate, tenant-data, service or remote rollback is required.
 
 ## Current Next Step
 
-Implement LINT-04 by completing hook dependencies and session purity without changing interval, polling or cleanup behavior.
+Implement LINT-05 by modeling shared, auth, banking and comprobantes type boundaries without unsafe assertions.

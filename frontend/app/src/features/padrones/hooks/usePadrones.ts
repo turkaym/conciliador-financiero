@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import api from '@/api/axios';
 import { extractApiError } from '@/lib/utils';
-import { fetchWithBackoff, throttle } from '@/lib/resilience';
+import { fetchWithBackoff } from '@/lib/resilience';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export interface HistorialIngesta {
@@ -107,13 +107,14 @@ export const usePadrones = () => {
     }
   };
 
-  const handleProgressUpdate = useCallback(
-    throttle((data: any) => {
-        setProgress(data.progress || 0);
-        setStatusMsg(data.message || 'Procesando...');
-    }, 250),
-    []
-  );
+  const lastProgressUpdateRef = useRef(0);
+  const handleProgressUpdate = useCallback((data: any) => {
+    const now = Date.now();
+    if (now - lastProgressUpdateRef.current < 250) return;
+    lastProgressUpdateRef.current = now;
+    setProgress(data.progress || 0);
+    setStatusMsg(data.message || 'Procesando...');
+  }, []);
 
   const listenToTaskStream = useCallback(async (taskId: string) => {
     setIsPolling(true);

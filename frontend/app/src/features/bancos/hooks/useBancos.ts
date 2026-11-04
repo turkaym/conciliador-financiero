@@ -1,4 +1,4 @@
-import { fetchWithBackoff, throttle } from '@/lib/resilience';
+import { fetchWithBackoff } from '@/lib/resilience';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import api from '@/api/axios';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -63,17 +63,27 @@ export const useBancos = () => {
   const entidadId = entidadActiva?.id;
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const scheduleTimeout = useCallback((callback: () => void, delay: number) => {
+    const timeoutId = setTimeout(() => {
+      retryTimeoutsRef.current.delete(timeoutId);
+      callback();
+    }, delay);
+    retryTimeoutsRef.current.add(timeoutId);
+  }, []);
 
   useEffect(() => {
+    const retryTimeouts = retryTimeoutsRef.current;
     return () => {
-      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      retryTimeouts.forEach(clearTimeout);
+      retryTimeouts.clear();
       if (eventSourceRef.current) {
          eventSourceRef.current.close();
          eventSourceRef.current = null;
       }
     };
-  }, []);
+  }, [entidadId]);
 
   const showMessage = useCallback((text: string, type: 'success' | 'error') => {
     setGlobalMessage({ text, type });
@@ -108,18 +118,20 @@ export const useBancos = () => {
   // ==========================================
 
   // 🌟 FIX TIPADO: Desechamos el 'any'
-  const handleProgressUpdate = useCallback(
-    throttle((data: { progress: number; message: string }, cuentaId?: string | number) => {
-      if (cuentaId && data.progress !== undefined) {
-        setCuentas(prev => prev.map(c =>
-          c.id === Number(cuentaId)
-            ? { ...c, progress: data.progress, status_msg: data.message }
-            : c
-        ));
-      }
-    }, 250),
-    []
-  );
+  const lastProgressUpdateRef = useRef(0);
+  const handleProgressUpdate = useCallback((data: { progress: number; message: string }, cuentaId?: string | number) => {
+    const now = Date.now();
+    if (now - lastProgressUpdateRef.current < 250) return;
+    lastProgressUpdateRef.current = now;
+
+    if (cuentaId && data.progress !== undefined) {
+      setCuentas(prev => prev.map(c =>
+        c.id === Number(cuentaId)
+          ? { ...c, progress: data.progress, status_msg: data.message }
+          : c
+      ));
+    }
+  }, []);
 
   // 🌟 FIX REDES (PASO 8): Exponential Backoff inyectado nativamente
   const listenToTaskStream = useCallback(async (taskId: string, cuentaId?: string | number, retryCount: number = 0) => {
@@ -196,7 +208,7 @@ export const useBancos = () => {
         if (retryCount < 4) {
            const timeout = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s, 8s
            console.warn(`⚠️ Microcorte SSE. Reconectando en ${timeout}ms... (Intento ${retryCount + 1}/4)`);
-           setTimeout(() => listenToTaskStream(taskId, cuentaId, retryCount + 1), timeout);
+           scheduleTimeout(() => listenToTaskStream(taskId, cuentaId, retryCount + 1), timeout);
         } else {
            setIsPolling(false);
            showMessage('Se perdió la conexión en vivo con el servidor. Revisá la tabla más tarde.', 'error');
@@ -207,7 +219,7 @@ export const useBancos = () => {
       setIsPolling(false);
       showMessage('No se pudo establecer el canal seguro (SSE).', 'error');
     }
-  }, [showMessage, fetchMovimientos, handleProgressUpdate]);
+  }, [showMessage, fetchMovimientos, handleProgressUpdate, scheduleTimeout]);
 
   const uploadToVault = async (file: File): Promise<string> => {
       // 🌟 FIX 1: Defensa contra archivos muertos (0 bytes) creados manualmente por el SO.
@@ -303,7 +315,7 @@ export const useBancos = () => {
           ...c, is_syncing: true, last_task_id: taskId
         } : c));
 
-        setTimeout(() => {
+        scheduleTimeout(() => {
           if (eventSourceRef.current && eventSourceRef.current.readyState !== 2) fetchCuentas();
         }, 15000);
         return true;
@@ -333,7 +345,7 @@ export const useBancos = () => {
   // ==========================================
   // MÉTODOS: CUENTAS Y CREACIÓN
   // ==========================================
-  const fetchCuentas = useCallback(async () => {
+  const fetchCuentas = useCallback(async (onLoaded?: (loadedCuentas: CuentaBancaria[]) => void) => {
     if (!entidadId) return;
     setIsLoadingCuentas(true);
     setErrorCuentas(null);
@@ -345,6 +357,7 @@ export const useBancos = () => {
     try {
       const response = await api.get<CuentaBancaria[]>('/v1/bancos/cuentas');
       setCuentas(response.data);
+      onLoaded?.(response.data);
 
       const cuentaEnProceso = response.data.find(c => c.is_syncing === true && c.last_task_id);
       if (cuentaEnProceso) {

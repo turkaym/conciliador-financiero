@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import api from "@/api/axios"
 import { useAuthStore } from "@/store/useAuthStore"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -54,16 +54,8 @@ export default function ReportesPage() {
   const [ledgerData, setLedgerData] = useState<MayorResponse | null>(null)
   const [loadingLedger, setLoadingLedger] = useState(false)
 
-  // --- EFECTOS ---
-  useEffect(() => {
-    // 🌟 FIX FAIL-FAST & RBAC: Solo disparamos si es Admin y la entidad ya cargó
-    if (isAdmin && user?.tenant_id && entidadActiva?.id) {
-      fetchTrialBalance()
-    }
-  }, [isAdmin, user?.tenant_id, entidadActiva?.id])
-
   // --- PETICIONES API ---
-  const fetchTrialBalance = async () => {
+  const fetchTrialBalance = useCallback(async () => {
     setLoadingBalance(true)
     setError(null)
     try {
@@ -76,7 +68,15 @@ export default function ReportesPage() {
     } finally {
       setLoadingBalance(false)
     }
-  }
+  }, [user?.tenant_id])
+
+  // --- EFECTOS ---
+  useEffect(() => {
+    // 🌟 FIX FAIL-FAST & RBAC: Solo disparamos si es Admin y la entidad ya cargó
+    if (isAdmin && user?.tenant_id && entidadActiva?.id) {
+      void fetchTrialBalance()
+    }
+  }, [entidadActiva?.id, fetchTrialBalance, isAdmin, user?.tenant_id])
 
   const fetchLedger = async (codigoCuenta: string) => {
     setIsLedgerOpen(true)

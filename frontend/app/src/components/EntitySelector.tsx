@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import api from "@/api/axios"
 import { useAuthStore } from "@/store/useAuthStore"
 import type { Entidad } from "@/store/useAuthStore"
@@ -16,25 +16,20 @@ export default function EntitySelector() {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
-  useEffect(() => {
-    if (tenant_id) {
-      fetchEntidades(tenant_id)
-    }
-  }, [tenant_id])
-
-  const fetchEntidades = async (id: string) => {
+  const fetchEntidades = useCallback(async (id: string) => {
     setLoading(true)
     setError(false)
     try {
       const { data } = await api.get(`/v1/entidades/${id}`)
       setEntidades(data)
+      const activeEntity = useAuthStore.getState().entidadActiva
 
-      if (data.length > 0 && !entidadActiva) {
+      if (data.length > 0 && !activeEntity) {
         setEntidadActiva(data[0])
       }
 
-      if (entidadActiva && data.length > 0) {
-        const stillExists = data.find((e: Entidad) => e.id === entidadActiva.id)
+      if (activeEntity && data.length > 0) {
+        const stillExists = data.find((e: Entidad) => e.id === activeEntity.id)
         if (!stillExists) setEntidadActiva(data[0])
       }
     } catch (err: any) {
@@ -46,7 +41,13 @@ export default function EntitySelector() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [setEntidadActiva])
+
+  useEffect(() => {
+    if (tenant_id) {
+      void fetchEntidades(tenant_id)
+    }
+  }, [fetchEntidades, tenant_id])
 
   const handleSelect = (entidad: Entidad) => {
     setEntidadActiva(entidad)

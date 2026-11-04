@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { AxiosError } from "axios"
 import { Loader2, RefreshCw, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ export default function ReglasIAPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setMessage("")
     try {
@@ -29,9 +29,9 @@ export default function ReglasIAPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [active, search])
 
-  useEffect(() => { void load() }, [search, active])
+  useEffect(() => { void load() }, [load])
 
   const createRule = async (event: React.FormEvent) => {
     event.preventDefault()

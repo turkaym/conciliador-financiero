@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "@/api/axios";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Users, Search, Building2, Landmark, AlertTriangle, ShieldCheck, Edit, Plus, Loader2, X } from "lucide-react";
@@ -25,7 +25,7 @@ export default function ProveedoresPage() {
     is_entidad_financiera: false
   });
 
-  const fetchProveedores = async () => {
+  const fetchProveedores = useCallback(async () => {
     if (!entidadActiva?.id) return;
     setIsLoading(true);
     try {
@@ -36,11 +36,11 @@ export default function ProveedoresPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [entidadActiva?.id]);
 
   useEffect(() => {
-    fetchProveedores();
-  }, [entidadActiva?.id]);
+    void fetchProveedores();
+  }, [fetchProveedores]);
 
   const handleOpenModal = (prov: any = null) => {
     if (prov) {

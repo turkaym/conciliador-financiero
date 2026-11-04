@@ -9,6 +9,7 @@ import api from "@/api/axios";
 export default function LotesTable() {
   const { lotes, fetchLotes, isLoading, solicitarAutorizacionLote, autorizarLote, exportarLote, paginacion, setPaginacion } = useEgresosStore();
   const user = useAuthStore((state) => state.user);
+  const entidadId = useAuthStore((state) => state.entidadActiva?.id);
 
   const isAdmin = ["admin", "editor", "dueño"].includes(user?.role?.toLowerCase() || "");
 
@@ -32,8 +33,8 @@ export default function LotesTable() {
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
 
   useEffect(() => {
-    fetchLotes();
-  }, [paginacion.page]);
+    void fetchLotes();
+  }, [entidadId, fetchLotes, paginacion.page]);
 
   // 🌟 HIDRATACIÓN DE CUENTAS BANCARIAS
   useEffect(() => {
@@ -49,7 +50,7 @@ export default function LotesTable() {
     };
     fetchCuentas();
     return () => { isMounted = false; };
-  }, [isAdmin]);
+  }, [entidadId, isAdmin]);
 
   const handlePrevPage = () => {
     if (paginacion.page > 1) {
