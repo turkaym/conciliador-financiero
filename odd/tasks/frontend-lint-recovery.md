@@ -38,7 +38,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
   - Surface: `useSifonFiscal.ts`, `SifonFiscalForm.tsx`.
   - Acceptance: all 17 `react-hooks/refs` errors removed while upload, preview, clear and submit behavior remain intact.
 
-- [ ] **LINT-03 — Remove effect-driven derived state**
+- [x] **LINT-03 — Remove effect-driven derived state**
   - Route: delegated direct.
   - Surface: notification, account, third-party, payment-order and comprobantes UI state.
   - Acceptance: five `set-state-in-effect` errors removed without extra network requests or render loops.
@@ -92,6 +92,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 
 ## LINT-02 Evidence
 
+- Work-unit commit: `8a059ad` (`fix(frontend): separate Sifon ref boundary`). Native assessment against `6d1ec22`: `medium`, `review_due=false`, `review_due_reason=under_budget`.
 - Root cause: `useSifonFiscal` returned `fileInputRef` in the same object as render state and callbacks. The React hooks analyzer therefore treated ordinary `h.*` render reads as ref-derived and reported 17 `react-hooks/refs` errors in `SifonFiscalForm.tsx`.
 - Contract change: the hidden file input ref is now component-owned and used only by its input binding and upload-area click handler. The hook remains the owner of selected-file, preview, compression, clear/reset and submit state; no effect, duplicate state, callback memoization, payload, endpoint, calculation, copy or feature-gate changed. Local response shapes and caught errors were typed only as required to clear every focused finding.
 - Static RED: before edits, `npx --no-install eslint src/features/egresos/hooks/useSifonFiscal.ts src/features/egresos/components/SifonFiscalForm.tsx` reported 27 errors: `react-hooks/refs` 17, `@typescript-eslint/no-explicit-any` 8 and `@typescript-eslint/no-unused-vars` 2.
@@ -102,9 +103,25 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 - Behavioral proof: file selection still flows from the hidden input `onChange` into image validation, WebP compression, `selectedFile` and object-URL preview state; the selected filename and preview still render from that state. Clear sets both values to null, remounting a fresh hidden input. Submit still validates required fields, optionally obtains the same presigned URL and uploads the same file, posts the unchanged order payload, refreshes orders and resets the form including file state. Disabled and loading states still derive from `isCompressing` and `isSubmitting`.
 - Capability evidence: `expenses_payments` remains enabled in `config/feature_flags.json`, implementation-ready in `config/feature_flags.py`, usable in the dependency-free feature contract and routed to `egresos` through the existing capability guard. No credentials or tenant data were accessed.
 - Test-gap exception: no deterministic component runner covers this form. No behavioral test or financial upload is claimed; evidence is focused lint, build/contracts, source-level path proof and read-only capability inspection. No tenant record was mutated.
-- Residual risk: browser-level file-picker, camera capture, object-URL preview and upload integration remain unautomated. Native review is pending for the LINT-02 work-unit commit against parent `6d1ec22`.
+- Residual risk: browser-level file-picker, camera capture, object-URL preview and upload integration remain unautomated. The native assessment completed at `medium / under_budget`; no further review was due.
 - Rollback: revert the LINT-02 work-unit commit to restore both Sifón files and this evidence record together; no dependency, configuration, API, feature-gate, tenant-data or remote rollback is required.
+
+## LINT-03 Evidence
+
+- Root causes: notification data was synchronously cleared by the polling effect; account channel changes normalized related fields in an effect; contact suggestions copied render inputs into state; payment retention suggestions were copied into editable state; and tenant changes reset the comprobantes page inside the fetch effect.
+- Semantic changes: notification state is keyed by active entity, so tenant changes start with closed, empty UI state while retaining one immediate request plus the existing interval; request completion and optimistic rollback cannot update state after unmount. Account channel normalization now occurs in the channel event, close/success still restores all defaults, and active edits remain untouched. Third-party suggestions derive from the active field, current text and loaded agenda, while deliberate field/contact changes remain event-owned.
+- Semantic changes: editable payment retentions use defaults until an edit is made and retain edits only while provider, selected invoices, account, exchange rate and engine suggestions share the same key. Comprobantes resets only the page through the entity-selection event; draft filters, filter visibility, delete selection, explicit apply/clear behavior and page-zero tenant fetch remain unchanged.
+- Static RED: before edits, focused lint reported 13 findings across the five files: 12 errors and 1 warning. The target rule contributed exactly 5 `react-hooks/set-state-in-effect` errors, one per file; unrelated findings were 7 `@typescript-eslint/no-explicit-any` errors, 1 `@typescript-eslint/no-unused-vars` error and 1 `react-hooks/exhaustive-deps` warning.
+- Static GREEN: the same focused lint reports zero `react-hooks/set-state-in-effect` findings. Remaining focused findings are exactly 7 errors and 1 warning: `NotificationBell.tsx` has 2 `no-explicit-any`; `SeccionTercero.tsx` has 3 `no-explicit-any`; `OrdenPagoForm.tsx` has 1 `no-explicit-any` and 1 `no-unused-vars`; `Comprobantes.tsx` has 1 `exhaustive-deps` warning; `NuevaCuentaModal.tsx` is clean.
+- Remaining baseline: full `npm run lint -- --format json` exits 1 with 104 errors and 12 warnings across 36 files. Relative to the LINT-02 baseline of 109 errors, 12 warnings and 37 files, `react-hooks/set-state-in-effect` changed 5 to 0; every other rule count is unchanged.
+- Remaining rules: `@typescript-eslint/no-explicit-any` 74 errors; `@typescript-eslint/no-unused-vars` 18 errors; `prefer-const` 5 errors; `no-useless-catch` 4 errors; `react-refresh/only-export-components` 2 errors; `react-hooks/purity` 1 error; `react-hooks/exhaustive-deps` 10 warnings; `react-hooks/incompatible-library` 2 warnings.
+- Verification: feature-flag contract printed `Frontend feature route/navigation proof passed`; AI Rules contract printed `AI Rules route and conflict contract proof passed`; `npm run build` passed with 2,030 modules transformed; focused source-transition inspection and `git diff --check` passed.
+- Behavioral proof: source inspection confirmed keyed notification remount/cleanup and event-owned optimistic interactions; modal close/success default restoration and channel-owned clearing normalization; render-derived contact suggestions with event-owned edits; keyed retention defaults/overrides submitted unchanged; and entity-event page reset with existing apply/clear filters. No API payload, validation, UI copy, tenant header, feature flag or request cadence changed.
+- Runtime evidence: the existing Compose API and frontend remained healthy; API `/health` returned `status=online`, frontend `/` returned HTTP 200 and disabled Reconciliation `/v1/matching` returned HTTP 404. No service was rebuilt or tenant financial data mutated.
+- Test-gap exception: no deterministic component runner covers these transitions. No behavioral test result is claimed; evidence is the observed lint RED/GREEN, build/contracts, source-level transition proof and non-destructive runtime health checks.
+- Residual risk: browser-level open/close/reopen, contact autocomplete, optimistic notification rollback and edited-retention interaction remain unautomated. Native review is pending for the LINT-03 work-unit commit against parent `8a059ad`.
+- Rollback: revert the LINT-03 work-unit commit to restore the five state-transition implementations and this evidence record together; no dependency, configuration, API, feature-gate, tenant-data, service or remote rollback is required.
 
 ## Current Next Step
 
-Implement LINT-03 by removing effect-driven derived state without extra network requests or render loops.
+Implement LINT-04 by completing hook dependencies and session purity without changing interval, polling or cleanup behavior.

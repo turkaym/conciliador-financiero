@@ -49,10 +49,15 @@ export default function ComprobantesPage() {
     fecha_hasta: ""
   })
 
+  useEffect(() => useAuthStore.subscribe((state, previousState) => {
+    if (state.entidadActiva?.id !== previousState.entidadActiva?.id) {
+      setPage(0)
+    }
+  }), [])
+
   // 🌟 REACTIVIDAD AL CAMBIO DE EMPRESA
   useEffect(() => {
     if (entidadActiva) {
-      setPage(0)
       fetchComprobantes(0, filters)
     } else {
       clearData()

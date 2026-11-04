@@ -12,45 +12,56 @@ interface AlertaFiscal {
 }
 
 export default function NotificationBell() {
+  const entidadActivaId = useAuthStore((state) => state.entidadActiva?.id)
+
+  return <NotificationBellForEntity key={entidadActivaId ?? "no-entity"} entidadActivaId={entidadActivaId} />
+}
+
+function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: number }) {
   const [alerta, setAlerta] = useState<AlertaFiscal | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const isMountedRef = useRef(true)
   const navigate = useNavigate()
 
-  const entidadActivaId = useAuthStore((state) => state.entidadActiva?.id)
-
   useEffect(() => {
+    isMountedRef.current = true
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
+    return () => {
+      isMountedRef.current = false
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
   }, [])
 
-  const fetchAlertas = async (currentEntidadId: number) => {
-    if (!currentEntidadId || document.hidden) return
-
-    try {
-      // ⏪ REGRESIÓN: Volvemos a usar el Header seguro Zero-Trust
-      const response = await api.get<AlertaFiscal>(`/v1/comprobantes/alertas`, {
-        headers: { 'X-Entity-ID': currentEntidadId.toString() }
-      })
-      setAlerta(response.data)
-    } catch (error) {
-      console.error("Fallo silencioso al consultar alertas fiscales:", error)
-    }
-  }
-
   useEffect(() => {
-    setAlerta(null)
-
     if (!entidadActivaId) return;
 
-    fetchAlertas(entidadActivaId)
-    const intervalId = setInterval(() => fetchAlertas(entidadActivaId), 180000)
-    return () => clearInterval(intervalId)
+    let isMounted = true
+    const fetchAlertas = async () => {
+      if (document.hidden) return
+
+      try {
+        // ⏪ REGRESIÓN: Volvemos a usar el Header seguro Zero-Trust
+        const response = await api.get<AlertaFiscal>(`/v1/comprobantes/alertas`, {
+          headers: { 'X-Entity-ID': entidadActivaId.toString() }
+        })
+        if (isMounted) setAlerta(response.data)
+      } catch (error) {
+        console.error("Fallo silencioso al consultar alertas fiscales:", error)
+      }
+    }
+
+    fetchAlertas()
+    const intervalId = setInterval(fetchAlertas, 180000)
+    return () => {
+      isMounted = false
+      clearInterval(intervalId)
+    }
   }, [entidadActivaId])
 
   const handleResolverAlerta = async (alertaId: number) => {
@@ -73,7 +84,7 @@ export default function NotificationBell() {
       })
     } catch (error) {
       console.error("Fallo de red al descartar alerta. Revirtiendo interfaz.", error)
-      setAlerta(estadoAnterior)
+      if (isMountedRef.current) setAlerta(estadoAnterior)
     }
   }
 
@@ -96,7 +107,7 @@ export default function NotificationBell() {
       })
     } catch (error) {
       console.error("Fallo masivo al descartar. Revirtiendo interfaz.", error)
-      setAlerta(estadoAnterior)
+      if (isMountedRef.current) setAlerta(estadoAnterior)
     }
   }
 

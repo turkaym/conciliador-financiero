@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Loader2, Receipt, Landmark, ShieldAlert, Calculator, CheckSquare, Square, ChevronsUpDown, Check, Search, Edit3, Layers, Send, Building } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,17 +18,22 @@ export default function OrdenPagoForm() {
 
   // 🌟 Si NO es admin, la variable nace y muere en TRUE (siempre Encolado)
   const [esInterbanking, setEsInterbanking] = useState(true);
-  const [retencionesEditables, setRetencionesEditables] = useState<any[]>([]);
-
-  // Sincronizar retenciones del motor a los inputs editables
-  useEffect(() => {
-    setRetencionesEditables(h.retencionesSugeridas.map(r => ({ ...r })));
-  }, [h.retencionesSugeridas]);
+  const retencionesKey = JSON.stringify([
+    h.proveedorId,
+    Array.from(h.facturasSeleccionadasIds).sort((a, b) => a - b),
+    h.cuentaOrigenId,
+    h.tipoCambio,
+    h.retencionesSugeridas
+  ]);
+  const [retencionesEditadas, setRetencionesEditadas] = useState<{ key: string; values: any[] }>({ key: "", values: [] });
+  const retencionesEditables = retencionesEditadas.key === retencionesKey
+    ? retencionesEditadas.values
+    : h.retencionesSugeridas;
 
   const handleRetencionChange = (index: number, newMonto: string) => {
-    const updated = [...retencionesEditables];
+    const updated = retencionesEditables.map(retencion => ({ ...retencion }));
     updated[index].monto_impuesto = parseFloat(newMonto) || 0;
-    setRetencionesEditables(updated);
+    setRetencionesEditadas({ key: retencionesKey, values: updated });
   };
 
   if (h.isLoadingMaestros) {

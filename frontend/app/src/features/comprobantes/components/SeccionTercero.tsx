@@ -40,7 +40,6 @@ export function SeccionTercero({
 }: SeccionTerceroProps) {
 
   const [agendaContactos, setAgendaContactos] = useState<ContactoAgenda[]>([]);
-  const [sugerencias, setSugerencias] = useState<ContactoAgenda[]>([]);
   const [campoActivo, setCampoActivo] = useState<"cuit" | "razon_social" | null>(null);
 
   useEffect(() => {
@@ -57,28 +56,15 @@ export function SeccionTercero({
     return () => { isMounted = false; };
   }, []);
 
-  useEffect(() => {
-    if (!campoActivo) {
-      setSugerencias([]);
-      return;
-    }
-
-    const cuitSeguro = formData.cuit_tercero || "";
-    const razonSocialSegura = formData.razon_social_receptor || "";
-
-    if (campoActivo === "cuit" && cuitSeguro.length >= 5) {
-      const match = agendaContactos.filter(c => (c.cuit || "").includes(cuitSeguro));
-      setSugerencias(match);
-    } else if (campoActivo === "razon_social" && razonSocialSegura.length >= 3) {
-      const search = razonSocialSegura.toLowerCase();
-      const match = agendaContactos.filter(c =>
-        (c.razon_social || "").toLowerCase().includes(search)
-      );
-      setSugerencias(match);
-    } else {
-      setSugerencias([]);
-    }
-  }, [formData.cuit_tercero, formData.razon_social_receptor, campoActivo, agendaContactos]);
+  const cuitSeguro = formData.cuit_tercero || "";
+  const razonSocialSegura = formData.razon_social_receptor || "";
+  const sugerencias = campoActivo === "cuit" && cuitSeguro.length >= 5
+    ? agendaContactos.filter(c => (c.cuit || "").includes(cuitSeguro))
+    : campoActivo === "razon_social" && razonSocialSegura.length >= 3
+      ? agendaContactos.filter(c =>
+          (c.razon_social || "").toLowerCase().includes(razonSocialSegura.toLowerCase())
+        )
+      : [];
 
   const handleSeleccionarContacto = (contacto: ContactoAgenda) => {
     setFormData((prev: any) => ({
@@ -88,7 +74,6 @@ export function SeccionTercero({
       condicion_fiscal_receptor: contacto.condicion_fiscal || "CONSUMIDOR_FINAL"
     }));
     setCampoActivo(null);
-    setSugerencias([]);
   };
 
   return (
