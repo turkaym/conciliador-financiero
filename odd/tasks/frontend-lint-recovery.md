@@ -33,7 +33,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
   - Surface: `ImportarExtractoModal.tsx`, `ImportarPadronModal.tsx`, `Conciliacion.tsx`.
   - Acceptance: zero lint findings in these files; successful polling still closes and resets import state; reconciliation entity/flow/tab transitions reset selection without effect loops.
 
-- [ ] **LINT-02 — Separate the Sifón ref boundary from render state**
+- [x] **LINT-02 — Separate the Sifón ref boundary from render state**
   - Route: delegated direct.
   - Surface: `useSifonFiscal.ts`, `SifonFiscalForm.tsx`.
   - Acceptance: all 17 `react-hooks/refs` errors removed while upload, preview, clear and submit behavior remain intact.
@@ -77,6 +77,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 
 ## LINT-01 Evidence
 
+- Work-unit commit: `6d1ec22` (`fix(frontend): stabilize polling lifecycle callbacks`). Native assessment against `a21969b`: `medium`, `review_due=false`, `review_due_reason=under_budget`.
 - Changed behavior: extract and registry polling synchronization now cancels queued state work during dependency cleanup; successful completion still closes once by resetting `isSubmitted`, modal visibility, form state and errors through the existing close semantics. Manual close uses the same reset path.
 - Changed behavior: reconciliation entity changes clear selections after starting the existing status/history refreshes, while actual flow and tab transitions clear movement/document selections, restore the first mobile step and close the adjustment modal before changing views. Same-tab clicks remain no-ops and no feature gate or API payload changed.
 - Static RED: focused lint reported 8 findings across the three files: 6 errors and 2 warnings (`react-hooks/immutability` 3, `react-hooks/exhaustive-deps` 2, `@typescript-eslint/no-explicit-any` 2 and `@typescript-eslint/no-unused-vars` 1).
@@ -89,6 +90,21 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 - Residual risk: pre-existing notification and bank SSE retry timeouts are owned by the parent hooks and remain outside this exact task surface. Existing EventSource teardown remains unchanged. Native review is pending for this work-unit commit against parent `a21969b`.
 - Rollback: revert the LINT-01 work-unit commit to restore the three source files and this evidence record together; no dependency, configuration, feature-gate or remote rollback is required.
 
+## LINT-02 Evidence
+
+- Root cause: `useSifonFiscal` returned `fileInputRef` in the same object as render state and callbacks. The React hooks analyzer therefore treated ordinary `h.*` render reads as ref-derived and reported 17 `react-hooks/refs` errors in `SifonFiscalForm.tsx`.
+- Contract change: the hidden file input ref is now component-owned and used only by its input binding and upload-area click handler. The hook remains the owner of selected-file, preview, compression, clear/reset and submit state; no effect, duplicate state, callback memoization, payload, endpoint, calculation, copy or feature-gate changed. Local response shapes and caught errors were typed only as required to clear every focused finding.
+- Static RED: before edits, `npx --no-install eslint src/features/egresos/hooks/useSifonFiscal.ts src/features/egresos/components/SifonFiscalForm.tsx` reported 27 errors: `react-hooks/refs` 17, `@typescript-eslint/no-explicit-any` 8 and `@typescript-eslint/no-unused-vars` 2.
+- Static GREEN: the same focused lint command exited 0 with no output.
+- Remaining baseline: full `npm run lint -- --format json` reports 109 errors and 12 warnings across 37 files. Relative to the LINT-01 baseline of 136 errors, 12 warnings and 39 files, `react-hooks/refs` changed 17 to 0, `@typescript-eslint/no-explicit-any` 82 to 74 and `@typescript-eslint/no-unused-vars` 20 to 18; all other rule counts are unchanged.
+- Remaining rules: `@typescript-eslint/no-explicit-any` 74 errors; `@typescript-eslint/no-unused-vars` 18 errors; `react-hooks/set-state-in-effect` 5 errors; `prefer-const` 5 errors; `no-useless-catch` 4 errors; `react-refresh/only-export-components` 2 errors; `react-hooks/purity` 1 error; `react-hooks/exhaustive-deps` 10 warnings; `react-hooks/incompatible-library` 2 warnings.
+- Verification: feature-flag contract printed `Frontend feature route/navigation proof passed`; AI Rules contract printed `AI Rules route and conflict contract proof passed`; `npm run build` passed with 2,030 modules transformed; focused lint and `git diff --check` passed.
+- Behavioral proof: file selection still flows from the hidden input `onChange` into image validation, WebP compression, `selectedFile` and object-URL preview state; the selected filename and preview still render from that state. Clear sets both values to null, remounting a fresh hidden input. Submit still validates required fields, optionally obtains the same presigned URL and uploads the same file, posts the unchanged order payload, refreshes orders and resets the form including file state. Disabled and loading states still derive from `isCompressing` and `isSubmitting`.
+- Capability evidence: `expenses_payments` remains enabled in `config/feature_flags.json`, implementation-ready in `config/feature_flags.py`, usable in the dependency-free feature contract and routed to `egresos` through the existing capability guard. No credentials or tenant data were accessed.
+- Test-gap exception: no deterministic component runner covers this form. No behavioral test or financial upload is claimed; evidence is focused lint, build/contracts, source-level path proof and read-only capability inspection. No tenant record was mutated.
+- Residual risk: browser-level file-picker, camera capture, object-URL preview and upload integration remain unautomated. Native review is pending for the LINT-02 work-unit commit against parent `6d1ec22`.
+- Rollback: revert the LINT-02 work-unit commit to restore both Sifón files and this evidence record together; no dependency, configuration, API, feature-gate, tenant-data or remote rollback is required.
+
 ## Current Next Step
 
-Implement LINT-02 by separating the Sifón ref boundary from render state.
+Implement LINT-03 by removing effect-driven derived state without extra network requests or render loops.

@@ -1,14 +1,38 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import api from "@/api/axios";
 import { compressToWebP } from "@/lib/edgeCompression";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useAuthStore, type Entidad } from "@/store/useAuthStore";
 import { usePlanCuentas } from "@/hooks/usePlanCuentas";
 import { useEgresosStore } from "@/store/useEgresosStore";
 import { extractApiError } from "@/lib/utils";
 
+interface EntidadConRol extends Entidad {
+  rol?: string;
+  role?: string;
+}
+
+interface Concepto {
+  id: number;
+  codigo: string;
+  nombre_descriptivo: string;
+}
+
+interface Proveedor {
+  id: number;
+  cuit: string;
+  razon_social: string;
+}
+
+interface Cuenta {
+  id: number;
+  moneda: string;
+  nombre_banco: string;
+  numero_cuenta: string;
+}
+
 export function useSifonFiscal() {
   const user = useAuthStore((state) => state.user);
-  const entidadActiva = useAuthStore((state: any) => state.entidadActiva);
+  const entidadActiva = useAuthStore((state) => state.entidadActiva as EntidadConRol | null);
   const activeRole = String(entidadActiva?.rol || entidadActiva?.role || user?.role || "").toLowerCase();
   const isAdmin = ["admin", "editor", "dueño"].includes(activeRole);
   const fetchOrdenes = useEgresosStore((state) => state.fetchOrdenes);
@@ -25,9 +49,9 @@ export function useSifonFiscal() {
   const [requiereComprobante, setRequiereComprobante] = useState(false);
   const [numeroTicket, setNumeroTicket] = useState("");
 
-  const [conceptos, setConceptos] = useState<any[]>([]);
-  const [proveedores, setProveedores] = useState<any[]>([]);
-  const [cuentas, setCuentas] = useState<any[]>([]);
+  const [conceptos, setConceptos] = useState<Concepto[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [cuentas, setCuentas] = useState<Cuenta[]>([]);
   const [isLoadingMaestros, setIsLoadingMaestros] = useState(true);
 
   const [isAddingProv, setIsAddingProv] = useState(false);
@@ -41,8 +65,6 @@ export function useSifonFiscal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!entidadActiva?.id) return;
@@ -101,7 +123,7 @@ export function useSifonFiscal() {
       setProveedorId(data.id.toString());
       setIsAddingProv(false);
       setNewProv({ cuit: '', razon_social: '', condicion_fiscal: "RESPONSABLE_INSCRIPTO" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setFormError(extractApiError(error, "Error al crear proveedor."));
     } finally {
       setIsSubmitting(false);
@@ -121,7 +143,7 @@ export function useSifonFiscal() {
       setConceptoId(data.id.toString());
       setIsAddingConc(false);
       setNewConc({ codigo: '', nombre_descriptivo: '' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setFormError(extractApiError(error, "Error al crear concepto operativo."));
     } finally {
       setIsSubmitting(false);
@@ -139,7 +161,7 @@ export function useSifonFiscal() {
       const compressedFile = await compressToWebP(file, 1920, 0.7);
       setSelectedFile(compressedFile);
       setPreviewUrl(URL.createObjectURL(compressedFile));
-    } catch (error) {
+    } catch {
       setFormError("Hubo un error al procesar la imagen de resguardo.");
     } finally {
       setIsCompressing(false);
@@ -149,7 +171,6 @@ export function useSifonFiscal() {
   const clearFile = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -185,7 +206,7 @@ export function useSifonFiscal() {
           });
           if (!uploadResponse.ok) throw new Error("Fallo HTTP");
           urlTicketFinal = data.final_url;
-        } catch (uploadError) {
+        } catch {
           return setFormError("Fallo de red al enviar el archivo de resguardo fotográfico a MinIO.");
         }
       }
@@ -221,7 +242,7 @@ export function useSifonFiscal() {
       setRequiereComprobante(false); setNumeroTicket(""); clearFile();
       setTimeout(() => setSuccess(false), 3000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       setFormError(extractApiError(error, "Fallo interno de servidor al procesar la liquidación."));
     } finally {
       setIsSubmitting(false);
@@ -234,7 +255,7 @@ export function useSifonFiscal() {
     conceptos, proveedores, cuentas, cuentasImputables, isLoadingMaestros, isLoadingCuentas,
     isAddingProv, setIsAddingProv, newProv, setNewProv, handleCrearProveedor,
     isAddingConc, setIsAddingConc, newConc, setNewConc, handleCrearConcepto,
-    selectedFile, previewUrl, isCompressing, isSubmitting, success, fileInputRef,
+    selectedFile, previewUrl, isCompressing, isSubmitting, success,
     handleFileChange, clearFile, handleSubmit, formError, setFormError
   };
 }

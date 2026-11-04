@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { UploadCloud, FileType, CheckCircle2, Loader2, X, AlertCircle, Plus, Landmark, ShieldCheck, Receipt, BookOpenCheck, DollarSign, Search, Layers } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSifonFiscal } from "../hooks/useSifonFiscal";
@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 
 export default function SifonFiscalForm() {
   const h = useSifonFiscal();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const user = useAuthStore((state) => state.user);
   const isAdmin = ["admin", "editor", "dueño"].includes(user?.role?.toLowerCase() || "");
 
@@ -155,7 +156,7 @@ export default function SifonFiscalForm() {
               value={h.cuentaContableId} onChange={(e) => h.setCuentaContableId(e.target.value)}
             >
               <option value="">Seleccione el rubro contable correspondiente...</option>
-              {h.cuentasImputables.map((cta: any) => (
+              {h.cuentasImputables.map((cta) => (
                 <option key={cta.id} value={cta.id}>{cta.codigo} - {cta.nombre}</option>
               ))}
             </select>
@@ -253,9 +254,9 @@ export default function SifonFiscalForm() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 uppercase flex items-center">Fotografía del Resguardo *</label>
                 {!h.selectedFile ? (
-                  <div onClick={() => h.fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-white ${h.isCompressing ? 'border-amber-400' : 'border-slate-300 hover:border-amber-400'}`}>
+                  <div onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-white ${h.isCompressing ? 'border-amber-400' : 'border-slate-300 hover:border-amber-400'}`}>
                     {h.isCompressing ? <><Loader2 className="h-8 w-8 text-amber-500 animate-spin mb-2" /><p className="text-sm font-medium text-amber-700">Comprimiendo...</p></> : <><UploadCloud className="h-8 w-8 text-slate-400 mb-2" /><p className="text-sm font-medium text-slate-700">Toca para abrir cámara o galería</p></>}
-                    <input type="file" ref={h.fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={h.handleFileChange} disabled={h.isCompressing || h.isSubmitting} />
+                    <input type="file" ref={fileInputRef} accept="image/*" capture="environment" className="hidden" onChange={h.handleFileChange} disabled={h.isCompressing || h.isSubmitting} />
                   </div>
                 ) : (
                   <div className="border border-slate-200 rounded-xl p-3 flex items-center justify-between bg-white shadow-sm">
