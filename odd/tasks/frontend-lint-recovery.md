@@ -55,7 +55,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
   - Route: delegated direct.
   - Acceptance: replace relevant explicit `any` uses while preserving tenant and financial payload semantics.
 
-- [ ] **LINT-07 — Model registries, team and supplier type boundaries**
+- [x] **LINT-07 — Model registries, team and supplier type boundaries**
   - Route: delegated direct.
   - Acceptance: replace relevant explicit `any` uses while preserving forms and API behavior.
 
@@ -157,7 +157,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 
 ## LINT-06 Evidence
 
-- Work unit: `refactor(frontend): type financial data boundaries`, parent and new native-review boundary `3d70ba0`. The complete authorized reconciliation, expenses/payments and reporting scope is included as one independently green feature-boundary commit; future native review remains enabled.
+- Work-unit commit: `9eeb79a` (`refactor(frontend): type financial data boundaries`), parent `3d70ba0`. Its native assessment against `3d70ba0` was `medium`, 247 authored lines, `review_due=false`, and `under_budget`; the cumulative review slice remains open from `3d70ba0`.
 - Owned contracts: reconciliation status preserves nullable source dates, polymorphic `CBT-*`/`OP-*` IDs, numeric movement IDs and optional fiscal adjustments. Manual matching retains the exact `comprobantes_ids`, `movimientos_ids` and conditional `ajustes_fiscales` payload. History now reflects nullable `asiento_id`, pagination metadata and the backend's distinct comprobante/movement detail shapes using `monto_aplicado`; no invented `monto_applied` or currency field remains.
 - Owned contracts: payment simulation represents backend Decimal amounts as `string | number` until the existing explicit UI calculations, while payment-order payloads retain nullable `cuenta_origen_id`, selected invoice IDs, exchange rate and edited retention values. Existing `Comprobante`, `CuentaBancaria`, `LotePago` and inferred lot-detail models are reused. Bank assembly retains its treasury-account and order-ID payload plus idempotency header; presigned MinIO upload results retain separate `upload_url` and `final_url` fields.
 - Owned contracts: trial-balance and ledger datasets now include the backend tenant, cutoff, movement-count, account, totals and row shapes. Shared `extractApiError` narrows `unknown` and preserves FastAPI string and Pydantic detail messages for reconciliation, payment simulation/submission, lot assembly and reports.
@@ -171,6 +171,22 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 - Residual risk: runtime response validation remains owned by Axios/backend contracts rather than a schema parser, and browser-level matching, payment, lot, presigned upload and report interactions remain unautomated.
 - Rollback: revert the LINT-06 work-unit commit to restore the financial boundary types and this evidence record together; no dependency, configuration, feature-gate, endpoint, tenant-data, service or remote rollback is required.
 
+## LINT-07 Evidence
+
+- Work unit: `refactor(frontend): type registry and team boundaries`, parent `9eeb79a`. The complete authorized registry, team/join and supplier scope is one independently green feature-boundary commit; the optional `src/features/proveedores` directory does not exist. The cumulative native-review boundary remains open from `3d70ba0`.
+- Owned contracts: registry history preserves nullable error/task/completion fields, the 50-row backend limit, fiscal-row nullable risk coefficient, simple and multipart upload plans, accepted task responses, SSE token/progress/result/failure states and generic concurrent upload results. Fiscal rules reflect create/update/response fields and nullable account linkage.
+- Owned contracts: team members retain backend IDs, email identity, active state and roles; updates retain optional role/active fields; invitations retain message, 48-hour expiry and magic-link token; join retains the token/password payload and success response. Existing admin/owner aliases, anti-lockout errors, tenant/entity selection and RBAC-driven UI remain unchanged.
+- Owned contracts: supplier rows retain nullable CBU, fiscal-condition enum, customer/supplier/financial-entity flags and active state. Create and patch payload keys, tenant header, search behavior and form defaults remain unchanged. All touched catches now narrow `unknown` through shared `extractApiError`, preserving FastAPI strings and Pydantic detail arrays.
+- Static RED: focused lint over `src/features/padrones`, `src/pages/Equipo.tsx`, `src/pages/Join.tsx` and `src/pages/Proveedores.tsx` reported 29 errors across 5 files: exactly 24 `no-explicit-any` and 5 unrelated `no-unused-vars` errors. The 24 target findings comprised 13 registry, 6 team, 1 join and 4 supplier findings, so the full global target inventory was owned by this scope.
+- Static GREEN: the same focused lint reports zero `no-explicit-any` findings. Its exact residual is 3 unrelated `no-unused-vars` errors across `usePadrones.ts` and `useReglasFiscales.ts`; two catch bindings removed directly by unknown-error narrowing reduced the focused hygiene count from 5 to 3.
+- Full baseline: JSON lint reports 26 errors and 2 warnings across 16 files. Relative to LINT-06, `no-explicit-any` changed 24 to 0 and `no-unused-vars` changed 17 to 15; `prefer-const` remains 5, `no-useless-catch` 4, `react-refresh/only-export-components` 2 and `react-hooks/incompatible-library` 2 warnings. Global explicit-any residual: none.
+- Verification: `npx --no-install tsc -b` passed with no output; the feature-flag contract printed `Frontend feature route/navigation proof passed`; the AI Rules contract printed `AI Rules route and conflict contract proof passed`; `npm run build` passed with 2,030 modules transformed; `git diff --check` passed.
+- Behavioral proof: source inspection confirms the registry keeps `/historial`, `/consulta`, simple/multipart presigning and confirmation, three-way upload concurrency, `source_objects`, SSE token/stream and active `x-entity-id` semantics. Team keeps list/invite/patch/delete behavior and generated `/join?token=` links; join keeps `/v1/auth/accept-invite`. Suppliers keep list/create/patch endpoints, tenant headers, nullable CBU conversion, fiscal filtering and financial-entity payload fields. No upload or tenant mutation was attempted.
+- Runtime evidence: `docker compose ps` showed no running services. Read-only API health, frontend, capabilities and disabled `/v1/matching` probes therefore returned connection failure/HTTP 000; no service was started or rebuilt and no runtime success is claimed.
+- Test-gap exception: no deterministic component/API-mock suite covers these typed interactions. No behavioral RED/GREEN, invitation, role change, supplier mutation or registry upload is claimed; evidence is static RED to GREEN, strict type/build/contracts and source-level contract proof.
+- Residual risk: runtime response validation remains owned by Axios/backend contracts rather than a schema parser, browser interactions remain unautomated, and the stopped local stack prevented health/capability confirmation. LINT-08 owns the remaining lint findings.
+- Rollback: revert this LINT-07 work-unit commit to restore the five source files and this evidence record together; no dependency, configuration, feature-gate, endpoint, tenant-data, upload, service or remote rollback is required.
+
 ## Current Next Step
 
-Implement LINT-07 by modeling registries, team and supplier type boundaries without unsafe assertions.
+Implement LINT-08 by removing dead code and mechanical hygiene findings without suppressions or rule changes.

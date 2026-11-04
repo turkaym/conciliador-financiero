@@ -3,18 +3,23 @@ import api from '@/api/axios';
 import { extractApiError } from '@/lib/utils';
 import { fetchWithBackoff } from '@/lib/resilience';
 import { useAuthStore } from '@/store/useAuthStore';
+import type { AxiosResponse } from 'axios';
 
 export interface HistorialIngesta {
   id: number;
   jurisdiccion: string;
   periodo: string;
   nombre_archivo: string;
-  estado: string;
+  estado: 'PROCESANDO' | 'EXITO' | 'FALLO';
   registros_insertados: number;
   mensaje_error?: string;
-  tarea_celery_id?: string;
+  tarea_celery_id: string | null;
   iniciado_el: string;
-  finalizado_el?: string;
+  finalizado_el: string | null;
+}
+
+interface HistorialIngestaResponse extends Omit<HistorialIngesta, 'mensaje_error'> {
+  mensaje_error: string | null;
 }
 
 export interface PadronFiscalInfo {
@@ -23,19 +28,55 @@ export interface PadronFiscalInfo {
   periodo: string;
   alicuota_retencion: number;
   alicuota_percepcion: number;
-  coeficiente_riesgo?: number;
+  coeficiente_riesgo: number | null;
 }
 
-const asyncPool = async (poolLimit: number, array: any[], iteratorFn: (item: any) => Promise<any>) => {
-  const ret: Promise<any>[] = [];
-  const executing: Promise<any>[] = [];
+interface MultipartPart {
+  part_number: number;
+  object_name: string;
+  upload_url: string;
+}
+
+interface MultipartUploadPlan {
+  final_object_name: string;
+  parts: MultipartPart[];
+}
+
+interface PresignedUpload {
+  upload_url: string;
+  form_fields: Record<string, string>;
+  object_name: string;
+}
+
+interface IngestionAccepted {
+  status: 'ACCEPTED';
+  task_id: string;
+  message: string;
+}
+
+interface SseTokenResponse {
+  sse_token: string;
+}
+
+interface RegistryTaskStatus {
+  task_id: string;
+  status: 'PENDING' | 'STARTED' | 'PROCESSING' | 'SUCCESS' | 'FAILURE' | 'REVOKED';
+  progress?: number;
+  message?: string;
+  result?: { status: 'success'; insertados: number };
+  error?: string;
+}
+
+const asyncPool = async <Item, Result>(poolLimit: number, array: Item[], iteratorFn: (item: Item) => Promise<Result>) => {
+  const ret: Promise<Result>[] = [];
+  const executing = new Set<Promise<Result>>();
   for (const item of array) {
     const p = Promise.resolve().then(() => iteratorFn(item));
     ret.push(p);
     if (poolLimit <= array.length) {
-      const e: Promise<any> = p.then(() => executing.splice(executing.indexOf(e), 1));
-      executing.push(e);
-      if (executing.length >= poolLimit) {
+      executing.add(p);
+      void p.finally(() => executing.delete(p));
+      if (executing.size >= poolLimit) {
         await Promise.race(executing);
       }
     }
@@ -77,11 +118,14 @@ export const usePadrones = () => {
     if (!entidadActiva?.id) return;
     setIsFetchingHistorial(true);
     try {
-      const res = await api.get('/v1/padrones/historial', {
+      const res = await api.get<HistorialIngestaResponse[]>('/v1/padrones/historial', {
         headers: { 'x-entity-id': entidadActiva.id }
       });
-      setHistorial(res.data);
-    } catch (err: any) {
+      setHistorial(res.data.map((row) => ({
+        ...row,
+        mensaje_error: row.mensaje_error ?? undefined
+      })));
+    } catch {
       showMessage("No se pudo sincronizar el monitor de ingestas.", "error");
     } finally {
       setIsFetchingHistorial(false);
@@ -93,14 +137,14 @@ export const usePadrones = () => {
     setIsSearching(true);
     setSearchResult(null);
     try {
-      const res = await api.get(`/v1/padrones/consulta/${cuit}`, {
+      const res = await api.get<PadronFiscalInfo>(`/v1/padrones/consulta/${cuit}`, {
         params: { jurisdiccion, periodo },
         headers: { 'x-entity-id': entidadActiva.id }
       });
       setSearchResult(res.data);
       showMessage("Registro fiscal encontrado en base de datos.", "success");
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || "CUIT no encontrado en el padrón especificado.";
+    } catch (err: unknown) {
+      const msg = extractApiError(err, "CUIT no encontrado en el padrón especificado.");
       showMessage(msg, "error");
     } finally {
       setIsSearching(false);
@@ -108,7 +152,7 @@ export const usePadrones = () => {
   };
 
   const lastProgressUpdateRef = useRef(0);
-  const handleProgressUpdate = useCallback((data: any) => {
+  const handleProgressUpdate = useCallback((data: RegistryTaskStatus) => {
     const now = Date.now();
     if (now - lastProgressUpdateRef.current < 250) return;
     lastProgressUpdateRef.current = now;
@@ -123,7 +167,7 @@ export const usePadrones = () => {
     setStatusMsg('Completado');
 
     try {
-      const authRes = await api.post('/v1/auth/sse-token');
+      const authRes = await api.post<SseTokenResponse>('/v1/auth/sse-token');
       const sseToken = authRes.data.sse_token;
       const baseURL = api.defaults.baseURL || "http://localhost:80";
 
@@ -135,7 +179,7 @@ export const usePadrones = () => {
 
       eventSourceRef.current.onmessage = (event) => {
         if (event.data === "heartbeat") return;
-        const data = JSON.parse(event.data);
+        const data: RegistryTaskStatus = JSON.parse(event.data);
 
         if (data.status === 'PROCESSING') {
           handleProgressUpdate(data);
@@ -206,7 +250,7 @@ export const usePadrones = () => {
 
         showMessage(`Preparando subida de archivo masivo (${fileSizeMB.toFixed(1)}MB en ${totalParts} partes)...`, "success");
 
-        const initRes = await fetchWithBackoff(`/v1/ingesta/multipart/urls`, {
+        const initRes: AxiosResponse<MultipartUploadPlan> = await fetchWithBackoff(`/v1/ingesta/multipart/urls`, {
            modulo: "padrones",
            extension: ext,
            total_parts: totalParts
@@ -215,7 +259,7 @@ export const usePadrones = () => {
         const { final_object_name, parts } = initRes.data;
 
         let partsUploaded = 0;
-        const uploadTask = async (partInfo: any) => {
+        const uploadTask = async (partInfo: MultipartPart) => {
            const start = (partInfo.part_number - 1) * CHUNK_SIZE;
            const end = Math.min(start + CHUNK_SIZE, file.size);
            const chunk = new Blob([file.slice(start, end)]);
@@ -237,7 +281,7 @@ export const usePadrones = () => {
 
         showMessage("Ensamblando partes en el servidor...", "success");
 
-        const confirmRes = await fetchWithBackoff(`/v1/padrones/ingesta/multipart/confirm`, {
+        const confirmRes: AxiosResponse<IngestionAccepted> = await fetchWithBackoff(`/v1/padrones/ingesta/multipart/confirm`, {
            jurisdiccion: jurisdiccion,
            periodo: periodoNormalizado,
            final_object_name: final_object_name,
@@ -254,7 +298,7 @@ export const usePadrones = () => {
         throw new Error("Respuesta inusual del orquestador multipart.");
 
       } else {
-        const presignedRes = await api.get(`/v1/ingesta/upload-url`, {
+        const presignedRes = await api.get<PresignedUpload>(`/v1/ingesta/upload-url`, {
           params: { modulo: "padrones", extension: ext }
         });
         const { upload_url, form_fields, object_name } = presignedRes.data;
@@ -277,7 +321,7 @@ export const usePadrones = () => {
         confirmFormData.append("jurisdiccion", jurisdiccion);
         confirmFormData.append("periodo", periodoNormalizado);
 
-        const confirmRes = await api.post(`/v1/padrones/ingesta/confirm`, confirmFormData, {
+        const confirmRes = await api.post<IngestionAccepted>(`/v1/padrones/ingesta/confirm`, confirmFormData, {
           headers: {
             'x-entity-id': entidadActiva.id,
             'Content-Type': 'multipart/form-data'
@@ -294,7 +338,7 @@ export const usePadrones = () => {
         throw new Error(`Respuesta inusual del orquestador: HTTP ${confirmRes?.status}`);
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMsg(`⚠️ ${extractApiError(err, 'Fallo crítico al subir el padrón.')}`);
       fetchHistorial();
       return false;
