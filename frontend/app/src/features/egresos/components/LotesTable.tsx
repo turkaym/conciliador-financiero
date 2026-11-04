@@ -5,6 +5,7 @@ import { Loader2, ArrowRightCircle, CheckCircle2, Download, AlertCircle, Chevron
 import { Card } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import api from "@/api/axios";
+import type { CuentaBancaria } from "@/features/bancos/types";
 
 export default function LotesTable() {
   const { lotes, fetchLotes, isLoading, solicitarAutorizacionLote, autorizarLote, exportarLote, paginacion, setPaginacion } = useEgresosStore();
@@ -27,7 +28,7 @@ export default function LotesTable() {
   const [visorImagenUrl, setVisorImagenUrl] = useState<string | null>(null);
 
   // 🌟 ESTADOS DEL MODAL DE AUTORIZACIÓN
-  const [cuentasBancarias, setCuentasBancarias] = useState<any[]>([]);
+  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
   const [modalAutorizacion, setModalAutorizacion] = useState<{isOpen: boolean, loteId: number | null}>({isOpen: false, loteId: null});
   const [cuentaSeleccionadaId, setCuentaSeleccionadaId] = useState<string>("");
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
@@ -42,7 +43,7 @@ export default function LotesTable() {
     const fetchCuentas = async () => {
       if (!isAdmin) return;
       try {
-        const response = await api.get('/v1/bancos/cuentas');
+        const response = await api.get<CuentaBancaria[]>('/v1/bancos/cuentas');
         if (isMounted) setCuentasBancarias(response.data);
       } catch (error) {
         console.error("Error cargando cuentas bancarias:", error);
@@ -181,7 +182,7 @@ export default function LotesTable() {
                   <div className="mt-2 pt-3 border-t border-slate-100 space-y-3">
                     <p className="text-xs font-bold text-slate-500 uppercase">Órdenes del Lote</p>
                     {lote.detalles && lote.detalles.length > 0 ? (
-                      lote.detalles.map((det: any) => (
+                      lote.detalles.map((det) => (
                         <div key={det.id} className="bg-slate-50 p-2 rounded border border-slate-200 flex flex-col space-y-1 text-xs">
                           <div className="flex justify-between font-medium">
                             <span className="text-indigo-600 font-mono">{det.orden_pago?.codigo_trazabilidad}</span>
@@ -283,7 +284,7 @@ export default function LotesTable() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                   {lote.detalles && lote.detalles.length > 0 ? (
-                                    lote.detalles.map((det: any) => (
+                                    lote.detalles.map((det) => (
                                       <tr key={det.id} className="hover:bg-slate-50">
                                         <td className="px-4 py-2 font-mono text-indigo-600 font-medium">
                                           {det.orden_pago?.codigo_trazabilidad || "OP Desconocida"}

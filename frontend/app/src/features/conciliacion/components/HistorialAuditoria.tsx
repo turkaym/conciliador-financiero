@@ -5,9 +5,10 @@ import { Loader2, CheckCircle2, Undo2 } from "lucide-react"
 
 // Import apuntando a utils
 import { formatearMonedaSegura } from "../utils/formatters"
+import type { HistoryMatch } from "../hooks/useConciliacion"
 
 interface HistorialAuditoriaProps {
-  historial: any[]
+  historial: HistoryMatch[]
   handleDesconciliar: (matchId: number) => Promise<boolean> | void
 }
 
@@ -43,9 +44,9 @@ export function HistorialAuditoria({ historial, handleDesconciliar }: HistorialA
               if (!match) return null
 
               const metodoTxt = typeof match.metodo === 'string' ? match.metodo.replace(/_/g, ' ') : "MANUAL"
-              const hasAsiento = Boolean(match && (match as any).asiento_id)
-              const movs = Array.isArray(match.movimientos) ? match.movimientos : []
-              const cbtes = Array.isArray(match.comprobantes) ? match.comprobantes : []
+              const hasAsiento = match.asiento_id !== null
+              const movs = match.movimientos
+              const cbtes = match.comprobantes
               const isProcessing = isRevertingId === match.id;
 
               return (
@@ -69,24 +70,24 @@ export function HistorialAuditoria({ historial, handleDesconciliar }: HistorialA
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div className="bg-indigo-50/40 p-3 rounded-xl border border-indigo-100 space-y-1.5">
                         <span className="font-bold text-indigo-950 block mb-1">Caja/Tesorería ({movs.length})</span>
-                        {movs.map((m: any) => (
+                        {movs.map((m) => (
                           <div key={m.id} className="flex justify-between text-slate-600 font-medium">
                             <span className="truncate max-w-[180px] font-bold" title={m.concepto}>{m.concepto}</span>
                             <div className="flex gap-4 items-center">
-                              <span className="text-[10px] text-slate-400 line-through">{formatearMonedaSegura(m.monto_total, m.moneda)}</span>
-                              <span className="font-mono font-black text-indigo-600">{formatearMonedaSegura(m.monto_applied || m.monto_aplicado, m.moneda)}</span>
+                              <span className="text-[10px] text-slate-400 line-through">{formatearMonedaSegura(m.monto_total)}</span>
+                              <span className="font-mono font-black text-indigo-600">{formatearMonedaSegura(m.monto_aplicado)}</span>
                             </div>
                           </div>
                         ))}
                       </div>
                       <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100 space-y-1.5">
                         <span className="font-bold text-emerald-950 block mb-1">Comprobantes ({cbtes.length})</span>
-                        {cbtes.map((c: any) => (
+                        {cbtes.map((c) => (
                           <div key={c.id} className="flex justify-between text-slate-600 font-medium">
                             <span className="font-bold text-slate-700">{c.numero_formateado || c.numero}</span>
                             <div className="flex gap-4 items-center">
-                              <span className="text-[10px] text-slate-400 line-through">{formatearMonedaSegura(c.monto_total, c.moneda)}</span>
-                              <span className="font-mono font-black text-emerald-600">{formatearMonedaSegura(c.monto_applied || c.monto_aplicado, c.moneda)}</span>
+                              <span className="text-[10px] text-slate-400 line-through">{formatearMonedaSegura(c.monto_total)}</span>
+                              <span className="font-mono font-black text-emerald-600">{formatearMonedaSegura(c.monto_aplicado)}</span>
                             </div>
                           </div>
                         ))}

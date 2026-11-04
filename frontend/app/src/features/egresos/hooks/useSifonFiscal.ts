@@ -5,6 +5,7 @@ import { useAuthStore, type Entidad } from "@/store/useAuthStore";
 import { usePlanCuentas } from "@/hooks/usePlanCuentas";
 import { useEgresosStore } from "@/store/useEgresosStore";
 import { extractApiError } from "@/lib/utils";
+import type { CuentaBancaria } from "@/features/bancos/types";
 
 interface EntidadConRol extends Entidad {
   rol?: string;
@@ -23,11 +24,9 @@ interface Proveedor {
   razon_social: string;
 }
 
-interface Cuenta {
-  id: number;
-  moneda: string;
-  nombre_banco: string;
-  numero_cuenta: string;
+interface PresignedUploadResponse {
+  upload_url: string;
+  final_url: string;
 }
 
 export function useSifonFiscal() {
@@ -51,7 +50,7 @@ export function useSifonFiscal() {
 
   const [conceptos, setConceptos] = useState<Concepto[]>([]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [cuentas, setCuentas] = useState<Cuenta[]>([]);
+  const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
   const [isLoadingMaestros, setIsLoadingMaestros] = useState(true);
 
   const [isAddingProv, setIsAddingProv] = useState(false);
@@ -73,18 +72,16 @@ export function useSifonFiscal() {
     const fetchMaestros = async () => {
       try {
         const headers = { 'x-entity-id': entidadActiva.id };
-        const peticiones = [
-          api.get('/v1/pagos/conceptos', { headers }),
-          api.get('/v1/pagos/proveedores', { headers })
-        ];
-        if (isAdmin) peticiones.push(api.get('/v1/bancos/cuentas', { headers }));
-
-        const respuestas = await Promise.all(peticiones);
+        const [conceptosResponse, proveedoresResponse, cuentasResponse] = await Promise.all([
+          api.get<Concepto[]>('/v1/pagos/conceptos', { headers }),
+          api.get<Proveedor[]>('/v1/pagos/proveedores', { headers }),
+          isAdmin ? api.get<CuentaBancaria[]>('/v1/bancos/cuentas', { headers }) : Promise.resolve(null)
+        ]);
 
         if (isMounted) {
-          setConceptos(respuestas[0].data);
-          setProveedores(respuestas[1].data);
-          if (isAdmin && respuestas[2]) setCuentas(respuestas[2].data);
+          setConceptos(conceptosResponse.data);
+          setProveedores(proveedoresResponse.data);
+          if (cuentasResponse) setCuentas(cuentasResponse.data);
         }
 
         if (cuentasImputables.length === 0) {
@@ -118,7 +115,7 @@ export function useSifonFiscal() {
     }
     try {
       setIsSubmitting(true);
-      const { data } = await api.post('/v1/pagos/proveedores', { ...newProv, is_proveedor: true }, { headers: { 'x-entity-id': entidadActiva.id } });
+      const { data } = await api.post<Proveedor>('/v1/pagos/proveedores', { ...newProv, is_proveedor: true }, { headers: { 'x-entity-id': entidadActiva.id } });
       setProveedores([...proveedores, data]);
       setProveedorId(data.id.toString());
       setIsAddingProv(false);
@@ -138,7 +135,7 @@ export function useSifonFiscal() {
     }
     try {
       setIsSubmitting(true);
-      const { data } = await api.post('/v1/pagos/conceptos', newConc, { headers: { 'x-entity-id': entidadActiva.id } });
+      const { data } = await api.post<Concepto>('/v1/pagos/conceptos', newConc, { headers: { 'x-entity-id': entidadActiva.id } });
       setConceptos([...conceptos, data]);
       setConceptoId(data.id.toString());
       setIsAddingConc(false);
@@ -195,7 +192,7 @@ export function useSifonFiscal() {
 
       if (selectedFile) {
         try {
-          const { data } = await api.get('/v1/pagos/adjuntos/presigned', {
+          const { data } = await api.get<PresignedUploadResponse>('/v1/pagos/adjuntos/presigned', {
             params: { filename: "ticket.webp", content_type: selectedFile.type },
             headers: { 'x-entity-id': entidadActiva.id }
           });

@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Loader2, Calculator, ArrowRightLeft, BookOpen, AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react"
+import { extractApiError } from "@/lib/utils"
 
 // --- INTERFACES ---
 interface CuentaBalance {
@@ -18,6 +19,7 @@ interface CuentaBalance {
 
 interface BalanceResponse {
   tenant: string
+  fecha_corte: string
   cuentas_activas: number
   totales: { sumas_debe: number; sumas_haber: number; balance_cuadrado: boolean }
   balance: CuentaBalance[]
@@ -33,8 +35,10 @@ interface MovimientoMayor {
 }
 
 interface MayorResponse {
+  tenant: string
   cuenta: { codigo: string; nombre: string; tipo: string; naturaleza: string }
   saldo_inicial_periodo: number
+  total_movimientos: number
   saldo_actual: number
   movimientos: MovimientoMayor[]
 }
@@ -60,11 +64,11 @@ export default function ReportesPage() {
     setError(null)
     try {
       const schema = user?.tenant_id || "tenant_001"
-      const { data } = await api.get(`/v1/reports/trial-balance/${schema}`)
+      const { data } = await api.get<BalanceResponse>(`/v1/reports/trial-balance/${schema}`)
       setBalanceData(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error cargando balance:", err)
-      setError(err.response?.data?.detail || "No se pudo conectar con el servicio de reportes contables.")
+      setError(extractApiError(err, "No se pudo conectar con el servicio de reportes contables."))
     } finally {
       setLoadingBalance(false)
     }
@@ -84,9 +88,9 @@ export default function ReportesPage() {
     setLedgerData(null)
     try {
       const schema = user?.tenant_id || "tenant_001"
-      const { data } = await api.get(`/v1/reports/ledger/${schema}?cuenta_codigo=${codigoCuenta}`)
+      const { data } = await api.get<MayorResponse>(`/v1/reports/ledger/${schema}?cuenta_codigo=${codigoCuenta}`)
       setLedgerData(data)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error cargando libro mayor:", err)
     } finally {
       setLoadingLedger(false)

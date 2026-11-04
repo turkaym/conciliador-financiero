@@ -51,7 +51,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
   - Route: delegated direct.
   - Acceptance: replace relevant explicit `any` uses with error, API and domain types without unsafe assertions.
 
-- [ ] **LINT-06 — Model reconciliation, expenses and reporting type boundaries**
+- [x] **LINT-06 — Model reconciliation, expenses and reporting type boundaries**
   - Route: delegated direct.
   - Acceptance: replace relevant explicit `any` uses while preserving tenant and financial payload semantics.
 
@@ -142,7 +142,7 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 
 ## LINT-05 Evidence
 
-- Work unit: `refactor(frontend): type shared data boundaries`, parent `6e321c8`; the cumulative LINT-05 native review remains pending against boundary `9f32b43`.
+- Work-unit commit: `3d70ba0` (`refactor(frontend): type shared data boundaries`), parent `6e321c8`. The cumulative LINT-04→05 candidate from `9f32b43` was assessed `medium / slice_budget_reached / declined_this_candidate`; the user declined only that candidate and future native reviews remain enabled.
 - Owned contracts: shared Axios/FastAPI error detail parsing now accepts `unknown` and validates Pydantic detail items; Axios request headers use the library-owned `AxiosHeaders` boundary; backoff and throttle preserve generic payload/callback types. Entity, fiscal alert and AFIP vault responses use their backend fields without open index signatures.
 - Owned contracts: banking models now match manual movement, clearing-provider, presigned upload, SSE progress/result and four-eyes resolution payloads. Comprobantes models now own the complete form/create payload, dynamic association filters and typed bank-account projection used for cash accounts; existing shared bank and comprobante domain types are reused.
 - Static RED: before edits, focused JSON lint over `src/api`, `src/lib`, top-level `src/components/*.tsx`, `src/features/bancos` and `src/features/comprobantes` reported exactly 35 `no-explicit-any` errors across 12 files.
@@ -155,6 +155,22 @@ Restore a green frontend lint baseline without weakening rules, ignoring reposit
 - Residual risk: runtime response validation remains owned by Axios/backend contracts rather than a schema parser, and browser-level upload, autocomplete, account creation and comprobante submission remain unautomated. Cumulative native review is pending from boundary `9f32b43`.
 - Rollback: revert the LINT-05 work-unit commit to restore the shared/API/auth/top-level component, banking and comprobantes type boundaries plus this evidence record; no dependency, configuration, endpoint, feature-gate, tenant-data, service or remote rollback is required.
 
+## LINT-06 Evidence
+
+- Work unit: `refactor(frontend): type financial data boundaries`, parent and new native-review boundary `3d70ba0`. The complete authorized reconciliation, expenses/payments and reporting scope is included as one independently green feature-boundary commit; future native review remains enabled.
+- Owned contracts: reconciliation status preserves nullable source dates, polymorphic `CBT-*`/`OP-*` IDs, numeric movement IDs and optional fiscal adjustments. Manual matching retains the exact `comprobantes_ids`, `movimientos_ids` and conditional `ajustes_fiscales` payload. History now reflects nullable `asiento_id`, pagination metadata and the backend's distinct comprobante/movement detail shapes using `monto_aplicado`; no invented `monto_applied` or currency field remains.
+- Owned contracts: payment simulation represents backend Decimal amounts as `string | number` until the existing explicit UI calculations, while payment-order payloads retain nullable `cuenta_origen_id`, selected invoice IDs, exchange rate and edited retention values. Existing `Comprobante`, `CuentaBancaria`, `LotePago` and inferred lot-detail models are reused. Bank assembly retains its treasury-account and order-ID payload plus idempotency header; presigned MinIO upload results retain separate `upload_url` and `final_url` fields.
+- Owned contracts: trial-balance and ledger datasets now include the backend tenant, cutoff, movement-count, account, totals and row shapes. Shared `extractApiError` narrows `unknown` and preserves FastAPI string and Pydantic detail messages for reconciliation, payment simulation/submission, lot assembly and reports.
+- Static RED: focused lint over `src/features/conciliacion`, `src/features/egresos`, `src/features/reportes`, `src/pages/Conciliacion.tsx` and `src/pages/Reportes.tsx` reported exactly 15 `no-explicit-any` errors across 8 files. The full focused result was 22 errors and 2 warnings: 15 target errors, 7 unrelated `no-unused-vars` errors and 2 existing TanStack Virtual `react-hooks/incompatible-library` warnings.
+- Static GREEN: the same focused lint reports zero `no-explicit-any` findings. Remaining focused findings are 6 unrelated `no-unused-vars` errors across 4 files and the same 2 TanStack Virtual warnings; the report exporter's co-located unused catch binding was removed directly with its `any` annotation.
+- Full baseline: `npm run lint` exits 1 with 52 errors and 2 warnings across 19 files. Relative to LINT-05's 68 errors, 2 warnings and 24 files, `no-explicit-any` changed 39 to 24 and `no-unused-vars` changed 18 to 17; `prefer-const` remains 5, `no-useless-catch` 4, `react-refresh/only-export-components` 2 and `react-hooks/incompatible-library` 2 warnings.
+- Verification: `npx --no-install tsc -b` passed with no output; the feature-flag contract printed `Frontend feature route/navigation proof passed`; the AI Rules contract printed `AI Rules route and conflict contract proof passed`; `npm run build` passed with 2,030 modules transformed; `git diff --check` passed.
+- Runtime evidence: read-only probes returned API `/health` HTTP 200 with `status=online`, frontend `/` HTTP 200, and eight capabilities with `expenses_payments=true/true/true`, `ai_rules=true/true/true` and `reconciliation=false/true/false`; disabled `/v1/matching` returned HTTP 404. No service was rebuilt, no upload was attempted and no tenant or financial data was mutated.
+- Behavioral proof: reconciliation selection arithmetic still converts only displayed transport amounts, rounds the difference to two decimals and posts unchanged matching IDs/adjustments while its route remains capability-disabled. Payment gross, retention, net, balance and FX calculations retain their explicit conversions and null account semantics; lot authorization/assembly/export and MinIO PUT paths retain their endpoints and payload keys. Reports retain their tenant-scoped endpoints, numeric formatting and read-only datasets.
+- Test-gap exception: no deterministic component/API mock suite covers every financial interaction. No behavioral RED/GREEN, upload, payment, lot, reconciliation or tenant mutation is claimed; evidence is the observed lint RED→GREEN, strict type/build/contracts, source-level contract proof and non-destructive runtime checks.
+- Residual risk: runtime response validation remains owned by Axios/backend contracts rather than a schema parser, and browser-level matching, payment, lot, presigned upload and report interactions remain unautomated.
+- Rollback: revert the LINT-06 work-unit commit to restore the financial boundary types and this evidence record together; no dependency, configuration, feature-gate, endpoint, tenant-data, service or remote rollback is required.
+
 ## Current Next Step
 
-Implement LINT-06 by modeling reconciliation, expenses and reporting type boundaries without unsafe assertions.
+Implement LINT-07 by modeling registries, team and supplier type boundaries without unsafe assertions.

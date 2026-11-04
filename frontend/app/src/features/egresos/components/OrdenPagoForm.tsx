@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { useOrdenPago } from "../hooks/useOrdenPago";
+import { useOrdenPago, type RetencionCalculada } from "../hooks/useOrdenPago";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function OrdenPagoForm() {
@@ -25,7 +25,7 @@ export default function OrdenPagoForm() {
     h.tipoCambio,
     h.retencionesSugeridas
   ]);
-  const [retencionesEditadas, setRetencionesEditadas] = useState<{ key: string; values: any[] }>({ key: "", values: [] });
+  const [retencionesEditadas, setRetencionesEditadas] = useState<{ key: string; values: RetencionCalculada[] }>({ key: "", values: [] });
   const retencionesEditables = retencionesEditadas.key === retencionesKey
     ? retencionesEditadas.values
     : h.retencionesSugeridas;

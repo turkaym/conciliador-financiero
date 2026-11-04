@@ -208,7 +208,7 @@ export default function SifonFiscalForm() {
                   <select required={isAdmin} disabled={h.isSubmitting} className="w-full h-11 rounded-md border border-emerald-300 bg-emerald-50 px-3 text-sm font-medium text-emerald-900 outline-none" value={h.cuentaId} onChange={(e) => h.setCuentaId(e.target.value)}>
                     <option value="">¿De dónde salió el dinero?</option>
                     {h.cuentas.map(b => (
-                      <option key={b.id} value={b.id}>{b.nombre_banco} - {b.numero_cuenta} ({b.moneda})</option>
+                      <option key={b.id} value={b.id}>{b.banco} - {b.numero_cuenta} ({b.moneda})</option>
                     ))}
                   </select>
                 </div>
@@ -229,7 +229,7 @@ export default function SifonFiscalForm() {
               <select required={isAdmin} disabled={h.isSubmitting} className="w-full h-11 rounded-md border border-emerald-300 bg-emerald-50 px-3 text-sm font-medium text-emerald-900 outline-none" value={h.cuentaId} onChange={(e) => h.setCuentaId(e.target.value)}>
                 <option value="">¿De dónde salió el dinero?</option>
                 {h.cuentas.map(b => (
-                  <option key={b.id} value={b.id}>{b.nombre_banco} - {b.numero_cuenta} ({b.moneda})</option>
+                  <option key={b.id} value={b.id}>{b.banco} - {b.numero_cuenta} ({b.moneda})</option>
                 ))}
               </select>
             </div>

@@ -5,21 +5,10 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 
 // Import correcto hacia la carpeta utils
 import { formatearMonedaSegura, formatFechaUI } from "../utils/formatters"
-
-interface Comprobante {
-  // 🌟 FIX POLIMORFISMO: El ID ahora es un string (e.g. "CBT-14", "OP-90")
-  id: string
-  fecha: string
-  numero_formateado: string
-  razon_social: string
-  monto: number
-  moneda: string
-  clase_documento?: string
-  tipo_operacion?: string
-}
+import type { IncompleteInvoice } from "../hooks/useConciliacion"
 
 interface ColumnaComprobantesProps {
-  comprobantesPendientes: Comprobante[]
+  comprobantesPendientes: IncompleteInvoice[]
   selectedCbtes: string[]
   handleSelectCbte: (id: string) => void
   flowTab: "COBROS" | "PAGOS"
@@ -79,7 +68,7 @@ export function ColumnaComprobantes({
                 const cbte = comprobantesPendientes[virtualRow.index]
                 if (!cbte) return null
                 const isSelected = selectedCbtes.includes(cbte.id)
-                const badge = getDocumentBadge(cbte.clase_documento)
+                const badge = getDocumentBadge(cbte.clase_documento ?? undefined)
 
                 return (
                   <div key={virtualRow.key} onClick={() => handleSelectCbte(cbte.id)}
