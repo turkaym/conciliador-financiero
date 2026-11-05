@@ -7,7 +7,7 @@ import EntitySelector from "@/components/EntitySelector"
 import NotificationBell from "@/components/NotificationBell"
 
 // 🌟 FIX UX: Agregamos el ícono Building2 para el Directorio
-import { LogOut, LayoutDashboard, FileText, Landmark, BrainCircuit, Lock, Calculator, Loader2, Users, Menu, X, ClipboardList, AlertCircle, CreditCard, Wallet, Building2 } from "lucide-react"
+import { LogOut, LayoutDashboard, FileText, Landmark, Lock, Calculator, Loader2, Users, Menu, X, ClipboardList, AlertCircle, CreditCard, Wallet, Building2, BrainCircuit } from "lucide-react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { AxiosError } from "axios"
 
@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [isRedirectingToBilling, setIsRedirectingToBilling] = useState(false)
 
   const isAdmin = ["admin", "dueño", "editor"].includes(user?.role?.toLowerCase() || "");
+  const canManageAiRules = ["admin", "dueño"].includes(user?.role?.toLowerCase() || "");
   const isActive = (path: string) => location.pathname === path
 
   const handleNavigation = (path: string) => {
@@ -120,59 +121,60 @@ export default function DashboardPage() {
             <LayoutDashboard className={`mr-3 h-5 w-5 ${isActive('/dashboard') ? 'text-indigo-400' : 'text-slate-500'}`} /> Dashboard
           </Button>
 
-          {/* 🌟 FIX ARQUITECTURA: Enlace al nuevo módulo MDM */}
+          <FeatureGuard feature="b2b_directory">
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/directorio') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/directorio')}>
             <Building2 className={`mr-3 h-5 w-5 ${isActive('/dashboard/directorio') ? 'text-indigo-400' : 'text-slate-500'}`} /> Directorio B2B
           </Button>
+          </FeatureGuard>
 
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/comprobantes') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/comprobantes')}>
             <FileText className={`mr-3 h-5 w-5 ${isActive('/dashboard/comprobantes') ? 'text-indigo-400' : 'text-slate-500'}`} /> Comprobantes
           </Button>
 
+          <FeatureGuard feature="expenses_payments">
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/bancos') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/bancos')}>
             <Landmark className={`mr-3 h-5 w-5 ${isActive('/dashboard/bancos') ? 'text-indigo-400' : 'text-slate-500'}`} /> Bancos
           </Button>
+          </FeatureGuard>
 
+          <FeatureGuard feature="expenses_payments">
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/egresos') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/egresos')}>
             <Wallet className={`mr-3 h-5 w-5 ${isActive('/dashboard/egresos') ? 'text-indigo-400' : 'text-slate-500'}`} /> Egresos y Pagos
           </Button>
+          </FeatureGuard>
 
+          <FeatureGuard feature="reconciliation">
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/conciliacion') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/conciliacion')}>
             <Calculator className={`mr-3 h-5 w-5 ${isActive('/dashboard/conciliacion') ? 'text-indigo-400' : 'text-slate-500'}`} /> Conciliación
           </Button>
+          </FeatureGuard>
+
+          {canManageAiRules && <FeatureGuard feature="ai_rules" tenantFeature="ai_rules">
+            <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/reglas-ia') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/reglas-ia')}>
+              <BrainCircuit className={`mr-3 h-5 w-5 ${isActive('/dashboard/reglas-ia') ? 'text-indigo-400' : 'text-slate-500'}`} /> Reglas IA
+            </Button>
+          </FeatureGuard>}
 
           {isAdmin && (
             <>
+              <FeatureGuard feature="tax_registries">
               <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/padrones') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/padrones')}>
                 <ClipboardList className={`mr-3 h-5 w-5 ${isActive('/dashboard/padrones') ? 'text-indigo-400' : 'text-slate-500'}`} /> Padrones Fiscales
               </Button>
+              </FeatureGuard>
 
               <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/reportes') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/reportes')}>
                 <Calculator className={`mr-3 h-5 w-5 ${isActive('/dashboard/reportes') ? 'text-indigo-400' : 'text-slate-500'}`} /> Reportes Contables
               </Button>
 
+              <FeatureGuard feature="team">
               <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/equipo') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/equipo')}>
                 <Users className={`mr-3 h-5 w-5 ${isActive('/dashboard/equipo') ? 'text-indigo-400' : 'text-slate-500'}`} /> Mi Equipo
               </Button>
+              </FeatureGuard>
             </>
           )}
 
-          {isAdmin && (
-            <div className="pt-4 mt-4 border-t border-slate-800">
-              <FeatureGuard
-                feature="ml_matching"
-                fallback={
-                  <Button variant="ghost" className="w-full justify-start text-slate-600 hover:text-slate-500 hover:bg-transparent opacity-50 cursor-not-allowed" title="Funcionalidad Premium">
-                    <Lock className="mr-3 h-5 w-5" /> Reglas de IA
-                  </Button>
-                }
-              >
-                <Button variant="ghost" className="w-full justify-start hover:text-white hover:bg-slate-800 text-emerald-400">
-                  <BrainCircuit className="mr-3 h-5 w-5" /> Reglas de IA
-                </Button>
-              </FeatureGuard>
-            </div>
-          )}
         </nav>
 
         <div className="p-4 bg-slate-950/50 mt-auto border-t border-slate-800 shrink-0">

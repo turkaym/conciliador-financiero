@@ -12,12 +12,18 @@ from pydantic import BaseModel
 from typing import List
 
 from config.config import settings
+from config.feature_flags import feature_flags
 from core.api.deps import get_current_user, CachedUser, RoleChecker, verify_sse_token
 from core.storage.minio_client import minio_client
 from core.tasks.celery_config import app as celery_app
 
 logger = logging.getLogger("API_SYSTEM")
 router = APIRouter(tags=["Sistema & Asincronismo"])
+
+
+@router.get("/capabilities")
+def get_capabilities():
+    return feature_flags.capabilities
 
 # 🌟 FIX REDES: Endpoint para emitir el Ticket Efímero de conexión SSE
 @router.post("/auth/sse-token", status_code=status.HTTP_201_CREATED)

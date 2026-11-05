@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'react-toastify';
+import type { Capability } from '@/featureFlags';
 
 // Generador robusto de UUID (Fallback para entornos locales sin HTTPS)
 const generateIdempotencyKey = () => {
@@ -151,3 +152,8 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export async function fetchCapabilities() {
+  const response = await api.get<Capability[]>('/v1/capabilities');
+  return response.data;
+}
