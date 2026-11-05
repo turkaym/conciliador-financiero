@@ -5,18 +5,10 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 
 // Ruta corregida apuntando a utils
 import { formatearMonedaSegura, formatFechaUI } from "../utils/formatters"
-
-interface MovimientoBancario {
-  id: number
-  fecha: string
-  referencia: string
-  concepto: string
-  monto: number
-  moneda: string
-}
+import type { IncompleteMovement } from "../hooks/useConciliacion"
 
 interface ColumnaExtractoProps {
-  movimientosPendientes: MovimientoBancario[]
+  movimientosPendientes: IncompleteMovement[]
   selectedMovs: number[]
   handleSelectMov: (id: number) => void
   flowTab: 'COBROS' | 'PAGOS'

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useEffectEvent, useState } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useComprobantes, type ComprobanteFilters } from "../features/comprobantes/hooks/useComprobantes"
 import { ComprobanteFormModal } from "../features/comprobantes/components/ComprobanteFormModal"
@@ -49,15 +49,24 @@ export default function ComprobantesPage() {
     fecha_hasta: ""
   })
 
+  const loadEntityComprobantes = useEffectEvent(() => {
+    void fetchComprobantes(0, filters)
+  })
+
+  useEffect(() => useAuthStore.subscribe((state, previousState) => {
+    if (state.entidadActiva?.id !== previousState.entidadActiva?.id) {
+      setPage(0)
+    }
+  }), [])
+
   // 🌟 REACTIVIDAD AL CAMBIO DE EMPRESA
   useEffect(() => {
     if (entidadActiva) {
-      setPage(0)
-      fetchComprobantes(0, filters)
+      loadEntityComprobantes()
     } else {
       clearData()
     }
-  }, [entidadActiva, clearData]) // Quitamos fetchComprobantes para evitar render loops
+  }, [entidadActiva, clearData])
 
   // 🌟 MOTOR DE APLICACIÓN DE FILTROS
   const handleApplyFilters = () => {

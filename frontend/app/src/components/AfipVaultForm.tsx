@@ -4,6 +4,7 @@ import api from "@/api/axios";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-toastify";
+import { extractApiError, getApiErrorDetail } from "@/lib/utils";
 
 export default function AfipVaultForm() {
   const { entidadActiva, setEntidadActiva } = useAuthStore();
@@ -41,10 +42,13 @@ export default function AfipVaultForm() {
       await api.post(`/v1/afip-vault/${tenant_id}/entidad/${entidadActiva.id}/upload-credentials`, formData);
       setStatus({ type: 'success', message: "Credenciales aseguradas exitosamente." });
       setEntidadActiva({ ...entidadActiva, has_afip_credentials: true });
-    } catch (error: any) {
-      const detail = error.response?.data?.detail;
+    } catch (error: unknown) {
+      const detail = getApiErrorDetail(error);
       let errorMsg = "Fallo en la comunicación con el servidor.";
-      if (Array.isArray(detail)) errorMsg = `Error de formato: ${detail[0].loc.join(' -> ')} - ${detail[0].msg}`;
+      if (Array.isArray(detail) && detail.length > 0 && typeof detail[0] === "object" && detail[0] !== null &&
+        "loc" in detail[0] && Array.isArray(detail[0].loc) && "msg" in detail[0] && typeof detail[0].msg === "string") {
+        errorMsg = `Error de formato: ${detail[0].loc.join(' -> ')} - ${detail[0].msg}`;
+      }
       else if (typeof detail === 'string') errorMsg = detail;
       setStatus({ type: 'error', message: errorMsg });
     } finally {
@@ -60,9 +64,9 @@ export default function AfipVaultForm() {
       await api.get(`/v1/afip-vault/${tenant_id}/entidad/${entidadActiva.id}/test-connection`);
       setHealthStatus('ok');
       setHealthMsg("Conexión criptográfica establecida con éxito (WSAA OK).");
-    } catch (error: any) {
+    } catch (error: unknown) {
       setHealthStatus('fail');
-      setHealthMsg(error.response?.data?.detail || "ARCA denegó el acceso o los servidores están caídos.");
+      setHealthMsg(extractApiError(error, "ARCA denegó el acceso o los servidores están caídos."));
     } finally {
       setIsTesting(false);
     }
@@ -73,8 +77,8 @@ export default function AfipVaultForm() {
     try {
       await api.post('/v1/comprobantes/sync-afip', { punto_venta: 1, tipo_cbte: 1 });
       toast.success("Worker de Celery disparado en segundo plano. Los comprobantes aparecerán en breve.");
-    } catch (error: any) {
-      toast.error("Error al disparar el Worker: " + (error.response?.data?.detail || "Fallo de red"));
+    } catch (error: unknown) {
+      toast.error("Error al disparar el Worker: " + extractApiError(error, "Fallo de red"));
     } finally {
       setIsSyncing(false);
     }
@@ -91,8 +95,8 @@ export default function AfipVaultForm() {
       setKeyFile(null);
       setShowConfirmRevoke(false);
       toast.success("Credenciales revocadas y destruidas de la bóveda.");
-    } catch (error: any) {
-      toast.error("Error al revocar credenciales: " + (error.response?.data?.detail || "Fallo de servidor"));
+    } catch (error: unknown) {
+      toast.error("Error al revocar credenciales: " + extractApiError(error, "Fallo de servidor"));
     } finally {
       setIsRevoking(false);
     }

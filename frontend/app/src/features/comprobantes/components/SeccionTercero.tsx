@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link2, ShieldAlert } from "lucide-react";
 import api from "@/api/axios";
-import type { Comprobante } from "../types";
+import type { Comprobante, ComprobanteFormData } from "../types";
 
 interface ContactoAgenda {
   id: number;
@@ -14,8 +14,8 @@ interface ContactoAgenda {
 }
 
 interface SeccionTerceroProps {
-  formData: any;
-  setFormData: React.Dispatch<React.SetStateAction<any>>;
+  formData: ComprobanteFormData;
+  setFormData: React.Dispatch<React.SetStateAction<ComprobanteFormData>>;
   cuitError: string | null;
   isVenta: boolean;
   isRemito: boolean;
@@ -40,14 +40,13 @@ export function SeccionTercero({
 }: SeccionTerceroProps) {
 
   const [agendaContactos, setAgendaContactos] = useState<ContactoAgenda[]>([]);
-  const [sugerencias, setSugerencias] = useState<ContactoAgenda[]>([]);
   const [campoActivo, setCampoActivo] = useState<"cuit" | "razon_social" | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     const fetchAgenda = async () => {
       try {
-        const res = await api.get('/v1/pagos/proveedores');
+        const res = await api.get<ContactoAgenda[]>('/v1/pagos/proveedores');
         if (isMounted) setAgendaContactos(res.data);
       } catch (error) {
         console.error("No se pudo cargar la base de contactos B2B", error);
@@ -57,38 +56,24 @@ export function SeccionTercero({
     return () => { isMounted = false; };
   }, []);
 
-  useEffect(() => {
-    if (!campoActivo) {
-      setSugerencias([]);
-      return;
-    }
-
-    const cuitSeguro = formData.cuit_tercero || "";
-    const razonSocialSegura = formData.razon_social_receptor || "";
-
-    if (campoActivo === "cuit" && cuitSeguro.length >= 5) {
-      const match = agendaContactos.filter(c => (c.cuit || "").includes(cuitSeguro));
-      setSugerencias(match);
-    } else if (campoActivo === "razon_social" && razonSocialSegura.length >= 3) {
-      const search = razonSocialSegura.toLowerCase();
-      const match = agendaContactos.filter(c =>
-        (c.razon_social || "").toLowerCase().includes(search)
-      );
-      setSugerencias(match);
-    } else {
-      setSugerencias([]);
-    }
-  }, [formData.cuit_tercero, formData.razon_social_receptor, campoActivo, agendaContactos]);
+  const cuitSeguro = formData.cuit_tercero || "";
+  const razonSocialSegura = formData.razon_social_receptor || "";
+  const sugerencias = campoActivo === "cuit" && cuitSeguro.length >= 5
+    ? agendaContactos.filter(c => (c.cuit || "").includes(cuitSeguro))
+    : campoActivo === "razon_social" && razonSocialSegura.length >= 3
+      ? agendaContactos.filter(c =>
+          (c.razon_social || "").toLowerCase().includes(razonSocialSegura.toLowerCase())
+        )
+      : [];
 
   const handleSeleccionarContacto = (contacto: ContactoAgenda) => {
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       cuit_tercero: contacto.cuit,
       razon_social_receptor: contacto.razon_social,
       condicion_fiscal_receptor: contacto.condicion_fiscal || "CONSUMIDOR_FINAL"
     }));
     setCampoActivo(null);
-    setSugerencias([]);
   };
 
   return (

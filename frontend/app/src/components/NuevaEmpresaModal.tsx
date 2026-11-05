@@ -3,6 +3,7 @@ import api from "@/api/axios";
 import { useAuthStore } from "@/store/useAuthStore";
 import { X, Loader2, Building2, AlertCircle } from "lucide-react";
 import { isValidCUIT } from "@/lib/utils";
+import { extractApiError } from "@/lib/utils";
 
 interface Props {
   isOpen: boolean;
@@ -52,8 +53,8 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
       });
       onSuccess();
       setFormData({ cuit: "", razon_social: "", nombre_fantasia: "", condicion_fiscal: "RESPONSABLE_INSCRIPTO" });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Fallo al crear la entidad. Verifique los datos.");
+    } catch (err: unknown) {
+      setError(extractApiError(err, "Fallo al crear la entidad. Verifique los datos."));
     } finally {
       setLoading(false);
     }

@@ -67,6 +67,31 @@ export interface ComprobanteCreatePayload {
   comprobante_origen_id?: number | null;
   es_fiscal?: boolean;
   condicion_fiscal_receptor?: string;
+  razon_social_receptor: string;
   condicion_venta: string;
   cuenta_tesoreria_id?: number | null;
+  cotizacion: number;
+}
+
+export type ComprobanteCreateInput = Omit<ComprobanteCreatePayload, 'entidad_id'>;
+
+export interface ComprobanteFormData {
+  clase_documento: string;
+  tipo_operacion: string;
+  fecha_emision: string;
+  punto_venta: string;
+  numero: string;
+  cuit_tercero: string;
+  razon_social_receptor: string;
+  condicion_fiscal_receptor: string;
+  importe_neto_gravado: string;
+  importe_no_gravado: string;
+  importe_exento: string;
+  importe_total: string;
+  comprobante_origen_id: string;
+  condicion_venta: string;
+  cuenta_tesoreria_id: string;
+  cuenta_contable_id: string;
+  moneda: string;
+  cotizacion: string;
 }

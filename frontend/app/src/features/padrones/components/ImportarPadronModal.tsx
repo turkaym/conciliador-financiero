@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useEffectEvent } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,21 +31,6 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-abrir si estamos escuchando eventos SSE tras un F5
-  useEffect(() => {
-    if (isPolling) {
-        setOpen(true)
-        setIsSubmitted(true)
-    }
-  }, [isPolling])
-
-  // Limpieza y cierre automático al detectar éxito
-  useEffect(() => {
-    if (isSubmitted && !isPolling && !isLoading && !errorMsg) {
-        cerrarModalLimpiamente();
-    }
-  }, [isPolling, isLoading, errorMsg, isSubmitted]);
-
   const cerrarModalLimpiamente = () => {
     setOpen(false);
     setFile(null);
@@ -54,6 +39,31 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
     setIsSubmitted(false);
     if (onClearError) onClearError();
   }
+
+  const cerrarModalTrasCompletar = useEffectEvent(cerrarModalLimpiamente)
+
+  // Auto-abrir si estamos escuchando eventos SSE tras un F5
+  useEffect(() => {
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (cancelled || !isPolling) return
+
+      setOpen(true)
+      setIsSubmitted(true)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isPolling])
+
+  // Limpieza y cierre automático al detectar éxito
+  useEffect(() => {
+    if (isSubmitted && !isPolling && !isLoading && !errorMsg) {
+        cerrarModalTrasCompletar();
+    }
+  }, [isPolling, isLoading, errorMsg, isSubmitted]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()

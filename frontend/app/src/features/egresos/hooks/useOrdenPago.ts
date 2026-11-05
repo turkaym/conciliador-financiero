@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { useAuthStore } from "@/store/useAuthStore";
 import type { Comprobante } from "@/features/comprobantes/types";
 import type { CuentaBancaria } from "@/features/bancos/types";
+import { extractApiError } from "@/lib/utils";
 
 interface ContactoComercial {
   id: number;
@@ -11,11 +12,18 @@ interface ContactoComercial {
   cuit: string;
 }
 
-interface RetencionCalculada {
+export interface RetencionCalculada {
   tipo_impuesto: string;
   jurisdiccion: string;
-  alicuota_aplicada: number;
-  monto_impuesto: number;
+  alicuota_aplicada: string | number;
+  monto_impuesto: string | number;
+}
+
+interface SimularRetencionResponse {
+  monto_bruto: string | number;
+  retenciones_sugeridas: RetencionCalculada[];
+  total_retenciones: string | number;
+  neto_a_transferir: string | number;
 }
 
 export function useOrdenPago() {
@@ -54,8 +62,8 @@ export function useOrdenPago() {
       try {
         const headers = { 'x-entity-id': entidadActiva.id };
         const [resProv, resCuentas] = await Promise.all([
-          api.get('/v1/pagos/proveedores', { headers }),
-          api.get('/v1/bancos/cuentas', { headers })
+          api.get<ContactoComercial[]>('/v1/pagos/proveedores', { headers }),
+          api.get<CuentaBancaria[]>('/v1/bancos/cuentas', { headers })
         ]);
         if (isMounted) {
           setProveedores(resProv.data || []);
@@ -84,7 +92,7 @@ export function useOrdenPago() {
       setIsLoadingFacturas(true);
       try {
         const headers = { 'x-entity-id': entidadActiva.id };
-        const res = await api.get(`/v1/comprobantes/pendientes-proveedor/${proveedorId}`, { headers });
+        const res = await api.get<Comprobante[]>(`/v1/comprobantes/pendientes-proveedor/${proveedorId}`, { headers });
         if (isMounted) {
           setFacturasDelProveedor(res.data || []);
           setFacturasSeleccionadasIds(new Set());
@@ -141,11 +149,11 @@ export function useOrdenPago() {
           tipo_cambio: tcNum
         };
 
-        const { data } = await api.post('/v1/fiscal/simular-retencion', payload, { headers: { 'x-entity-id': entidadActiva.id } });
+        const { data } = await api.post<SimularRetencionResponse>('/v1/fiscal/simular-retencion', payload, { headers: { 'x-entity-id': entidadActiva.id } });
         setRetencionesSugeridas(data?.retenciones_sugeridas || []);
         setNetoCalculadoMotor(Number(data?.neto_a_transferir) || 0);
-      } catch (error: any) {
-        toast.warning(error.response?.data?.detail || "No se pudo calcular la matriz impositiva para este pago.");
+      } catch (error: unknown) {
+        toast.warning(extractApiError(error, "No se pudo calcular la matriz impositiva para este pago."));
         setRetencionesSugeridas([]);
         setNetoCalculadoMotor(montoNumerico);
       } finally {
@@ -204,8 +212,8 @@ export function useOrdenPago() {
       setCuentaOrigenId("");
       setTipoCambio("1.0");
 
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Fallo crítico al procesar la orden de pago múltiple.");
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, "Fallo crítico al procesar la orden de pago múltiple."));
     } finally {
       setIsSubmitting(false);
     }

@@ -1,7 +1,9 @@
 import api from '@/api/axios';
 import { useAuthStore } from '@/store/useAuthStore';
 import { extractApiError } from '@/lib/utils';
-import type { Comprobante, ComprobanteCreatePayload } from '../types';
+import type { CuentaBancaria } from '@/features/bancos/types';
+import type { Comprobante, ComprobanteCreateInput, ComprobanteCreatePayload } from '../types';
+import axios from 'axios';
 import { useState, useCallback, useEffect } from 'react';
 
 const PAGE_SIZE = 50;
@@ -99,7 +101,7 @@ export const useComprobantes = () => {
     }
 
     try {
-      const params: any = {
+      const params: { tipo_operacion: string; clase_documento: string; cuit_receptor?: string; cuit_emisor?: string } = {
         tipo_operacion: tipoOperacion,
         clase_documento: "FACTURA"
       };
@@ -127,12 +129,12 @@ export const useComprobantes = () => {
   const fetchCajasB2C = useCallback(async () => {
     if (!entidadActiva) return;
     try {
-      const response = await api.get<any[]>('/v1/bancos/cuentas', { headers: getSecureHeaders() });
+      const response = await api.get<CuentaBancaria[]>('/v1/bancos/cuentas', { headers: getSecureHeaders() });
       const cajasOperativas = response.data.filter(c => !c.is_virtual_clearing);
 
       setCajasDisponibles(cajasOperativas.map(c => ({
         id: c.id,
-        nombre: c.banco || c.nombre || "Caja/Cuenta sin nombre",
+        nombre: c.banco || "Caja/Cuenta sin nombre",
         moneda: c.moneda
       })));
 
@@ -145,7 +147,7 @@ export const useComprobantes = () => {
     fetchCajasB2C();
   }, [fetchCajasB2C]);
 
-  const createComprobante = async (payload: Omit<ComprobanteCreatePayload, 'entidad_id'> | any) => {
+  const createComprobante = async (payload: ComprobanteCreateInput) => {
     if (!entidadActiva) return false;
 
     setIsSaving(true);
@@ -167,8 +169,8 @@ export const useComprobantes = () => {
 
       showGlobalMessage('success', "Comprobante emitido e ingresado al orquestador AFIP.");
       return true;
-    } catch (error: any) {
-      if (error.response?.status === 409) {
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
         setErrorMsg("Este comprobante ya existe en la base de datos.");
       } else {
         setErrorMsg(extractApiError(error, "Error de validación matemática o de integridad."));
@@ -191,7 +193,7 @@ export const useComprobantes = () => {
       });
       showGlobalMessage('success', "Comprobante anulado correctamente.");
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       setComprobantes(previousComprobantes);
       showGlobalMessage('error', extractApiError(error, "Fallo al anular el documento (Posible bloqueo por CAE activo)."));
       return false;
@@ -223,7 +225,7 @@ export const useComprobantes = () => {
         setSyncFeedback(null);
       }, 12000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg = extractApiError(error, "Fallo al iniciar sincronización con AFIP.");
       setErrorMsg(msg);
     } finally {

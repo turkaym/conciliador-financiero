@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/dialog"
 import { Plus, Loader2, AlertCircle, BookOpenCheck } from "lucide-react"
 import { usePlanCuentas } from "@/hooks/usePlanCuentas" // 🌟 FIX FASE A: Inyección del plan de cuentas
+import type { MovimientoBancarioCreate } from "../types"
 
 interface NuevoMovimientoModalProps {
   cuentaId: string;
   isLoading: boolean;
   errorMsg: string | null;
-  onSubmit: (movimiento: any) => Promise<boolean>; // Flexibilizado para el nuevo payload extendido
+  onSubmit: (movimiento: MovimientoBancarioCreate) => Promise<boolean>;
   onClearError?: () => void;
 }
 
