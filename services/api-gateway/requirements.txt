@@ -1,0 +1,48 @@
+# --- Framework & Servidor ---
+fastapi
+uvicorn
+python-multipart
+requests
+httpx==0.27.0
+
+# --- Base de Datos & Modelado ---
+sqlalchemy
+alembic
+psycopg2
+pydantic[email]>=2.6.3
+pydantic-settings
+pyyaml
+
+# --- Seguridad Superior (Argon2id) ---
+python-jose[cryptography]
+passlib
+argon2-cffi
+cryptography>=42.0.0
+email-validator
+
+# --- Infraestructura Asíncrona & Observabilidad ---
+redis>=5.0.1
+celery
+flower
+zeep>=4.2.1
+
+# --- Storage ---
+minio>=7.2.0
+rapidfuzz==3.14.0
+bcrypt==3.2.2
+
+# --- Análisis de Datos y Reportes ---
+pandas>=2.0.0
+openpyxl>=3.1.0
+stripe>=9.0.0
+
+# --- Inteligencia Artificial e IA Operativa (Fase 14) ---
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+langchain-core
+langchain-openai>=0.1.0
+langgraph>=0.0.30
+langgraph-checkpoint-postgres
+psycopg[binary,pool]
+pgvector>=0.2.5
+sentence-transformers>=2.6.0

@@ -1,0 +1,9 @@
+tenants:
+  - id: "tenant_001"
+    name: "Empresa Test S.A."
+    cuit: "20123456789" # Asegúrate de que coincida con el CUIT de tus certificados de prueba
+    schema_name: "tenant_001"
+    active_modules:
+      - arca_billing
+    arca_config:
+      environment: "homo"

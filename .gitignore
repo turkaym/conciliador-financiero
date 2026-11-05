@@ -1,34 +1,43 @@
-# Secrets and local configuration
+# Environment and credentials
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.csr
+
+# Tenant and runtime data
+tenants_data/
+**/uploads/
+uploads/
+volumes/
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+*.log
+logs/
 
 # Python
 __pycache__/
 *.py[cod]
-.venv/
 .pytest_cache/
-.mypy_cache/
 .coverage
+coverage.xml
 htmlcov/
+.venv/
+venv/
 
-# Node
+# Node and generated output
 node_modules/
 dist/
 build/
 coverage/
 
-# Editors and operating systems
-.idea/
-.vscode/
-.DS_Store
-Thumbs.db
-
-# Runtime and local database data
-*.log
-*.pid
-tmp/
-temp/
-*.dump
-*.sql.gz
-postgres-data/
+# Local tooling
+.atl/
