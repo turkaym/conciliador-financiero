@@ -1,5 +1,5 @@
 import { Switch } from "@/components/ui/switch"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -48,22 +48,6 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
     is_virtual_clearing: false,
     proveedor_clearing_id: ""
   });
-
-  useEffect(() => {
-    if (formCuenta.tipo_canal === "PASARELA") {
-      setFormCuenta(prev => ({
-        ...prev,
-        is_virtual_clearing: true,
-        proveedor_clearing_id: prev.proveedor_clearing_id || ""
-      }));
-    } else {
-      setFormCuenta(prev => ({
-        ...prev,
-        is_virtual_clearing: false,
-        proveedor_clearing_id: ""
-      }));
-    }
-  }, [formCuenta.tipo_canal]);
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -148,7 +132,12 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
 
           <div className="col-span-2 space-y-2">
             <Label>Naturaleza del Canal</Label>
-            <Select required value={formCuenta.tipo_canal || ""} onValueChange={(v) => setFormCuenta({...formCuenta, tipo_canal: v as TipoCanalEnum})}>
+            <Select required value={formCuenta.tipo_canal || ""} onValueChange={(v) => setFormCuenta(prev => ({
+              ...prev,
+              tipo_canal: v as TipoCanalEnum,
+              is_virtual_clearing: v === "PASARELA",
+              proveedor_clearing_id: v === "PASARELA" ? prev.proveedor_clearing_id : ""
+            }))}>
               <SelectTrigger><SelectValue placeholder="¿Es un banco o una pasarela?" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="BANCO">Banco Tradicional (Santander, Galicia, etc.)</SelectItem>

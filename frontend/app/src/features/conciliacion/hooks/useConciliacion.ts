@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import api from '@/api/axios';
-import axios from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
+import { extractApiError } from '@/lib/utils';
 
 // ==========================================
 // INTERFACES (Contratos DTO estrictos)
@@ -11,17 +11,15 @@ export interface IncompleteInvoice {
   id: string;
   numero_formateado: string;
   razon_social: string;
-  fecha: string;
-  numero?: string;
+  fecha: string | null;
   monto: number;
   moneda: string;
-  clase_documento?: string;
-  tipo_operacion?: string;
+  clase_documento: string | null;
 }
 
 export interface IncompleteMovement {
   id: number;
-  fecha: string;
+  fecha: string | null;
   referencia: string;
   concepto: string;
   monto: number;
@@ -38,26 +36,35 @@ export interface ConciliacionStatusResponse {
   };
 }
 
-export interface HistoryMatchDetail {
-  id: string | number;
-  numero?: string;
-  concepto?: string;
-  numero_formateado?: string;
+export interface HistoryComprobanteDetail {
+  id: string;
+  numero: number;
+  numero_formateado: string;
+  monto_total: number;
+  monto_aplicado: number;
+}
+
+export interface HistoryMovementDetail {
+  id: number;
+  concepto: string;
   monto_total: number;
   monto_aplicado: number;
 }
 
 export interface HistoryMatch {
   id: number;
+  asiento_id: number | null;
   score: number;
   metodo: string;
-  comprobantes: HistoryMatchDetail[];
-  movimientos: HistoryMatchDetail[];
+  comprobantes: HistoryComprobanteDetail[];
+  movimientos: HistoryMovementDetail[];
 }
 
 export interface HistoryResponse {
   items: HistoryMatch[];
   total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface RetencionSufridaPayload {
@@ -65,6 +72,12 @@ export interface RetencionSufridaPayload {
   jurisdiccion: string;
   monto_impuesto: number;
   numero_certificado: string;
+}
+
+interface ManualMatchPayload {
+  comprobantes_ids: string[];
+  movimientos_ids: number[];
+  ajustes_fiscales?: RetencionSufridaPayload[];
 }
 
 // ==========================================
@@ -80,14 +93,6 @@ export const useConciliacion = () => {
 
   const { entidadActiva, tenant_id } = useAuthStore();
 
-  const extractErrorMessage = (err: unknown, defaultMsg: string): string => {
-    if (axios.isAxiosError(err)) {
-      const serverDetail = err.response?.data?.detail;
-      return typeof serverDetail === 'string' ? serverDetail : defaultMsg;
-    }
-    return defaultMsg;
-  };
-
   const fetchStatus = useCallback(async (limit: number = 100, offset: number = 0) => {
     if (!entidadActiva?.id || !tenant_id) return;
     setIsLoading(true);
@@ -98,7 +103,7 @@ export const useConciliacion = () => {
       });
       setData(response.data);
     } catch (err) {
-      setError(extractErrorMessage(err, 'Error al obtener el estado de conciliación.'));
+      setError(extractApiError(err, 'Error al obtener el estado de conciliación.'));
     } finally {
       setIsLoading(false);
     }
@@ -113,7 +118,7 @@ export const useConciliacion = () => {
       });
       setHistoryData(response.data);
     } catch (err) {
-      setError(extractErrorMessage(err, 'Error al obtener el historial forense.'));
+      setError(extractApiError(err, 'Error al obtener el historial forense.'));
     } finally {
       setIsLoading(false);
     }
@@ -129,7 +134,7 @@ export const useConciliacion = () => {
       await fetchHistory();
       return true;
     } catch (err) {
-      setError(extractErrorMessage(err, 'Falló la ejecución del motor automático.'));
+      setError(extractApiError(err, 'Falló la ejecución del motor automático.'));
       return false;
     } finally {
       setIsProcessing(false);
@@ -146,7 +151,7 @@ export const useConciliacion = () => {
     setIsProcessing(true);
     setError(null);
     try {
-      const payload: any = {
+      const payload: ManualMatchPayload = {
         comprobantes_ids: comprobantesIds,
         movimientos_ids: movimientosIds
       };
@@ -160,7 +165,7 @@ export const useConciliacion = () => {
       await fetchHistory();
       return true;
     } catch (err) {
-      setError(extractErrorMessage(err, 'Falló la vinculación manual. Verifique la matemática del ajuste fiscal o recargue los saldos.'));
+      setError(extractApiError(err, 'Falló la vinculación manual. Verifique la matemática del ajuste fiscal o recargue los saldos.'));
       return false;
     } finally {
       setIsProcessing(false);
@@ -177,7 +182,7 @@ export const useConciliacion = () => {
       await fetchHistory();
       return true;
     } catch (err) {
-      setError(extractErrorMessage(err, 'No se pudo deshacer la conciliación. Puede estar bloqueada fiscalmente.'));
+      setError(extractApiError(err, 'No se pudo deshacer la conciliación. Puede estar bloqueada fiscalmente.'));
       return false;
     } finally {
       setIsProcessing(false);

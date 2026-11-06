@@ -2,6 +2,22 @@ import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import axios from "axios"
 
+interface PydanticValidationError {
+  loc: Array<string | number>;
+  msg: string;
+}
+
+function isPydanticValidationError(value: unknown): value is PydanticValidationError {
+  return typeof value === "object" && value !== null &&
+    "loc" in value && Array.isArray(value.loc) &&
+    "msg" in value && typeof value.msg === "string";
+}
+
+export function getApiErrorDetail(error: unknown): unknown {
+  if (!axios.isAxiosError<{ detail?: unknown }>(error)) return undefined;
+  return error.response?.data?.detail;
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -34,11 +50,11 @@ export const isValidCUIT = (cuit: string): boolean => {
  */
 export function extractApiError(err: unknown, defaultMsg: string = "Ocurrió un error inesperado."): string {
   if (axios.isAxiosError(err)) {
-    const serverDetail = err.response?.data?.detail;
+    const serverDetail = getApiErrorDetail(err);
 
     // 1. Manejo de Errores de Validación de Pydantic (HTTP 422)
     if (Array.isArray(serverDetail)) {
-      const mensajes = serverDetail.map((errItem: any) => {
+      const mensajes = serverDetail.filter(isPydanticValidationError).map((errItem) => {
         const campo = errItem.loc?.[errItem.loc.length - 1] || 'campo desconocido';
         let msg = errItem.msg;
 

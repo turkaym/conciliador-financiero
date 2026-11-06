@@ -80,6 +80,14 @@ def initialize_system():
         else:
             logger.info("✅ El Super Admin ya existe. Sistema previamente inicializado.")
 
+        tenant = user.tenant
+        features = dict(tenant.features or {})
+        if not features.get("ai_rules"):
+            features["ai_rules"] = True
+            tenant.features = features
+            db.commit()
+            logger.info("✅ AI Rules habilitado para el tenant de desarrollo.")
+
         logger.info("🏁 Aprovisionamiento finalizado con éxito.")
 
     except Exception as e:

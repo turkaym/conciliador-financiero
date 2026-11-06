@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useBancos } from "../features/bancos/hooks/useBancos"
 import { NuevaCuentaModal } from "../features/bancos/components/NuevaCuentaModal"
@@ -46,27 +46,29 @@ export default function BancosPage() {
   const isSyncing = isLoadingCuentas || isLoadingMovs
   const storageKey = `conciliador_banco_activo_${entidadActiva?.id}`;
 
-  useEffect(() => {
-    if (entidadActiva?.id) {
+  const selectInitialCuenta = useCallback((loadedCuentas: typeof cuentas) => {
+    if (loadedCuentas.length === 0) return
+    const savedId = localStorage.getItem(storageKey)
+    const initialId = savedId && loadedCuentas.some(c => c.id.toString() === savedId)
+      ? savedId
+      : loadedCuentas[0].id.toString()
+    setSelectedCuentaId(initialId)
+  }, [storageKey])
+
+  useEffect(() => useAuthStore.subscribe((state, previousState) => {
+    if (state.entidadActiva?.id !== previousState.entidadActiva?.id) {
       setSelectedCuentaId("")
       setPage(0)
-      clearMovimientos()
-      fetchCuentas()
       setActiveView('historial')
     }
-  }, [entidadActiva?.id])
+  }), [])
 
   useEffect(() => {
-    if (!isLoadingCuentas && cuentas.length > 0 && !selectedCuentaId) {
-      const savedId = localStorage.getItem(storageKey);
-
-      if (savedId && cuentas.some(c => c.id.toString() === savedId)) {
-        setSelectedCuentaId(savedId);
-      } else {
-        setSelectedCuentaId(cuentas[0].id.toString());
-      }
+    if (entidadActiva?.id) {
+      clearMovimientos()
+      void fetchCuentas(selectInitialCuenta)
     }
-  }, [cuentas, selectedCuentaId, isLoadingCuentas, storageKey])
+  }, [clearMovimientos, entidadActiva?.id, fetchCuentas, selectInitialCuenta])
 
   useEffect(() => {
     if (!isLoadingCuentas && selectedCuentaId && cuentas.length > 0) {
@@ -77,8 +79,7 @@ export default function BancosPage() {
         fetchMovimientos(selectedCuentaId, page);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCuentaId, page, cuentas, isLoadingCuentas, storageKey])
+  }, [selectedCuentaId, page, cuentas, isLoadingCuentas, storageKey, fetchMovimientos])
 
   const handleDataRefresh = () => {
     fetchCuentas()

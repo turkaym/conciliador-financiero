@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { Capability } from '@/featureFlags';
 
 export interface Entidad {
   id: number;
@@ -35,6 +36,7 @@ export interface AuthState {
   tenant_id: string | null;
   user: User | null;
   features: TenantFeatures;
+  capabilities: Capability[];
   entidadActiva: Entidad | null;
 
   isPaywallOpen: boolean;
@@ -43,6 +45,7 @@ export interface AuthState {
   isDataLocked: boolean;
 
   setAuth: (token: string, tenant_id: string, user: User, features: TenantFeatures) => void;
+  setCapabilities: (capabilities: Capability[]) => void;
   setEntidadActiva: (entidad: Entidad | null) => void;
   openPaywall: () => void;
   closePaywall: () => void;
@@ -60,6 +63,7 @@ export const useAuthStore = create<AuthState>()(
       tenant_id: null,
       user: null,
       features: {},
+      capabilities: [],
       entidadActiva: null,
       isPaywallOpen: false,
 
@@ -68,6 +72,7 @@ export const useAuthStore = create<AuthState>()(
 
       setAuth: (token, tenant_id, user, features) =>
         set({ token, tenant_id, user, features: features || {} }),
+      setCapabilities: (capabilities) => set({ capabilities }),
 
       setEntidadActiva: (entidad) =>
         set({ entidadActiva: entidad }),

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'react-toastify';
+import type { Capability } from '@/featureFlags';
 
 // Generador robusto de UUID (Fallback para entornos locales sin HTTPS)
 const generateIdempotencyKey = () => {
@@ -28,9 +29,6 @@ api.interceptors.request.use(
     const state = useAuthStore.getState();
     const token = state.token;
     const entidadActiva = state.entidadActiva;
-
-    // Aseguramos la existencia de headers para prevenir fallos en versiones de Axios
-    if (!config.headers) config.headers = {} as any;
 
     if (token) {
       if (config.headers.set) config.headers.set('Authorization', `Bearer ${token}`);
@@ -151,3 +149,8 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export async function fetchCapabilities() {
+  const response = await api.get<Capability[]>('/v1/capabilities');
+  return response.data;
+}

@@ -1,11 +1,13 @@
 import os
 import logging
 import threading
+from functools import wraps
 from celery import Celery
 from celery.signals import setup_logging, task_prerun
 from celery.schedules import crontab
 from kombu import Queue, Exchange
 from config.config import settings
+from config.feature_flags import feature_flags
 
 # ==========================================
 # 🌟 FIX TRAZABILIDAD (Correlation ID Logger)
@@ -56,6 +58,37 @@ def config_loggers(*args, **kwargs):
 # CEREBRO ASÍNCRONO DEL SISTEMA
 # ==========================================
 app = Celery("conciliador_tasks")
+
+FEATURE_TASKS = {
+    'core.tasks.maintenance_tasks.run_tenant_matching_task': 'reconciliation',
+    'generar_asiento_conciliacion': 'reconciliation',
+    'revertir_asiento_conciliacion': 'reconciliation',
+    'core.tasks.ai_tasks.process_agent_message_task': 'ai_copilot',
+    'core.tasks.webhooks_worker.dispatch_webhook': 'b2b_integrations',
+}
+
+
+_celery_task = app.task
+
+
+def feature_controlled_registration(*args, **options):
+    def register(function):
+        feature = FEATURE_TASKS.get(options.get('name', f'{function.__module__}.{function.__name__}'))
+        if feature:
+            @wraps(function)
+            def guarded(*task_args, **task_kwargs):
+                if not feature_flags.usable(feature):
+                    raise RuntimeError(f"Task disabled by feature manifest: {feature}")
+                return function(*task_args, **task_kwargs)
+            function = guarded
+        return _celery_task(function, **options)
+
+    if args and callable(args[0]):
+        return register(args[0])
+    return register
+
+
+app.task = feature_controlled_registration
 
 # 🌟 CAPA 3.2: Configuración de Dead Letter Exchange (DLX) confirmada
 dlx_exchange = Exchange('dlx', type='direct')
@@ -135,21 +168,13 @@ app.conf.update(
         'core.tasks.accounting',
         "core.tasks.billing_tasks",
         "core.tasks.reversiones_tasks",
-        # 🌟 NUEVO: Registro del dominio de Inteligencia Artificial
-        "core.tasks.ai_tasks"
-    ]
+    ] + (["core.tasks.ai_tasks"] if feature_flags.usable("ai_copilot") else [])
 )
 
 # ==========================================
 # CRONS CENTRALIZADOS
 # ==========================================
 app.conf.beat_schedule = {
-    'run-auto-matching-every-15-mins': {
-        'task': 'core.tasks.maintenance_tasks.meta_orchestrator_task',
-        'schedule': crontab(minute='*/15'),
-        'args': ('core.tasks.maintenance_tasks.run_tenant_matching_task', 'matching_queue'),
-        'kwargs': {'extra_kwargs': {'entidad_id': 1}}
-    },
     'run-zombie-sweeper-every-hour': {
         'task': 'core.tasks.maintenance_tasks.meta_orchestrator_task',
         'schedule': crontab(minute='0'),
@@ -164,11 +189,20 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.cotizacion_worker.sincronizar_cotizacion_diaria',
         'schedule': crontab(hour='15', minute='30'),
         'args': ('tenant_20935449163', 'USD', 'BNA')
-    },
-    'run-outbox-sweeper-every-10-secs': {
-        'task': 'core.tasks.maintenance_tasks.meta_orchestrator_task',
-        'schedule': 10.0,
-        # 🌟 FIX BOMBA DE TIEMPO: Cambiamos run_tenant_fiscal_audit_task por la tarea correcta de webhooks
-        'args': ('core.tasks.webhooks_worker.sweep_outbox_events_task', 'webhooks_queue')
     }
 }
+
+if feature_flags.usable('reconciliation'):
+    app.conf.beat_schedule['run-auto-matching-every-15-mins'] = {
+        'task': 'core.tasks.maintenance_tasks.meta_orchestrator_task',
+        'schedule': crontab(minute='*/15'),
+        'args': ('core.tasks.maintenance_tasks.run_tenant_matching_task', 'matching_queue'),
+        'kwargs': {'extra_kwargs': {'entidad_id': 1}}
+    }
+
+if feature_flags.usable('b2b_integrations'):
+    app.conf.beat_schedule['run-outbox-sweeper-every-10-secs'] = {
+        'task': 'core.tasks.maintenance_tasks.meta_orchestrator_task',
+        'schedule': 10.0,
+        'args': ('core.tasks.webhooks_worker.sweep_outbox_events_task', 'webhooks_queue')
+    }

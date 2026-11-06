@@ -43,7 +43,7 @@ export default function ExportadorFiscal() {
       window.URL.revokeObjectURL(url);
 
       toast.success("Declaración Jurada exportada con éxito. Lista para subir a ARCA.");
-    } catch (error: any) {
+    } catch {
       toast.error("Error al generar el archivo. Verifique que existan retenciones en el período seleccionado.");
     } finally {
       setIsExporting(false);

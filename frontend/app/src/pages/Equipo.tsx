@@ -20,6 +20,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { UserPlus, Trash2, Loader2, ShieldAlert, Copy, CheckCircle2, AlertCircle } from "lucide-react";
+import { extractApiError } from "@/lib/utils";
+import type { Miembro } from "@/hooks/useEquipo";
+
+type TeamRole = 'visor' | 'operador' | 'editor' | 'admin';
+type MemberUpdate = { rol?: string; is_active?: boolean };
+
+interface InvitationResponse {
+  message: string;
+  magic_link_token: string;
+  expires_in_hours: number;
+}
 
 // ==========================================
 // 🛡️ COMPONENTE INTERNO: SELECTOR DE ROL REACTIVO
@@ -30,23 +41,23 @@ function SelectorDeRol({
   actualizarMiembro,
   showFeedback
 }: {
-  usuario: any;
+  usuario: Miembro;
   isAdmin: boolean;
-  actualizarMiembro: (email: string, payload: any) => Promise<void>;
+  actualizarMiembro: (email: string, payload: MemberUpdate) => Promise<void>;
   showFeedback: (type: 'success' | 'error', msg: string) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [rolActual, setRolActual] = useState(usuario.rol.toLowerCase());
 
-  const handleRoleChange = async (nuevoRol: string) => {
+  const handleRoleChange = async (nuevoRol: TeamRole) => {
     setLoading(true);
     try {
       await actualizarMiembro(usuario.user_id, { rol: nuevoRol });
       setRolActual(nuevoRol);
       showFeedback('success', `Rol de ${usuario.user_id} actualizado a ${nuevoRol.toUpperCase()}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 🌟 PRUEBA E2E: Aquí atrapamos el HTTP 400 del "Seguro Anti-Lockout"
-      const mensaje = error.response?.data?.detail || error.message || "Fallo al cambiar el rol.";
+      const mensaje = extractApiError(error, "Fallo al cambiar el rol.");
       showFeedback('error', mensaje);
     } finally {
       setLoading(false);
@@ -131,7 +142,7 @@ export default function EquipoPage() {
     setIsSubmitting(true);
     try {
       // 🌟 FIX: Pasamos el 'nuevoRol' en lugar del string hardcodeado "OPERADOR"
-      const response = await invitarMiembro(nuevoEmail, nuevoRol, parseInt(entidadSeleccionada));
+      const response: InvitationResponse = await invitarMiembro(nuevoEmail, nuevoRol, parseInt(entidadSeleccionada));
 
       const baseUrl = window.location.origin;
       const magicLink = `${baseUrl}/join?token=${response.magic_link_token}`;
@@ -140,8 +151,8 @@ export default function EquipoPage() {
       setNuevoEmail("");
       setNuevoRol("OPERADOR");
       setEntidadSeleccionada("");
-    } catch (err: any) {
-      setErrorUi(err.response?.data?.detail || "Error al invitar al usuario. Intente nuevamente.");
+    } catch (err: unknown) {
+      setErrorUi(extractApiError(err, "Error al invitar al usuario. Intente nuevamente."));
     } finally {
       setIsSubmitting(false);
     }
@@ -159,8 +170,8 @@ export default function EquipoPage() {
     try {
       await actualizarMiembro(email, { is_active: checked });
       showFeedback('success', `El acceso de ${email} ha sido ${checked ? 'activado' : 'suspendido'}.`);
-    } catch (error: any) {
-      const msg = error.response?.data?.detail || `Fallo al actualizar el estado de ${email}.`;
+    } catch (error: unknown) {
+      const msg = extractApiError(error, `Fallo al actualizar el estado de ${email}.`);
       showFeedback('error', msg);
     }
   };
@@ -169,8 +180,8 @@ export default function EquipoPage() {
     try {
       await eliminarMiembro(email);
       showFeedback('success', `Usuario ${email} eliminado permanentemente.`);
-    } catch (error: any) {
-      const msg = error.response?.data?.detail || `Fallo al eliminar al usuario ${email}.`;
+    } catch (error: unknown) {
+      const msg = extractApiError(error, `Fallo al eliminar al usuario ${email}.`);
       showFeedback('error', msg);
     }
   };

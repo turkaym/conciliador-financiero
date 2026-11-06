@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "features": {
+    "b2b_directory": true,
+    "expenses_payments": true,
+    "tax_registries": true,
+    "team": true,
+    "ai_rules": true,
+    "reconciliation": false,
+    "ai_copilot": false,
+    "b2b_integrations": false
+  }
+}

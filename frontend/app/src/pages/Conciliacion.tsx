@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback, useEffectEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Loader2, Link2, AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react"
@@ -13,21 +13,25 @@ import { ColumnaExtracto } from "@/features/conciliacion/components/ColumnaExtra
 import { ColumnaComprobantes } from "@/features/conciliacion/components/ColumnaComprobantes"
 import { HistorialAuditoria } from "@/features/conciliacion/components/HistorialAuditoria"
 
-class CrashCatcher extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
+class CrashCatcher extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: unknown}> {
   constructor(props: {children: React.ReactNode}) {
     super(props)
     this.state = { hasError: false, error: null }
   }
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: unknown) {
     return { hasError: true, error }
   }
   render() {
     if (this.state.hasError) {
+      const errorDetails = this.state.error instanceof Error
+        ? `${this.state.error.toString()}\n${this.state.error.stack ?? ""}`
+        : String(this.state.error)
+
       return (
         <div className="p-8 bg-red-50 text-red-900 h-full overflow-auto rounded-xl border border-red-200 m-4">
           <h1 className="font-black text-2xl mb-4 flex items-center gap-2"><AlertTriangle/> Error Letal en Renderizado</h1>
           <p className="mb-4 text-sm font-medium">React abortó la carga de Conciliación por este motivo exacto:</p>
-          <pre className="text-xs bg-white p-4 rounded border border-red-200 whitespace-pre-wrap">{this.state.error?.toString()}\n{this.state.error?.stack}</pre>
+          <pre className="text-xs bg-white p-4 rounded border border-red-200 whitespace-pre-wrap">{errorDetails}</pre>
         </div>
       )
     }
@@ -53,24 +57,39 @@ function ConciliacionContenido() {
   const [modalAjusteOpen, setModalAjusteOpen] = useState(false)
   const [diferenciaCalculada, setDiferenciaCalculada] = useState(0)
 
+  const clearSelection = useCallback(() => {
+    setSelectedMovs([])
+    setSelectedCbtes([])
+    setMobileStep(1)
+    setModalAjusteOpen(false)
+  }, [])
+
+  const clearSelectionForEntityChange = useEffectEvent(clearSelection)
+
+  const handleActiveTabChange = useCallback((nextTab: 'PENDIENTES' | 'HISTORIAL') => {
+    if (nextTab === activeTab) return
+    clearSelection()
+    setActiveTab(nextTab)
+  }, [activeTab, clearSelection])
+
+  const handleFlowTabChange = useCallback((nextFlow: 'COBROS' | 'PAGOS') => {
+    if (nextFlow === flowTab) return
+    clearSelection()
+    setFlowTab(nextFlow)
+  }, [flowTab, clearSelection])
+
   useEffect(() => {
     if (entidadActiva) {
       fetchStatus()
       fetchHistory()
-      clearSelection()
+      clearSelectionForEntityChange()
     }
   }, [entidadActiva, fetchStatus, fetchHistory])
-
-  useEffect(() => {
-    clearSelection()
-  }, [flowTab, activeTab])
 
   const handleSelectMov = (id: number) => setSelectedMovs(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
 
   // 🌟 FIX POLIMORFISMO: Exige string como argumento
   const handleSelectCbte = (id: string) => setSelectedCbtes(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
-
-  const clearSelection = () => { setSelectedMovs([]); setSelectedCbtes([]); setMobileStep(1); setModalAjusteOpen(false) }
 
   const currentFlowData = flowTab === 'COBROS' ? data?.pendings.ar : data?.pendings.ap
 
@@ -132,8 +151,8 @@ function ConciliacionContenido() {
       )}
 
       <ConciliacionHeader
-        activeTab={activeTab} setActiveTab={setActiveTab}
-        flowTab={flowTab} setFlowTab={setFlowTab}
+        activeTab={activeTab} setActiveTab={handleActiveTabChange}
+        flowTab={flowTab} setFlowTab={handleFlowTabChange}
         triggerAutoMatch={triggerAutoMatch}
         isLoading={isLoading} isProcessing={isProcessing}
       />

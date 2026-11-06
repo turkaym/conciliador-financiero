@@ -6,6 +6,8 @@ import api from "@/api/axios";
 import { toast } from "react-toastify";
 import { formatCurrency } from "@/lib/utils";
 import type { CuentaBancaria } from "@/features/bancos/types";
+import type { LotePago } from "@/store/useEgresosStore";
+import { extractApiError } from "@/lib/utils";
 
 interface Proveedor {
   id: number;
@@ -42,8 +44,8 @@ export default function EnsambladoraLotes() {
         const headers = { 'x-entity-id': entidadActiva.id };
 
         const [resProv, resCuentas] = await Promise.all([
-          api.get('/v1/pagos/proveedores', { headers }),
-          api.get('/v1/bancos/cuentas', { headers })
+          api.get<Proveedor[]>('/v1/pagos/proveedores', { headers }),
+          api.get<CuentaBancaria[]>('/v1/bancos/cuentas', { headers })
         ]);
 
         if (isMounted) {
@@ -89,7 +91,7 @@ export default function EnsambladoraLotes() {
         ? crypto.randomUUID()
         : Date.now().toString() + Math.random().toString(36).substring(2);
 
-      const res = await api.post('/v1/pagos/lotes/ensamblaje-bancario', {
+      const res = await api.post<LotePago>('/v1/pagos/lotes/ensamblaje-bancario', {
         cuenta_tesoreria_id: parseInt(cuentaSeleccionadaId),
         ordenes_ids: Array.from(selectedIds)
       }, {
@@ -106,8 +108,8 @@ export default function EnsambladoraLotes() {
       setSelectedIds(new Set());
       setCuentaSeleccionadaId("");
 
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || error.message || "Fallo crítico en la generación.");
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, "Fallo crítico en la generación."));
     } finally {
       // 🌟 FIX RACE CONDITION: Pase lo que pase, refrescamos la UI
       await fetchOrdenes(true);

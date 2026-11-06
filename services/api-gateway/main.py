@@ -3,7 +3,6 @@ import uuid
 import logging
 import asyncio
 import redis.asyncio as aioredis
-from core.api.v1.endpoints.ai import router as ai_router
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +11,7 @@ from core.database.session import engine
 from core.database.models_master import Base as MasterBase
 from core.api.deps import get_current_user, FeatureChecker
 from config.config import settings
+from config.feature_flags import feature_flags
 from core.api.context import set_audit_ip_address
 
 # Middlewares propios
@@ -21,13 +21,11 @@ from core.api.v1.endpoints.auth import router as auth_router
 from core.domains.comprobantes.router import router as comprobantes_router
 from core.domains.contabilidad.router import router as contabilidad_router
 from core.api.v1.endpoints.bancos import router as bancos_router
-from core.api.v1.endpoints.matching import router as matching_router
 from core.api.v1.endpoints.reports import router as reports_router
 from core.api.v1.endpoints.entidades import router as entidades_router
 from core.api.v1.endpoints.equipo import router as equipo_router
 from core.api.v1.endpoints.tenants import router as tenants_router
 from core.api.v1.endpoints.padrones import router as padrones_router
-from core.api.v1.endpoints.b2b_setup import router as b2b_router
 from core.api.v1.endpoints.dlq_admin import router as dlq_router
 from core.api.v1.endpoints.afip_vault import router as afip_vault_router
 from core.api.permissions import RoleChecker
@@ -160,32 +158,33 @@ app.add_middleware(
 # 1. Rutas Públicas
 public_router = APIRouter(prefix="/v1")
 public_router.include_router(auth_router, prefix="/auth", tags=["Seguridad"])
-public_router.include_router(entidades_router, prefix="/entidades", tags=["Entidades (Multi-Empresa)"])
+if feature_flags.usable("b2b_directory"):
+    public_router.include_router(entidades_router, prefix="/entidades", tags=["Entidades (Multi-Empresa)"])
 
 # 2. Rutas de Operador (Lectura y Gestión Operativa)
 operator_router = APIRouter(
     prefix="/v1",
     dependencies=[Depends(get_current_user), Depends(RoleChecker(["admin", "operator", "operador", "owner", "dueño", "propietario","visor", "editor"]))]
 )
-operator_router.include_router(afip_vault_router, prefix="/afip-vault", tags=["Integración Fiscal AFIP"])
-operator_router.include_router(bancos_router, prefix="/bancos", tags=["Bancos"])
-operator_router.include_router(pagos_router, prefix="/pagos", tags=["Egresos y Pagos"])
+if feature_flags.usable("tax_registries"):
+    operator_router.include_router(afip_vault_router, prefix="/afip-vault", tags=["Integración Fiscal AFIP"])
+if feature_flags.usable("expenses_payments"):
+    operator_router.include_router(bancos_router, prefix="/bancos", tags=["Bancos"])
+    operator_router.include_router(pagos_router, prefix="/pagos", tags=["Egresos y Pagos"])
 operator_router.include_router(contabilidad_router, prefix="/contabilidad", tags=["Contabilidad"])
-operator_router.include_router(ai_router, tags=["Copiloto Financiero"])
-
-# 🌟 FIX RBAC/FEATURES: Restauramos el acceso general a Matching.
-# Las restricciones de plan (FeatureChecker) deberán aplicarse endpoint por endpoint internamente.
-operator_router.include_router(
-    matching_router,
-    prefix="/matching",
-    tags=["Conciliación"]
-)
-
-operator_router.include_router(equipo_router, prefix="/equipo", tags=["Equipo y Permisos"])
+if feature_flags.usable("ai_copilot"):
+    from core.api.v1.endpoints.ai import router as ai_router
+    operator_router.include_router(ai_router, tags=["Copiloto Financiero"])
+if feature_flags.usable("reconciliation"):
+    from core.api.v1.endpoints.matching import router as matching_router
+    operator_router.include_router(matching_router, prefix="/matching", tags=["Conciliación"])
+if feature_flags.usable("team"):
+    operator_router.include_router(equipo_router, prefix="/equipo", tags=["Equipo y Permisos"])
 operator_router.include_router(reports_router, prefix="/reports", tags=["Reportes Contables"])
 
 # 🌟 FIX FASE C: Inyección del Router Tributario (SIRE, Padrones Activos)
-operator_router.include_router(fiscal_router, prefix="/fiscal", tags=["Gestión Tributaria y DDJJ"])
+if feature_flags.usable("tax_registries"):
+    operator_router.include_router(fiscal_router, prefix="/fiscal", tags=["Gestión Tributaria y DDJJ"])
 
 
 # 3. Rutas de Administración (Gestión Estricta del Sistema)
@@ -194,8 +193,14 @@ admin_router = APIRouter(
     dependencies=[Depends(get_current_user), Depends(RoleChecker(["admin", "superadmin", "owner", "dueño", "propietario", "editor"]))]
 )
 admin_router.include_router(tenants_router, prefix="/tenants", tags=["Gestión de Inquilinos"])
-admin_router.include_router(padrones_router, prefix="/padrones", tags=["Padrones Fiscales"])
-admin_router.include_router(b2b_router, prefix="/b2b", tags=["B2B Integrations"])
+if feature_flags.usable("tax_registries"):
+    admin_router.include_router(padrones_router, prefix="/padrones", tags=["Padrones Fiscales"])
+if feature_flags.usable("b2b_integrations"):
+    from core.api.v1.endpoints.b2b_setup import router as b2b_router
+    admin_router.include_router(b2b_router, prefix="/b2b", tags=["B2B Integrations"])
+if feature_flags.usable("ai_rules"):
+    from core.api.v1.endpoints.ai_rules import router as ai_rules_router
+    admin_router.include_router(ai_rules_router)
 admin_router.include_router(dlq_router, prefix="/dlq", tags=["Administración DLQ"])
 
 app.include_router(system_router, prefix="/v1", tags=["Sistema"])

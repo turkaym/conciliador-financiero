@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useEffectEvent } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -53,27 +53,6 @@ export function ImportarExtractoModal({
   // 🌟 FIX FASE A: Hook del plan de cuentas
   const { cuentasImputables, fetchCuentasImputables, isLoadingCuentas } = usePlanCuentas();
 
-  useEffect(() => {
-    if (open && cuentasImputables.length === 0) {
-      fetchCuentasImputables();
-    }
-  }, [open, fetchCuentasImputables, cuentasImputables.length]);
-
-  useEffect(() => {
-    if (isPolling) {
-        setOpen(true)
-        setIsSubmitted(true)
-    } else {
-        setShowConfirmCancel(false)
-    }
-  }, [isPolling])
-
-  useEffect(() => {
-    if (isSubmitted && !isPolling && !isLoading && !errorMsg && !xrayData) {
-        cerrarModalLimpiamente()
-    }
-  }, [isPolling, isLoading, errorMsg, isSubmitted, xrayData])
-
   const cerrarModalLimpiamente = () => {
     setOpen(false)
     setFile(null)
@@ -86,6 +65,39 @@ export function ImportarExtractoModal({
     setDynamicMapping({})
     if (onClearError) onClearError()
   }
+
+  const cerrarModalTrasCompletar = useEffectEvent(cerrarModalLimpiamente)
+
+  useEffect(() => {
+    if (open && cuentasImputables.length === 0) {
+      fetchCuentasImputables();
+    }
+  }, [open, fetchCuentasImputables, cuentasImputables.length]);
+
+  useEffect(() => {
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (cancelled) return
+
+      if (isPolling) {
+        setOpen(true)
+        setIsSubmitted(true)
+      } else {
+        setShowConfirmCancel(false)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isPolling])
+
+  useEffect(() => {
+    if (isSubmitted && !isPolling && !isLoading && !errorMsg && !xrayData) {
+        cerrarModalTrasCompletar()
+    }
+  }, [isPolling, isLoading, errorMsg, isSubmitted, xrayData])
 
   const executeForceCancel = async () => {
     if (onCancelProcess) {
@@ -130,7 +142,7 @@ export function ImportarExtractoModal({
 
             if (cachedMap) {
                 try { setDynamicMapping(JSON.parse(cachedMap)); }
-                catch(e) { setDynamicMapping(result.analysis.inferred_mapping); }
+                catch { setDynamicMapping(result.analysis.inferred_mapping); }
             } else {
                 setDynamicMapping(result.analysis.inferred_mapping)
             }

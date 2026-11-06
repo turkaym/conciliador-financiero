@@ -1,4 +1,4 @@
-import { fetchWithBackoff, throttle } from '@/lib/resilience';
+import { fetchWithBackoff } from '@/lib/resilience';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import api from '@/api/axios';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -39,9 +39,28 @@ export interface TaskProgressEvent {
   status: 'PENDING' | 'STARTED' | 'PROCESSING' | 'SUCCESS' | 'FAILURE' | 'REVOKED';
   progress?: number;
   message?: string;
-  result?: any;
+  result?: TaskProgressData;
   error?: string;
-  meta?: any;
+  meta?: TaskProgressData;
+}
+
+interface TaskProgressData {
+  progress?: number;
+  message?: string;
+  insertados?: number;
+}
+
+interface PresignedUploadResponse {
+  upload_url: string;
+  form_fields: Record<string, string>;
+  object_name: string;
+}
+
+interface ResolutionPayload {
+  registro_id: number;
+  tipo_registro: "MOVIMIENTO" | "SOLICITUD";
+  accion: 'aprobar' | 'rechazar';
+  motivo_rechazo?: string;
 }
 
 export const useBancos = () => {
@@ -63,17 +82,27 @@ export const useBancos = () => {
   const entidadId = entidadActiva?.id;
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const scheduleTimeout = useCallback((callback: () => void, delay: number) => {
+    const timeoutId = setTimeout(() => {
+      retryTimeoutsRef.current.delete(timeoutId);
+      callback();
+    }, delay);
+    retryTimeoutsRef.current.add(timeoutId);
+  }, []);
 
   useEffect(() => {
+    const retryTimeouts = retryTimeoutsRef.current;
     return () => {
-      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      retryTimeouts.forEach(clearTimeout);
+      retryTimeouts.clear();
       if (eventSourceRef.current) {
          eventSourceRef.current.close();
          eventSourceRef.current = null;
       }
     };
-  }, []);
+  }, [entidadId]);
 
   const showMessage = useCallback((text: string, type: 'success' | 'error') => {
     setGlobalMessage({ text, type });
@@ -108,24 +137,26 @@ export const useBancos = () => {
   // ==========================================
 
   // 🌟 FIX TIPADO: Desechamos el 'any'
-  const handleProgressUpdate = useCallback(
-    throttle((data: { progress: number; message: string }, cuentaId?: string | number) => {
-      if (cuentaId && data.progress !== undefined) {
-        setCuentas(prev => prev.map(c =>
-          c.id === Number(cuentaId)
-            ? { ...c, progress: data.progress, status_msg: data.message }
-            : c
-        ));
-      }
-    }, 250),
-    []
-  );
+  const lastProgressUpdateRef = useRef(0);
+  const handleProgressUpdate = useCallback((data: { progress: number; message: string }, cuentaId?: string | number) => {
+    const now = Date.now();
+    if (now - lastProgressUpdateRef.current < 250) return;
+    lastProgressUpdateRef.current = now;
+
+    if (cuentaId && data.progress !== undefined) {
+      setCuentas(prev => prev.map(c =>
+        c.id === Number(cuentaId)
+          ? { ...c, progress: data.progress, status_msg: data.message }
+          : c
+      ));
+    }
+  }, []);
 
   // 🌟 FIX REDES (PASO 8): Exponential Backoff inyectado nativamente
   const listenToTaskStream = useCallback(async (taskId: string, cuentaId?: string | number, retryCount: number = 0) => {
     setIsPolling(true);
     try {
-      const authRes = await api.post('/v1/auth/sse-token');
+      const authRes = await api.post<{ sse_token: string }>('/v1/auth/sse-token');
       const sseToken = authRes.data.sse_token;
       const baseURL = api.defaults.baseURL || "http://localhost:80";
 
@@ -196,7 +227,7 @@ export const useBancos = () => {
         if (retryCount < 4) {
            const timeout = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s, 8s
            console.warn(`⚠️ Microcorte SSE. Reconectando en ${timeout}ms... (Intento ${retryCount + 1}/4)`);
-           setTimeout(() => listenToTaskStream(taskId, cuentaId, retryCount + 1), timeout);
+           scheduleTimeout(() => listenToTaskStream(taskId, cuentaId, retryCount + 1), timeout);
         } else {
            setIsPolling(false);
            showMessage('Se perdió la conexión en vivo con el servidor. Revisá la tabla más tarde.', 'error');
@@ -207,7 +238,7 @@ export const useBancos = () => {
       setIsPolling(false);
       showMessage('No se pudo establecer el canal seguro (SSE).', 'error');
     }
-  }, [showMessage, fetchMovimientos, handleProgressUpdate]);
+  }, [showMessage, fetchMovimientos, handleProgressUpdate, scheduleTimeout]);
 
   const uploadToVault = async (file: File): Promise<string> => {
       // 🌟 FIX 1: Defensa contra archivos muertos (0 bytes) creados manualmente por el SO.
@@ -216,7 +247,7 @@ export const useBancos = () => {
       }
 
       const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-      const presignedRes = await api.get(`/v1/ingesta/upload-url`, {
+      const presignedRes = await api.get<PresignedUploadResponse>(`/v1/ingesta/upload-url`, {
         params: { modulo: "bancos", extension: ext }
       });
       const { upload_url, form_fields, object_name } = presignedRes.data;
@@ -268,7 +299,7 @@ export const useBancos = () => {
           params: { object_name: objectName }
       });
       return { objectName, analysis: res.data };
-    } catch(err: any) {
+    } catch(err: unknown) {
       setErrorMovs(`⚠️ ${extractApiError(err, 'Fallo al analizar la estructura del archivo.')}`);
       return null;
     } finally {
@@ -303,13 +334,13 @@ export const useBancos = () => {
           ...c, is_syncing: true, last_task_id: taskId
         } : c));
 
-        setTimeout(() => {
+        scheduleTimeout(() => {
           if (eventSourceRef.current && eventSourceRef.current.readyState !== 2) fetchCuentas();
         }, 15000);
         return true;
       }
       throw new Error("Respuesta inválida del orquestador.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMovs(`⚠️ ${extractApiError(err, 'Fallo crítico al confirmar el procesamiento.')}`);
       return false;
     } finally {
@@ -323,7 +354,7 @@ export const useBancos = () => {
           setErrorMovs(null);
           const objectName = await uploadToVault(file);
           return await confirmarIngesta(cuentaId, cuentaContableId, objectName, parserCode);
-      } catch (err: any) {
+       } catch (err: unknown) {
           setErrorMovs(`⚠️ ${extractApiError(err, 'Fallo crítico al subir el archivo.')}`);
           setIsLoadingMovs(false);
           return false;
@@ -333,7 +364,7 @@ export const useBancos = () => {
   // ==========================================
   // MÉTODOS: CUENTAS Y CREACIÓN
   // ==========================================
-  const fetchCuentas = useCallback(async () => {
+  const fetchCuentas = useCallback(async (onLoaded?: (loadedCuentas: CuentaBancaria[]) => void) => {
     if (!entidadId) return;
     setIsLoadingCuentas(true);
     setErrorCuentas(null);
@@ -345,6 +376,7 @@ export const useBancos = () => {
     try {
       const response = await api.get<CuentaBancaria[]>('/v1/bancos/cuentas');
       setCuentas(response.data);
+      onLoaded?.(response.data);
 
       const cuentaEnProceso = response.data.find(c => c.is_syncing === true && c.last_task_id);
       if (cuentaEnProceso) {
@@ -360,7 +392,7 @@ export const useBancos = () => {
   const fetchProveedoresClearing = useCallback(async () => {
     if (!entidadId) return;
     try {
-      const response = await api.get('/v1/bancos/proveedores-clearing'); // 🌟 FIX: URL corregida para coincidir con el backend
+      const response = await api.get<Array<{ id: number; razon_social: string; cuit: string }>>('/v1/bancos/proveedores-clearing'); // 🌟 FIX: URL corregida para coincidir con el backend
       setProveedoresClearing(response.data);
     } catch (err) {
       console.error("No se pudieron cargar los proveedores", err);
@@ -423,7 +455,7 @@ export const useBancos = () => {
       const idempotencyKey = crypto.randomUUID();
 
       // 🌟 FIX FASE 2.2: Payload estructurado estricto (Desacople de URL)
-      const payload: any = {
+      const payload: ResolutionPayload = {
         registro_id: registroId,
         tipo_registro: tipoRegistro,
         accion
@@ -442,7 +474,7 @@ export const useBancos = () => {
 
       showMessage(`Transacción ${accion === 'aprobar' ? 'aprobada' : 'rechazada'} exitosamente.`, "success");
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       setErrorMovs(`⚠️ ${extractApiError(err, 'Fallo al procesar la autorización.')}`);
       return false;
     } finally {
@@ -473,7 +505,7 @@ export const useBancos = () => {
       setCuentas(prev => prev.map(c => c.id === Number(cuentaId) ? { ...c, is_syncing: false } : c));
       showMessage("Ingesta abortada. Cambios revertidos por seguridad.", "success");
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Si falla la red, el spinner sigue girando para no desincronizar la UI con la realidad
       showMessage(extractApiError(err, 'No se pudo abortar el proceso en el motor.'), "error");
       return false;

@@ -1,13 +1,41 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "@/api/axios";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Users, Search, Building2, Landmark, AlertTriangle, ShieldCheck, Edit, Plus, Loader2, X } from "lucide-react";
 import { toast } from "react-toastify";
+import { extractApiError } from "@/lib/utils";
+
+type CondicionFiscal = 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTO' | 'EXENTO' | 'CONSUMIDOR_FINAL' | 'NO_CATEGORIZADO';
+
+interface Proveedor {
+  id: number;
+  razon_social: string;
+  cuit: string;
+  cbu: string | null;
+  is_proveedor: boolean;
+  is_cliente: boolean;
+  is_entidad_financiera: boolean;
+  condicion_fiscal: CondicionFiscal;
+  is_active: boolean;
+}
+
+interface ProveedorForm {
+  cuit: string;
+  razon_social: string;
+  cbu: string;
+  condicion_fiscal: CondicionFiscal;
+  is_entidad_financiera: boolean;
+}
+
+function isCondicionFiscal(value: string): value is CondicionFiscal {
+  return value === 'RESPONSABLE_INSCRIPTO' || value === 'MONOTRIBUTO' || value === 'EXENTO' ||
+    value === 'CONSUMIDOR_FINAL' || value === 'NO_CATEGORIZADO';
+}
 
 export default function ProveedoresPage() {
-  const entidadActiva = useAuthStore((state: any) => state.entidadActiva);
+  const entidadActiva = useAuthStore((state) => state.entidadActiva);
 
-  const [proveedores, setProveedores] = useState<any[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -17,7 +45,7 @@ export default function ProveedoresPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   // 🌟 FIX: Se agregó is_entidad_financiera al estado inicial
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProveedorForm>({
     cuit: "",
     razon_social: "",
     cbu: "",
@@ -25,24 +53,24 @@ export default function ProveedoresPage() {
     is_entidad_financiera: false
   });
 
-  const fetchProveedores = async () => {
+  const fetchProveedores = useCallback(async () => {
     if (!entidadActiva?.id) return;
     setIsLoading(true);
     try {
-      const { data } = await api.get('/v1/pagos/proveedores', { headers: { 'x-entity-id': entidadActiva.id }});
+      const { data } = await api.get<Proveedor[]>('/v1/pagos/proveedores', { headers: { 'x-entity-id': entidadActiva.id }});
       setProveedores(data);
-    } catch (error) {
+    } catch {
       toast.error("Error al cargar el directorio de proveedores.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchProveedores();
   }, [entidadActiva?.id]);
 
-  const handleOpenModal = (prov: any = null) => {
+  useEffect(() => {
+    void fetchProveedores();
+  }, [fetchProveedores]);
+
+  const handleOpenModal = (prov: Proveedor | null = null) => {
     if (prov) {
       setEditingId(prov.id);
       setFormData({
@@ -63,6 +91,12 @@ export default function ProveedoresPage() {
       });
     }
     setIsModalOpen(true);
+  };
+
+  const handleCondicionFiscalChange = (value: string) => {
+    if (isCondicionFiscal(value)) {
+      setFormData({ ...formData, condicion_fiscal: value });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,8 +133,8 @@ export default function ProveedoresPage() {
 
       setIsModalOpen(false);
       fetchProveedores();
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || "Fallo al guardar el proveedor.");
+    } catch (error: unknown) {
+      toast.error(extractApiError(error, "Fallo al guardar el proveedor."));
     } finally {
       setIsSubmitting(false);
     }
@@ -231,7 +265,7 @@ export default function ProveedoresPage() {
                 </div>
                 <div className="space-y-1.5 col-span-2 sm:col-span-1">
                   <label className="text-xs font-bold text-slate-500 uppercase">Condición Fiscal *</label>
-                  <select required className="w-full h-10 px-3 rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" value={formData.condicion_fiscal} onChange={e => setFormData({...formData, condicion_fiscal: e.target.value})}>
+                  <select required className="w-full h-10 px-3 rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" value={formData.condicion_fiscal} onChange={e => handleCondicionFiscalChange(e.target.value)}>
                     <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
                     <option value="MONOTRIBUTO">Monotributo</option>
                     <option value="EXENTO">Exento</option>

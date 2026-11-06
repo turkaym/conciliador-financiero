@@ -49,7 +49,7 @@ def aprender_regla(db: Session, concepto: str, cbte: Comprobante, entidad_id: in
             cuit_asociado=cbte.cuit_receptor,
             tipo_cbte_asociado=cbte.tipo_cbte_afip,
             frecuencia_uso=1,
-            entity_id=entidad_id
+            entidad_id=entidad_id
         )
         db.add(nueva_regla)
 
