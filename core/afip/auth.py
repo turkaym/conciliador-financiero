@@ -33,7 +33,7 @@ class TokenData(BaseModel):
     sign: str
     generation_time: datetime
     expiration_time: datetime
-
+    
     def is_valid(self, buffer_seconds=600) -> bool:
         # Buffer de seguridad: Consideramos inválido el token 10 mins antes de que muera
         now = datetime.now(timezone.utc)
@@ -47,15 +47,15 @@ class AfipAuthManager:
         self.crt_content = crt_content
         self.encrypted_key = encrypted_key
         self.environment = environment
-
+        
         # Sesión HTTP reutilizable (Context Manager)
         self.http_session = requests.Session()
-
+        
         if self.environment == "prod":
             self.wsaa_url = "https://wsaa.afip.gov.ar/ws/services/LoginCms"
         else:
             self.wsaa_url = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"
-
+            
         self.service = "wsfe"
 
     def __enter__(self):
@@ -67,7 +67,7 @@ class AfipAuthManager:
     def get_token(self, cuit: str, force_refresh: bool = False) -> TokenData:
         cache_key = f"afip:auth:{cuit}:{self.service}:{self.environment}"
         lock_key = f"{cache_key}:lock"
-
+        
         if not force_refresh:
             cached_json = self.redis.get(cache_key)
             if cached_json:
@@ -82,32 +82,32 @@ class AfipAuthManager:
         # Lock Distribuido Atómico con UUID
         lock_id = str(uuid.uuid4())
         retries = 0
-
+        
         while retries < 5:
             # Intentamos adquirir el lock (TTL 60s)
             if self.redis.set(lock_key, lock_id, nx=True, ex=60):
                 try:
                     logger.info(f"🚀 [WSAA] Negociando nuevo token criptográfico para {cuit}...")
                     new_token = self._perform_auth_handshake()
-
+                    
                     ttl = int((new_token.expiration_time - datetime.now(timezone.utc)).total_seconds())
                     if ttl > 0:
                         self.redis.setex(cache_key, ttl, new_token.model_dump_json())
                         logger.info(f"💾 [REDIS] Token AFIP persistido. Expira en {ttl}s")
-
+                    
                     return new_token
                 finally:
                     self.redis.eval(LUA_RELEASE_LOCK, 1, lock_key, lock_id)
             else:
                 logger.info(f"⏳ [WSAA] Otro proceso está obteniendo el token para {cuit}. Esperando...")
                 time.sleep(2 ** retries) # Exponential Backoff
-
+                
                 if not force_refresh:
                     cached_json = self.redis.get(cache_key)
                     if cached_json:
                         token_data = TokenData.model_validate_json(cached_json)
                         if token_data.is_valid(): return token_data
-
+                    
             retries += 1
 
         raise RuntimeError(f"Tiempo de espera agotado solicitando token AFIP para {cuit}")
@@ -121,13 +121,13 @@ class AfipAuthManager:
         unique_id = str(int(time.time()))
         tz_arg = timezone(timedelta(hours=-3)) # AFIP requiere hora Argentina
         now = datetime.now(tz_arg)
-
+        
         gen_time = now - timedelta(minutes=5)
         exp_time = now + timedelta(minutes=5)
-
+        
         gen_str = gen_time.strftime('%Y-%m-%dT%H:%M:%S-03:00')
         exp_str = exp_time.strftime('%Y-%m-%dT%H:%M:%S-03:00')
-
+        
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <loginTicketRequest version="1.0">
     <header>
@@ -137,7 +137,7 @@ class AfipAuthManager:
     </header>
     <service>{self.service}</service>
 </loginTicketRequest>"""
-
+        
         return xml.encode('utf-8')
 
     def _sign_tra_in_memory(self, xml_data: bytes) -> str:
@@ -157,10 +157,10 @@ class AfipAuthManager:
 
             builder = pkcs7.PKCS7SignatureBuilder().set_data(xml_data)
             builder = builder.add_signer(cert, private_key, SHA256())
-
+            
             cms_bytes = builder.sign(serialization.Encoding.DER, [])
             return base64.b64encode(cms_bytes).decode('utf-8')
-
+            
         except Exception as e:
             logger.error(f"Error criptográfico en memoria: {str(e)}")
             raise RuntimeError("Fallo en firma digital CMS In-Memory para AFIP.")
@@ -175,26 +175,26 @@ class AfipAuthManager:
       </wsaa:loginCms>
    </soapenv:Body>
 </soapenv:Envelope>"""
-
+        
         headers = {'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': ''}
-
+        
         try:
             response = self.http_session.post(self.wsaa_url, data=envelope, headers=headers, timeout=20)
             if response.status_code == 500:
                 logger.error(f"❌ Rechazo de Negocio ARCA (SOAP Fault): {response.text}")
-
-            # 🌟 FIX: SOAP usa HTTP 500 para errores de validación. No cortamos la ejecución si es 500,
+            
+            # 🌟 FIX: SOAP usa HTTP 500 para errores de validación. No cortamos la ejecución si es 500, 
             # dejamos que el parseador XML extraiga el 'faultstring'.
             if response.status_code not in (200, 500):
                 response.raise_for_status()
-
+                
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"Falla de conectividad en túnel ARCA: {str(e)}")
 
         try:
             secure_parser = etree.XMLParser(resolve_entities=False, no_network=True)
             root = etree.fromstring(response.content, parser=secure_parser)
-
+            
             fault = root.xpath('//*[local-name()="faultstring"]')
             if fault:
                 # 🌟 Acá capturamos el mensaje exacto (ej: "Certificado no emitido por AC de confianza")
@@ -206,11 +206,11 @@ class AfipAuthManager:
 
             ticket_xml = login_return_node[0].text
             ticket_root = etree.fromstring(ticket_xml.encode('utf-8'), parser=secure_parser)
-
+            
             token = ticket_root.xpath('//*[local-name()="token"]')[0].text
             sign = ticket_root.xpath('//*[local-name()="sign"]')[0].text
             expiration_str = ticket_root.xpath('//*[local-name()="expirationTime"]')[0].text
-
+            
             expiration_dt = datetime.fromisoformat(expiration_str)
 
             logger.info("🟢 Cripto-Ticket de acceso WSAA obtenido con éxito.")
@@ -220,7 +220,7 @@ class AfipAuthManager:
                 generation_time=datetime.now(timezone.utc),
                 expiration_time=expiration_dt
             )
-
+            
         except etree.XMLSyntaxError as xml_err:
             logger.error(f"❌ Fallo de sintaxis XML (ARCA devolvió HTML/Basura): {xml_err}")
             raise RuntimeError(f"Corrupción en payload de respuesta de ARCA.")

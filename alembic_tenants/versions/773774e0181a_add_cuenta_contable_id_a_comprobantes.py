@@ -24,22 +24,22 @@ def upgrade() -> None:
 
     # 1. Agregamos la columna de forma segura
     op.execute(f"""
-        ALTER TABLE {target_schema}.comprobantes
+        ALTER TABLE {target_schema}.comprobantes 
         ADD COLUMN IF NOT EXISTS cuenta_contable_id INTEGER;
     """)
-
+    
     # 2. Agregamos la Foreign Key con un bloque DO para garantizar idempotencia,
     # ya que PostgreSQL no soporta "ADD CONSTRAINT IF NOT EXISTS" directamente.
     op.execute(f"""
         DO $$
         BEGIN
             IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint
-                WHERE conname = 'fk_comprobantes_cuenta_contable'
+                SELECT 1 FROM pg_constraint 
+                WHERE conname = 'fk_comprobantes_cuenta_contable' 
                 AND connamespace = '{target_schema}'::regnamespace
             ) THEN
-                ALTER TABLE {target_schema}.comprobantes
-                ADD CONSTRAINT fk_comprobantes_cuenta_contable
+                ALTER TABLE {target_schema}.comprobantes 
+                ADD CONSTRAINT fk_comprobantes_cuenta_contable 
                 FOREIGN KEY (cuenta_contable_id) REFERENCES {target_schema}.plan_cuentas (id);
             END IF;
         END
@@ -53,11 +53,11 @@ def downgrade() -> None:
 
     # Reversión Defensiva: Primero eliminamos la restricción, luego la columna
     op.execute(f"""
-        ALTER TABLE {target_schema}.comprobantes
+        ALTER TABLE {target_schema}.comprobantes 
         DROP CONSTRAINT IF EXISTS fk_comprobantes_cuenta_contable;
     """)
-
+    
     op.execute(f"""
-        ALTER TABLE {target_schema}.comprobantes
+        ALTER TABLE {target_schema}.comprobantes 
         DROP COLUMN IF EXISTS cuenta_contable_id;
     """)

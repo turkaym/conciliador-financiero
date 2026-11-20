@@ -1,25 +1,20 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import api from '@/api/axios';
 import { extractApiError } from '@/lib/utils';
-import { fetchWithBackoff } from '@/lib/resilience';
+import { fetchWithBackoff, throttle } from '@/lib/resilience';
 import { useAuthStore } from '@/store/useAuthStore';
-import type { AxiosResponse } from 'axios';
 
 export interface HistorialIngesta {
   id: number;
   jurisdiccion: string;
   periodo: string;
   nombre_archivo: string;
-  estado: 'PROCESANDO' | 'EXITO' | 'FALLO';
+  estado: string;
   registros_insertados: number;
   mensaje_error?: string;
-  tarea_celery_id: string | null;
+  tarea_celery_id?: string;
   iniciado_el: string;
-  finalizado_el: string | null;
-}
-
-interface HistorialIngestaResponse extends Omit<HistorialIngesta, 'mensaje_error'> {
-  mensaje_error: string | null;
+  finalizado_el?: string;
 }
 
 export interface PadronFiscalInfo {
@@ -28,55 +23,19 @@ export interface PadronFiscalInfo {
   periodo: string;
   alicuota_retencion: number;
   alicuota_percepcion: number;
-  coeficiente_riesgo: number | null;
+  coeficiente_riesgo?: number;
 }
 
-interface MultipartPart {
-  part_number: number;
-  object_name: string;
-  upload_url: string;
-}
-
-interface MultipartUploadPlan {
-  final_object_name: string;
-  parts: MultipartPart[];
-}
-
-interface PresignedUpload {
-  upload_url: string;
-  form_fields: Record<string, string>;
-  object_name: string;
-}
-
-interface IngestionAccepted {
-  status: 'ACCEPTED';
-  task_id: string;
-  message: string;
-}
-
-interface SseTokenResponse {
-  sse_token: string;
-}
-
-interface RegistryTaskStatus {
-  task_id: string;
-  status: 'PENDING' | 'STARTED' | 'PROCESSING' | 'SUCCESS' | 'FAILURE' | 'REVOKED';
-  progress?: number;
-  message?: string;
-  result?: { status: 'success'; insertados: number };
-  error?: string;
-}
-
-const asyncPool = async <Item, Result>(poolLimit: number, array: Item[], iteratorFn: (item: Item) => Promise<Result>) => {
-  const ret: Promise<Result>[] = [];
-  const executing = new Set<Promise<Result>>();
+const asyncPool = async (poolLimit: number, array: any[], iteratorFn: (item: any) => Promise<any>) => {
+  const ret: Promise<any>[] = [];
+  const executing: Promise<any>[] = [];
   for (const item of array) {
     const p = Promise.resolve().then(() => iteratorFn(item));
     ret.push(p);
     if (poolLimit <= array.length) {
-      executing.add(p);
-      void p.finally(() => executing.delete(p));
-      if (executing.size >= poolLimit) {
+      const e: Promise<any> = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= poolLimit) {
         await Promise.race(executing);
       }
     }
@@ -111,21 +70,18 @@ export const usePadrones = () => {
 
   const showMessage = useCallback((text: string, type: 'success' | 'error') => {
     setGlobalMessage({ text, type });
-    setTimeout(() => setGlobalMessage(null), 5000);
+    setTimeout(() => setGlobalMessage(null), 5000); 
   }, []);
 
   const fetchHistorial = useCallback(async () => {
     if (!entidadActiva?.id) return;
     setIsFetchingHistorial(true);
     try {
-      const res = await api.get<HistorialIngestaResponse[]>('/v1/padrones/historial', {
+      const res = await api.get('/v1/padrones/historial', {
         headers: { 'x-entity-id': entidadActiva.id }
       });
-      setHistorial(res.data.map((row) => ({
-        ...row,
-        mensaje_error: row.mensaje_error ?? undefined
-      })));
-    } catch {
+      setHistorial(res.data);
+    } catch (err: any) {
       showMessage("No se pudo sincronizar el monitor de ingestas.", "error");
     } finally {
       setIsFetchingHistorial(false);
@@ -137,40 +93,39 @@ export const usePadrones = () => {
     setIsSearching(true);
     setSearchResult(null);
     try {
-      const res = await api.get<PadronFiscalInfo>(`/v1/padrones/consulta/${cuit}`, {
+      const res = await api.get(`/v1/padrones/consulta/${cuit}`, {
         params: { jurisdiccion, periodo },
         headers: { 'x-entity-id': entidadActiva.id }
       });
       setSearchResult(res.data);
       showMessage("Registro fiscal encontrado en base de datos.", "success");
-    } catch (err: unknown) {
-      const msg = extractApiError(err, "CUIT no encontrado en el padrón especificado.");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "CUIT no encontrado en el padrón especificado.";
       showMessage(msg, "error");
     } finally {
       setIsSearching(false);
     }
   };
 
-  const lastProgressUpdateRef = useRef(0);
-  const handleProgressUpdate = useCallback((data: RegistryTaskStatus) => {
-    const now = Date.now();
-    if (now - lastProgressUpdateRef.current < 250) return;
-    lastProgressUpdateRef.current = now;
-    setProgress(data.progress || 0);
-    setStatusMsg(data.message || 'Procesando...');
-  }, []);
+  const handleProgressUpdate = useCallback(
+    throttle((data: any) => {
+        setProgress(data.progress || 0);
+        setStatusMsg(data.message || 'Procesando...');
+    }, 250),
+    []
+  );
 
   const listenToTaskStream = useCallback(async (taskId: string) => {
     setIsPolling(true);
     setErrorMsg(null);
     setProgress(100);
     setStatusMsg('Completado');
-
+    
     try {
-      const authRes = await api.post<SseTokenResponse>('/v1/auth/sse-token');
+      const authRes = await api.post('/v1/auth/sse-token');
       const sseToken = authRes.data.sse_token;
       const baseURL = api.defaults.baseURL || "http://localhost:80";
-
+      
       if (eventSourceRef.current) {
           eventSourceRef.current.close();
       }
@@ -179,13 +134,13 @@ export const usePadrones = () => {
 
       eventSourceRef.current.onmessage = (event) => {
         if (event.data === "heartbeat") return;
-        const data: RegistryTaskStatus = JSON.parse(event.data);
-
+        const data = JSON.parse(event.data);
+        
         if (data.status === 'PROCESSING') {
           handleProgressUpdate(data);
           return;
         }
-
+        
         if (data.status === 'SUCCESS') {
           if (eventSourceRef.current) {
               eventSourceRef.current.close();
@@ -194,8 +149,8 @@ export const usePadrones = () => {
           setIsPolling(false);
           const insertados = data.result?.insertados;
           showMessage(`Proceso completado: ${insertados} registros normalizados.`, "success");
-          fetchHistorial();
-
+          fetchHistorial(); 
+          
         } else if (data.status === 'FAILURE' || data.status === 'REVOKED') {
           if (eventSourceRef.current) {
               eventSourceRef.current.close();
@@ -205,14 +160,14 @@ export const usePadrones = () => {
           setStatusMsg('');
           setIsPolling(false);
           const mensajeError = data.error || 'Fallo inesperado';
-
+          
           if (data.status === 'REVOKED' || mensajeError.toLowerCase().includes('terminated')) {
              setErrorMsg(`🛑 Cancelado: El proceso fue detenido.`);
           } else {
              setErrorMsg(`⚠️ Rechazado: ${mensajeError}`);
              showMessage(mensajeError, "error");
           }
-          fetchHistorial();
+          fetchHistorial(); 
         }
       };
 
@@ -223,7 +178,7 @@ export const usePadrones = () => {
         }
         setIsPolling(false);
         showMessage('Interrupción de red en el seguimiento en vivo.', 'error');
-        fetchHistorial();
+        fetchHistorial(); 
       };
 
     } catch (error) {
@@ -232,47 +187,46 @@ export const usePadrones = () => {
     }
   }, [showMessage, handleProgressUpdate, fetchHistorial]);
 
-  const uploadPadron = async (jurisdiccion: string, periodo: string, file: File): Promise<boolean> => {
-    if (!entidadActiva?.id) return false;
+  const uploadPadron = async (jurisdiccion: string, periodo: string, file: File) => {
     setIsLoading(true);
     setErrorMsg(null);
 
     const periodoNormalizado = periodo.replace("-", "");
-
+    
     try {
       const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
       const fileSizeMB = file.size / (1024 * 1024);
-      const isMultipart = fileSizeMB > 20;
+      const isMultipart = fileSizeMB > 20; 
 
       if (isMultipart) {
         const CHUNK_SIZE = 5 * 1024 * 1024;
         const totalParts = Math.ceil(file.size / CHUNK_SIZE);
-
+        
         showMessage(`Preparando subida de archivo masivo (${fileSizeMB.toFixed(1)}MB en ${totalParts} partes)...`, "success");
 
-        const initRes: AxiosResponse<MultipartUploadPlan> = await fetchWithBackoff(`/v1/ingesta/multipart/urls`, {
+        const initRes = await fetchWithBackoff(`/v1/ingesta/multipart/urls`, {
            modulo: "padrones",
            extension: ext,
            total_parts: totalParts
         });
-
+        
         const { final_object_name, parts } = initRes.data;
 
         let partsUploaded = 0;
-        const uploadTask = async (partInfo: MultipartPart) => {
+        const uploadTask = async (partInfo: any) => {
            const start = (partInfo.part_number - 1) * CHUNK_SIZE;
            const end = Math.min(start + CHUNK_SIZE, file.size);
            const chunk = new Blob([file.slice(start, end)]);
-
+           
            const res = await fetch(partInfo.upload_url, {
              method: 'PUT',
              body: chunk
            });
-
+           
            if (!res.ok) {
                throw new Error(`Fallo al subir el fragmento ${partInfo.part_number}`);
            }
-
+           
            partsUploaded++;
            return partInfo.object_name;
         };
@@ -281,12 +235,12 @@ export const usePadrones = () => {
 
         showMessage("Ensamblando partes en el servidor...", "success");
 
-        const confirmRes: AxiosResponse<IngestionAccepted> = await fetchWithBackoff(`/v1/padrones/ingesta/multipart/confirm`, {
+        const confirmRes = await fetchWithBackoff(`/v1/padrones/ingesta/multipart/confirm`, {
            jurisdiccion: jurisdiccion,
            periodo: periodoNormalizado,
            final_object_name: final_object_name,
            source_objects: sourceObjects
-         }, { headers: { 'x-entity-id': entidadActiva.id } });
+        }, { headers: { 'x-entity-id': entidadActiva?.id } });
 
         if (confirmRes && (confirmRes.status === 202 || confirmRes.data?.task_id)) {
            showMessage("Padrón consolidado y encolado.", "success");
@@ -295,10 +249,8 @@ export const usePadrones = () => {
            return true;
         }
 
-        throw new Error("Respuesta inusual del orquestador multipart.");
-
       } else {
-        const presignedRes = await api.get<PresignedUpload>(`/v1/ingesta/upload-url`, {
+        const presignedRes = await api.get(`/v1/ingesta/upload-url`, {
           params: { modulo: "padrones", extension: ext }
         });
         const { upload_url, form_fields, object_name } = presignedRes.data;
@@ -311,7 +263,7 @@ export const usePadrones = () => {
         minioFormData.append("file", file);
 
         const minioRes = await fetch(upload_url, { method: "POST", body: minioFormData });
-
+        
         if (!minioRes.ok) {
             throw new Error("El Vault de seguridad rechazó el archivo.");
         }
@@ -321,38 +273,38 @@ export const usePadrones = () => {
         confirmFormData.append("jurisdiccion", jurisdiccion);
         confirmFormData.append("periodo", periodoNormalizado);
 
-        const confirmRes = await api.post<IngestionAccepted>(`/v1/padrones/ingesta/confirm`, confirmFormData, {
-          headers: {
-            'x-entity-id': entidadActiva.id,
+        const confirmRes = await api.post(`/v1/padrones/ingesta/confirm`, confirmFormData, { 
+          headers: { 
+            'x-entity-id': entidadActiva?.id,
             'Content-Type': 'multipart/form-data'
-          }
+          } 
         });
 
         if (confirmRes && (confirmRes.status === 202 || confirmRes.data?.task_id)) {
           showMessage("Padrón encolado. Iniciando normalización...", "success");
-          fetchHistorial();
+          fetchHistorial(); 
           listenToTaskStream(confirmRes.data.task_id);
           return true;
         }
-
+        
         throw new Error(`Respuesta inusual del orquestador: HTTP ${confirmRes?.status}`);
       }
-
-    } catch (err: unknown) {
+      
+    } catch (err: any) {
       setErrorMsg(`⚠️ ${extractApiError(err, 'Fallo crítico al subir el padrón.')}`);
-      fetchHistorial();
+      fetchHistorial(); 
       return false;
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); 
     }
   };
 
   return {
-    isLoading,
-    isPolling,
-    progress,
-    statusMsg,
-    errorMsg,
+    isLoading, 
+    isPolling, 
+    progress,       
+    statusMsg,      
+    errorMsg, 
     globalMessage,
     historial,
     isFetchingHistorial,

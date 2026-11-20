@@ -14,10 +14,10 @@ interface ApiErrorResponse {
 }
 
 export default function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true)
+  const [isLogin, setIsLogin] = useState(true) 
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-
+  
   const [companyName, setCompanyName] = useState("")
   const [cuit, setCuit] = useState("")
 
@@ -36,27 +36,27 @@ export default function LoginPage() {
 
     // 🌟 SANITIZACIÓN CRÍTICA: Eliminamos espacios accidentales del email y la contraseña
     const sanitizedEmail = username.trim().toLowerCase().replace(/\s/g, '');
-    const sanitizedPassword = password.trim();
+    const sanitizedPassword = password.trim(); 
 
     if (isLogin) {
       // ================= FLUJO DE LOGIN =================
       try {
         const formData = new URLSearchParams()
-        formData.append("username", sanitizedEmail)
+        formData.append("username", sanitizedEmail) 
         formData.append("password", sanitizedPassword) // Inyección sanitizada
 
         const response = await api.post("/v1/auth/login", formData, {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
         })
-
+        
         const { access_token, tenant_id, user, features } = response.data
         setAuth(access_token, tenant_id, user, features)
         navigate("/dashboard")
-
+        
       } catch (err) {
         const error = err as AxiosError<ApiErrorResponse>;
         const status = error.response?.status;
-
+        
         if (status === 422) {
           setErrorMsg("Formato de envío no reconocido.");
         } else if (status === 401) {
@@ -85,7 +85,7 @@ export default function LoginPage() {
           company_name: companyName.trim(),
           cuit: cuit.trim()
         })
-
+        
         // 🌟 FIX: Enviamos email Y password sanitizados en memoria al OTP
         setSuccessMsg("¡Cuenta creada! Redirigiendo para activación...")
         setTimeout(() => {
@@ -117,7 +117,7 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-slate-50 p-4">
       <div className="w-full max-w-md">
-
+        
         <div className="mx-auto w-16 h-16 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg mb-6">
           <ShieldCheck className="h-10 w-10 text-white" />
         </div>
@@ -128,7 +128,7 @@ export default function LoginPage() {
               {isLogin ? 'Bienvenido' : 'Crear Cuenta'}
             </CardTitle>
             <CardDescription>
-              {isLogin
+              {isLogin 
                 ? <>Ingresá tus credenciales de <strong>htsolution.org</strong></>
                 : 'Registrá tu empresa para acceder al panel'
               }
@@ -137,7 +137,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit}>
             <CardContent className="grid gap-4">
-
+              
               {errorMsg && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-start text-sm animate-in fade-in slide-in-from-top-2">
                   <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
@@ -159,10 +159,10 @@ export default function LoginPage() {
                       <Building2 className="w-4 h-4 text-slate-500" />
                       Razón Social
                     </Label>
-                    <Input
-                      id="companyName"
-                      type="text"
-                      placeholder="Empresa S.A."
+                    <Input 
+                      id="companyName" 
+                      type="text" 
+                      placeholder="Empresa S.A." 
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
                       required={!isLogin}
@@ -175,10 +175,10 @@ export default function LoginPage() {
                       <FileText className="w-4 h-4 text-slate-500" />
                       CUIT
                     </Label>
-                    <Input
-                      id="cuit"
-                      type="text"
-                      placeholder="30123456789"
+                    <Input 
+                      id="cuit" 
+                      type="text" 
+                      placeholder="30123456789" 
                       value={cuit}
                       onChange={(e) => setCuit(e.target.value)}
                       required={!isLogin}
@@ -192,11 +192,11 @@ export default function LoginPage() {
 
               <div className="grid gap-2">
                 <Label htmlFor="username">Correo Electrónico</Label>
-                <Input
-                  id="username"
-                  type="email"
+                <Input 
+                  id="username" 
+                  type="email" 
                   autoComplete="username" // 🌟 FIX DOM: Resuelve la alerta del navegador
-                  placeholder="admin@htsolution.org"
+                  placeholder="admin@htsolution.org" 
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -205,11 +205,11 @@ export default function LoginPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
+                <Input 
+                  id="password" 
                   type="password"
                   // 🌟 FIX 360 (Gestores de Contraseñas): Diferenciamos login de registro
-                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  autoComplete={isLogin ? "current-password" : "new-password"} 
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -218,11 +218,11 @@ export default function LoginPage() {
                 />
               </div>
             </CardContent>
-
+            
             <CardFooter className="flex flex-col gap-4">
-              <Button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 transition-all shadow-md active:scale-[0.98]"
+              <Button 
+                type="submit" 
+                className="w-full bg-indigo-600 hover:bg-indigo-700 transition-all shadow-md active:scale-[0.98]" 
                 disabled={loading}
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

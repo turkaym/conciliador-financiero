@@ -13,7 +13,7 @@ class DLQTask(Task):
         try:
             from core.database.models_master import Tenant
             tenant = master_db.query(Tenant).filter(
-                Tenant.schema_name == tenant_id,
+                Tenant.schema_name == tenant_id, 
                 Tenant.is_active == True
             ).first()
             if not tenant:
@@ -31,16 +31,16 @@ class DLQTask(Task):
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         exc_str = str(exc)
-
+        
         if "[PARSING_ERROR]" in exc_str or "[BUSINESS_LOGIC]" in exc_str or "formato esperado" in exc_str:
             logger.warning(f"⚠️ [WORKER] Fallo de Negocio controlado. No va a DLQ: {exc_str}")
-            return
+            return 
 
         logger.critical(f"☠️ [DLQ] Tarea {self.name}[{task_id}] MURIÓ por fallo de sistema. Derivando a Dead Letter Queue...")
-
+        
         tenant_id = kwargs.get('tenant_id')
-        entidad_id = kwargs.get('entidad_id', 1)
-
+        entidad_id = kwargs.get('entidad_id', 1) 
+        
         if not tenant_id and kwargs.get('email'):
             master_db = SessionLocal()
             try:
@@ -60,14 +60,14 @@ class DLQTask(Task):
         # ==========================================
         cantidad_errores = 0
         db_error_msg = ""
-
+        
         if tenant_id:
             try:
                 from core.database.session import tenant_session_ctx
                 from core.database.models_tenant import ColaMensajesMuertos
                 from datetime import datetime, timezone, timedelta
                 from sqlalchemy import func
-
+                
                 with tenant_session_ctx(tenant_id) as db:
                     context_str = f"ARGS: {args}\nKWARGS: {kwargs}\nTRACEBACK: {einfo.traceback}"
                     pv = kwargs.get('punto_venta', 0)
@@ -85,7 +85,7 @@ class DLQTask(Task):
                     db.add(muerto)
                     db.commit()
                     logger.critical(f"🚨 [DLQ_ALERT] MSG_DEAD | Tenant: {tenant_id} | Task: {self.name}")
-
+                    
                     # Cálculo de picos
                     hace_10_minutos = datetime.now(timezone.utc) - timedelta(minutes=10)
                     error_prefix = exc_str[:100]
@@ -93,7 +93,7 @@ class DLQTask(Task):
                         ColaMensajesMuertos.error_msg.like(f"{error_prefix}%"),
                         ColaMensajesMuertos.created_at >= hace_10_minutos
                     ).scalar()
-
+                    
             except Exception as dlq_err:
                 logger.critical(f"☠️ [DLQ] FALLO AL ESCRIBIR EN BD (Tabla faltante o error SQL): {dlq_err}")
                 db_error_msg = f"\n⚠️ *Atención:* No se pudo guardar el error en la base de datos."
@@ -104,13 +104,13 @@ class DLQTask(Task):
         # 2. ALERTA A SLACK (Garantizada)
         # ==========================================
         try:
-            import requests
+            import requests 
             from config.config import settings
-            webhook_url = settings.SLACK_OPERATIONS_WEBHOOK
-
+            webhook_url = settings.SLACK_OPERATIONS_WEBHOOK 
+            
             if webhook_url:
                 spike_warning = "\n🔥 *SPIKE MASIVO DETECTADO*" if cantidad_errores >= 5 else ""
-
+                
                 payload = {
                     "text": f"🚨 *CRITICAL ALERT (DLQ ENTRY)* 🚨\n*Tenant:* `{tenant_id or 'UNKNOWN'}`\n*Task:* `{self.name}`\n*Error:* ```{exc_str}```{spike_warning}{db_error_msg}"
                 }

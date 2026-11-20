@@ -29,28 +29,28 @@ class FeatureUpdateRequest(BaseModel):
 
 @router.get("/", response_model=List[TenantResponse])
 def get_tenants(
-    current_user: CachedUser = Depends(get_current_user),
+    current_user: CachedUser = Depends(get_current_user), 
     db: Session = Depends(get_db_session)
 ):
     """Lista los inquilinos aplicando Aislamiento de Datos (RBAC)."""
     if current_user.role in ["admin", "superadmin"]:
         return TenantManager.list_tenants(db)
-
+    
     tenant = db.query(Tenant).filter(Tenant.id == current_user.tenant.id).first()
     if not tenant:
         raise HTTPException(status_code=404, detail="Inquilino no encontrado.")
-    return [tenant]
+    return [tenant] 
 
 @router.post("/", response_model=TenantResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_admin_god)])
 def create_tenant(
-    tenant_in: TenantCreate,
+    tenant_in: TenantCreate, 
     db: Session = Depends(get_db_session)
 ):
     """Aprovisiona un nuevo inquilino orgánicamente."""
     try:
         return TenantManager.create_tenant(
-            db=db,
-            name=tenant_in.name,
+            db=db, 
+            name=tenant_in.name, 
             cuit=tenant_in.cuit
         )
     except ValueError as e:
@@ -84,21 +84,21 @@ def upload_tenant_certificates(
 
         tenant.afip_certificate = cert_content
         tenant.afip_private_key_encrypted = encrypted_key
-
+        
         db.commit()
         logger.info(f"🔐 Credenciales selladas por API para tenant {tenant.schema_name} por usuario {current_user.email}")
-
+        
         return {"status": "success", "message": "Credenciales KMS selladas exitosamente."}
-
+        
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="El formato de los archivos debe ser texto plano (UTF-8).")
     except Exception as e:
         db.rollback()
         logger.error(f"Fallo criptográfico: {e}")
         raise HTTPException(status_code=500, detail="Fallo interno al procesar los certificados.")
-
+    
 @router.post(
-    "/approve-tenant",
+    "/approve-tenant", 
     status_code=status.HTTP_200_OK,
     summary="Aprobación Zero Trust de nuevos inquilinos",
     dependencies=[Depends(require_superadmin)]
@@ -111,26 +111,26 @@ async def approve_pending_tenant(
 ):
     """Transiciona una cuenta corporativa de PENDING_SUPERADMIN_APPROVAL a ACTIVE."""
     user = db.query(User).filter(User.id == payload.user_id, User.tenant_id == payload.tenant_id).first()
-
+    
     if not user:
         raise HTTPException(status_code=404, detail="Usuario o Empresa no encontrados en la base maestra.")
 
     if getattr(user, 'status', 'ACTIVE') == 'ACTIVE' and user.is_active:
         return {"message": "El inquilino ya se encuentra activo.", "status": "ALREADY_ACTIVE"}
-
+        
     if getattr(user, 'status', 'ACTIVE') != 'PENDING_SUPERADMIN_APPROVAL':
         raise HTTPException(status_code=400, detail=f"El estado actual ({getattr(user, 'status', 'UNKNOWN')}) no permite esta transición.")
 
     try:
         tenant = db.query(Tenant).filter(Tenant.id == payload.tenant_id).first()
         tenant.is_active = True
-
+        
         user.status = 'ACTIVE'
         user.is_active = True
-
+        
         db.commit()
         logger.info(f"🛡️ [GOD MODE] Inquilino {tenant.schema_name} aprobado operativamente por {current_admin.email}")
-
+        
     except Exception as e:
         db.rollback()
         logger.error(f"Fallo crítico al aprobar inquilino en DB: {e}")
@@ -153,8 +153,8 @@ async def approve_pending_tenant(
     }
 
 @router.put(
-    "/{tenant_id}/features",
-    status_code=status.HTTP_200_OK,
+    "/{tenant_id}/features", 
+    status_code=status.HTTP_200_OK, 
     summary="God Mode: Upselling y Control de Cuotas",
     dependencies=[Depends(require_superadmin)]
 )
@@ -170,7 +170,7 @@ def update_tenant_features(
     """
     try:
         tenant = TenantManager.upgrade_plan_and_features(db, tenant_id, payload.features)
-
+        
         return {
             "status": "success",
             "message": "Plan comercial actualizado. La caché de los operadores será purgada en background.",

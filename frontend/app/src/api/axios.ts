@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
-import { toast } from 'react-toastify';
-import type { Capability } from '@/featureFlags';
+import { toast } from 'react-toastify'; 
 
 // Generador robusto de UUID (Fallback para entornos locales sin HTTPS)
 const generateIdempotencyKey = () => {
@@ -13,7 +12,7 @@ const generateIdempotencyKey = () => {
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
-  timeout: 15000,
+  timeout: 15000, 
   headers: {
     'Content-Type': 'application/json',
   },
@@ -29,6 +28,9 @@ api.interceptors.request.use(
     const state = useAuthStore.getState();
     const token = state.token;
     const entidadActiva = state.entidadActiva;
+
+    // Aseguramos la existencia de headers para prevenir fallos en versiones de Axios
+    if (!config.headers) config.headers = {} as any;
 
     if (token) {
       if (config.headers.set) config.headers.set('Authorization', `Bearer ${token}`);
@@ -70,7 +72,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const originalRequest = error.config;
-
+    
     if (error.code === 'ECONNABORTED' || (error.message && error.message.includes('timeout'))) {
       console.error("⏳ [Axios] El servidor tardó demasiado en responder o la red se cayó.");
       toast.error("⏳ Error de Red: El servidor tardó demasiado en responder.");
@@ -84,15 +86,15 @@ api.interceptors.response.use(
 
     const isAuthRoute = originalRequest.url?.includes('/auth/');
     const status = error.response.status;
-
-    const displayDetail = typeof error.response.data?.detail === 'string'
-      ? error.response.data.detail
+    
+    const displayDetail = typeof error.response.data?.detail === 'string' 
+      ? error.response.data.detail 
       : "Ocurrió un error inesperado al procesar la solicitud.";
     const detailLower = displayDetail.toLowerCase();
-
+    
     const isQuotaLimitReached = status === 403 && (
-      detailLower.includes('límite de plan') ||
-      detailLower.includes('limite de plan') ||
+      detailLower.includes('límite de plan') || 
+      detailLower.includes('limite de plan') || 
       detailLower.includes('plan alcanzado')
     );
 
@@ -109,11 +111,11 @@ api.interceptors.response.use(
     if (status === 402) {
       console.warn("🛑 [Paywall] Suscripción inactiva. Levantando el Muro de Vidrio...");
       useAuthStore.getState().setDataLocked(true);
-      return Promise.reject(error);
+      return Promise.reject(error); 
     }
 
-    const isSessionKilled =
-      status === 401 ||
+    const isSessionKilled = 
+      status === 401 || 
       (status === 403 && (detailLower.includes('inactivo') || detailLower.includes('suspendid')));
 
     if (isSessionKilled && !isAuthRoute) {
@@ -143,14 +145,9 @@ api.interceptors.response.use(
           toast.error(`💥 Error Interno del Servidor: ${displayDetail}`);
         }
     }
-
+    
     return Promise.reject(error);
   }
 );
 
 export default api;
-
-export async function fetchCapabilities() {
-  const response = await api.get<Capability[]>('/v1/capabilities');
-  return response.data;
-}

@@ -1,12 +1,12 @@
 // 🌟 FIX FASE 11: Tipos Híbridos para PostgreSQL JSONB
 export interface SubtotalIva {
-  id_alicuota_afip: 3 | 4 | 5 | 6 | 8 | 9;
+  id_alicuota_afip: "3" | "4" | "5" | "6" | "8" | "9";
   base_imponible: number;
   importe: number;
 }
 
 export interface OtroTributo {
-  id_tributo_afip: 1 | 2 | 3 | 4 | 99;
+  id_tributo_afip: "1" | "2" | "3" | "4" | "99";
   descripcion?: string;
   base_imponible: number;
   alicuota: number;
@@ -27,14 +27,12 @@ export interface Comprobante {
   numero: number;
   cuit_emisor: string;
   cuit_receptor: string;
-
+  
   importe_neto_gravado: number;
   importe_no_gravado: number;
   importe_exento: number;
   importe_total: number;
-  moneda: string;
-  saldo_pendiente: string | number;
-
+  
   subtotales_iva?: SubtotalIva[];
   otros_tributos?: OtroTributo[];
 
@@ -56,42 +54,17 @@ export interface ComprobanteCreatePayload {
   numero: number;
   cuit_emisor: string;
   cuit_receptor: string;
-
+  
   importe_neto_gravado: number;
   importe_no_gravado: number;
   importe_exento: number;
   importe_total: number;
   subtotales_iva: SubtotalIva[];
   otros_tributos: OtroTributo[];
-
+  
   comprobante_origen_id?: number | null;
   es_fiscal?: boolean;
   condicion_fiscal_receptor?: string;
-  razon_social_receptor: string;
   condicion_venta: string;
   cuenta_tesoreria_id?: number | null;
-  cotizacion: number;
-}
-
-export type ComprobanteCreateInput = Omit<ComprobanteCreatePayload, 'entidad_id'>;
-
-export interface ComprobanteFormData {
-  clase_documento: string;
-  tipo_operacion: string;
-  fecha_emision: string;
-  punto_venta: string;
-  numero: string;
-  cuit_tercero: string;
-  razon_social_receptor: string;
-  condicion_fiscal_receptor: string;
-  importe_neto_gravado: string;
-  importe_no_gravado: string;
-  importe_exento: string;
-  importe_total: string;
-  comprobante_origen_id: string;
-  condicion_venta: string;
-  cuenta_tesoreria_id: string;
-  cuenta_contable_id: string;
-  moneda: string;
-  cotizacion: string;
 }

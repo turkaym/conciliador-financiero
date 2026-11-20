@@ -1,39 +1,34 @@
-import { useState } from "react";
-import { Loader2, Receipt, Landmark, ShieldAlert, Calculator, CheckSquare, Square, ChevronsUpDown, Check, Search, Edit3, Layers, Send, Building } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, Receipt, Landmark, ShieldAlert, CheckCircle2, Calculator, Building2, CheckSquare, Square, ChevronsUpDown, Check, Search, Edit3, Layers, Send, Building } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { useOrdenPago, type RetencionCalculada } from "../hooks/useOrdenPago";
+import { useOrdenPago } from "../hooks/useOrdenPago";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function OrdenPagoForm() {
   const h = useOrdenPago();
   const [openCombobox, setOpenCombobox] = useState(false);
-
+  
   // 🌟 FIX RBAC: Definimos el rol ANTES del estado inicial
   const user = useAuthStore((state) => state.user);
   const isAdmin = ["admin", "editor", "dueño"].includes(user?.role?.toLowerCase() || "");
 
   // 🌟 Si NO es admin, la variable nace y muere en TRUE (siempre Encolado)
   const [esInterbanking, setEsInterbanking] = useState(true);
-  const retencionesKey = JSON.stringify([
-    h.proveedorId,
-    Array.from(h.facturasSeleccionadasIds).sort((a, b) => a - b),
-    h.cuentaOrigenId,
-    h.tipoCambio,
-    h.retencionesSugeridas
-  ]);
-  const [retencionesEditadas, setRetencionesEditadas] = useState<{ key: string; values: RetencionCalculada[] }>({ key: "", values: [] });
-  const retencionesEditables = retencionesEditadas.key === retencionesKey
-    ? retencionesEditadas.values
-    : h.retencionesSugeridas;
+  const [retencionesEditables, setRetencionesEditables] = useState<any[]>([]);
+
+  // Sincronizar retenciones del motor a los inputs editables
+  useEffect(() => {
+    setRetencionesEditables(h.retencionesSugeridas.map(r => ({ ...r })));
+  }, [h.retencionesSugeridas]);
 
   const handleRetencionChange = (index: number, newMonto: string) => {
-    const updated = retencionesEditables.map(retencion => ({ ...retencion }));
-    updated[index].monto_impuesto = parseFloat(newMonto) || 0;
-    setRetencionesEditadas({ key: retencionesKey, values: updated });
+    const updated = [...retencionesEditables];
+    updated[index].monto_impuesto = parseFloat(newMonto) || 0; 
+    setRetencionesEditables(updated);
   };
 
   if (h.isLoadingMaestros) {
@@ -64,27 +59,27 @@ export default function OrdenPagoForm() {
 
   // 🌟 CÁLCULOS REACTIVOS
   const montoBaseArs = Number(h.montoAbonar) || 0;
-  const totalRetencionesEditadas = h.aplicarRetenciones
-    ? retencionesEditables.reduce((acc, curr) => acc + (Number(curr?.monto_impuesto) || 0), 0)
+  const totalRetencionesEditadas = h.aplicarRetenciones 
+    ? retencionesEditables.reduce((acc, curr) => acc + (Number(curr?.monto_impuesto) || 0), 0) 
     : 0;
-
+  
   const netoFinalUI = montoBaseArs - totalRetencionesEditadas;
   const saldoActual = Number(cuentaElegida?.saldo_actual) || 0;
   const saldoRetenido = Number(cuentaElegida?.saldo_retenido) || 0;
   const saldoDisponible = saldoActual - saldoRetenido;
-
+  
   // Bypass de liquidez si es interbanking (no hay cuenta seleccionada aún)
   const tieneSaldoInsuficienteLocal = !esInterbanking && h.cuentaOrigenId !== "" && netoFinalUI > saldoDisponible;
-
+  
   // 🌟 FIX MATEMÁTICO: Cerrojo Anti-Neto Negativo
   const retencionesInvalidas = netoFinalUI < 0;
 
   const handleSubmitIntercedido = (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     // Doble validación estructural
     if (retencionesInvalidas) return;
-
+    
     // inyectamos las retenciones editables como parámetro al hook, respetando el flujo funcional.
     h.handleSubmit(e, retencionesEditables);
   };
@@ -107,12 +102,12 @@ export default function OrdenPagoForm() {
         {isAdmin ? (
           <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-indigo-200 shadow-sm shrink-0 w-full sm:w-auto justify-center">
             <span className={`text-xs font-bold ${esInterbanking ? 'text-slate-400' : 'text-indigo-600'}`}>Pago Individual</span>
-            <Switch
-              checked={esInterbanking}
+            <Switch 
+              checked={esInterbanking} 
               onCheckedChange={(checked) => {
                 setEsInterbanking(checked);
                 if (checked) h.setCuentaOrigenId(""); // Limpiamos la cuenta si pasa a encolado masivo
-              }}
+              }} 
             />
             <span className={`text-xs font-bold flex items-center gap-1 ${esInterbanking ? 'text-indigo-600' : 'text-slate-400'}`}>
               <Building className="w-4 h-4" /> Interbanking Masivo
@@ -137,7 +132,7 @@ export default function OrdenPagoForm() {
               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs">1</span>
               Identificación del Proveedor
             </h3>
-
+            
             <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
               <PopoverTrigger asChild>
                 <button
@@ -158,9 +153,9 @@ export default function OrdenPagoForm() {
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </button>
               </PopoverTrigger>
-
+              
               <PopoverContent className="w-[calc(100vw-3rem)] sm:w-[500px] p-0 shadow-xl border-slate-200" align="start">
-                <Command
+                <Command 
                   filter={(value, search) => {
                     const normalizedSearch = search.toLowerCase().replace(/\s+/g, '');
                     const [cuit, ...nameParts] = value.split(" ");
@@ -211,7 +206,7 @@ export default function OrdenPagoForm() {
                 <span className="flex items-center justify-center w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs">2</span>
                 Facturas Pendientes de Cobro
               </h3>
-
+              
               {h.isLoadingFacturas ? (
                 <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
               ) : h.facturasDelProveedor.length === 0 ? (
@@ -252,7 +247,7 @@ export default function OrdenPagoForm() {
                   </table>
                 </div>
               )}
-
+              
               {h.facturasSeleccionadasIds.size > 0 && (
                 <div className="flex justify-end pt-2">
                   <div className="bg-slate-800 text-white px-4 py-2 rounded-lg flex items-center gap-3">
@@ -275,7 +270,7 @@ export default function OrdenPagoForm() {
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-
+                
                 {/* 🏦 ORÍGEN CONTABLE */}
                 <div className="space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-200 h-full">
                   {/* 🌟 FIX ESCUDO RBAC: Si no es Interbanking y es ADMIN, muestra el banco */}
@@ -285,7 +280,7 @@ export default function OrdenPagoForm() {
                         <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1 mb-1">
                           <Landmark className="w-4 h-4" /> Cuenta Origen (Débito Inmediato)
                         </label>
-                        <select
+                        <select 
                           value={h.cuentaOrigenId} onChange={(e) => h.setCuentaOrigenId(e.target.value)} required={!esInterbanking} disabled={h.isSubmitting}
                           className="w-full h-11 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
                         >
@@ -299,7 +294,7 @@ export default function OrdenPagoForm() {
                       {monedaPago === "USD" && (
                         <div className="animate-in fade-in bg-blue-50 p-3 rounded-lg border border-blue-200 mt-2">
                           <label className="text-xs font-bold text-blue-800 uppercase">Cotización USD/ARS</label>
-                          <input
+                          <input 
                             type="number" step="0.01" min="1" required value={h.tipoCambio} onChange={(e) => h.setTipoCambio(e.target.value)} disabled={h.isSubmitting}
                             className="mt-1 w-full h-10 rounded-md border border-blue-300 px-3 text-sm focus:ring-2 focus:ring-blue-500"
                           />
@@ -371,10 +366,10 @@ export default function OrdenPagoForm() {
                                 </p>
                                 <p className="text-[11px] text-slate-500 font-medium mt-0.5">Sugerido ARCA: {ret?.alicuota_aplicada || 0}%</p>
                               </div>
-
+                              
                               <div className="relative w-32 ml-4 shrink-0">
                                 <span className={`absolute left-3 top-2 font-medium text-sm ${retencionesInvalidas ? 'text-red-400' : 'text-slate-400'}`}>$</span>
-                                <input
+                                <input 
                                   type="number" step="0.01" min="0" disabled={h.isSubmitting}
                                   value={ret.monto_impuesto}
                                   onChange={(e) => handleRetencionChange(idx, e.target.value)}
@@ -398,7 +393,7 @@ export default function OrdenPagoForm() {
                     ) : (
                       <div className="p-4 text-center text-sm font-medium text-slate-500">Proveedor exento o base no alcanzada.</div>
                     )}
-
+                    
                     <div className={`flex justify-between items-center p-4 transition-colors ${retencionesInvalidas ? 'bg-red-50' : 'bg-emerald-100/50'}`}>
                       <span className={`text-sm font-bold uppercase tracking-wide ${retencionesInvalidas ? 'text-red-800' : 'text-emerald-900'}`}>
                         Monto Neto a Pagar
@@ -433,8 +428,8 @@ export default function OrdenPagoForm() {
           {/* FOOTER ACCIONES                */}
           {/* ============================== */}
           <div className="pt-6 border-t border-slate-200 flex justify-end">
-            <button
-              type="submit"
+            <button 
+              type="submit" 
               disabled={h.isSubmitting || h.facturasSeleccionadasIds.size === 0 || (!esInterbanking && isAdmin && !h.cuentaOrigenId) || retencionesInvalidas}
               className="w-full sm:w-auto px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-md transition-all flex items-center justify-center disabled:opacity-50"
             >

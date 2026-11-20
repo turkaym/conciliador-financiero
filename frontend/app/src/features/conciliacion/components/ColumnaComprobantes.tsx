@@ -5,10 +5,21 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 
 // Import correcto hacia la carpeta utils
 import { formatearMonedaSegura, formatFechaUI } from "../utils/formatters"
-import type { IncompleteInvoice } from "../hooks/useConciliacion"
+
+interface Comprobante {
+  // 🌟 FIX POLIMORFISMO: El ID ahora es un string (e.g. "CBT-14", "OP-90")
+  id: string
+  fecha: string
+  numero_formateado: string
+  razon_social: string
+  monto: number
+  moneda: string
+  clase_documento?: string
+  tipo_operacion?: string
+}
 
 interface ColumnaComprobantesProps {
-  comprobantesPendientes: IncompleteInvoice[]
+  comprobantesPendientes: Comprobante[]
   selectedCbtes: string[]
   handleSelectCbte: (id: string) => void
   flowTab: "COBROS" | "PAGOS"
@@ -68,35 +79,35 @@ export function ColumnaComprobantes({
                 const cbte = comprobantesPendientes[virtualRow.index]
                 if (!cbte) return null
                 const isSelected = selectedCbtes.includes(cbte.id)
-                const badge = getDocumentBadge(cbte.clase_documento ?? undefined)
-
+                const badge = getDocumentBadge(cbte.clase_documento)
+                
                 return (
                   <div key={virtualRow.key} onClick={() => handleSelectCbte(cbte.id)}
                     className={"absolute top-0 left-0 w-full flex items-center px-4 cursor-pointer transition-all border-b border-slate-100 " + (isSelected ? "bg-emerald-50/70 border-l-4 border-l-emerald-600" : "hover:bg-slate-50 border-l-4 border-l-transparent")}
                     style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
                   >
                     <input type="checkbox" checked={isSelected} readOnly className="w-4 h-4 text-emerald-600 rounded mr-4 shrink-0" />
-
+                    
                     <div className="flex-1 min-w-0 py-2 space-y-1">
                       <div className="flex items-center text-[11px] text-slate-400 font-semibold gap-2">
                         <span className="flex items-center gap-1 font-mono shrink-0"><Calendar className="w-3 h-3"/> {formatFechaUI(cbte.fecha)}</span>
-
+                        
                         <span className={`flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase font-bold border ${badge.classes}`}>
                           {badge.icon}
                           {badge.label}
                         </span>
-
+                        
                       </div>
-
+                      
                       <div className="text-sm font-bold text-slate-700 truncate flex items-center gap-1" title={cbte.razon_social}>
                         <User className="w-3 h-3 text-slate-400 shrink-0"/> {cbte.razon_social}
                       </div>
-
+                      
                       <div className="text-xs text-slate-500 font-mono">
                         Ref: {cbte.numero_formateado}
                       </div>
                     </div>
-
+                    
                     <div className="w-28 text-right font-black text-sm flex-shrink-0 pl-2">
                       <div className={cbte.clase_documento === "NOTA_CREDITO" ? "text-blue-700" : "text-slate-800"}>
                         {formatearMonedaSegura(cbte.monto, cbte.moneda)}

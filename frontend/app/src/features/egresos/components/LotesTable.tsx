@@ -5,13 +5,11 @@ import { Loader2, ArrowRightCircle, CheckCircle2, Download, AlertCircle, Chevron
 import { Card } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import api from "@/api/axios";
-import type { CuentaBancaria } from "@/features/bancos/types";
 
 export default function LotesTable() {
   const { lotes, fetchLotes, isLoading, solicitarAutorizacionLote, autorizarLote, exportarLote, paginacion, setPaginacion } = useEgresosStore();
   const user = useAuthStore((state) => state.user);
-  const entidadId = useAuthStore((state) => state.entidadActiva?.id);
-
+  
   const isAdmin = ["admin", "editor", "dueño"].includes(user?.role?.toLowerCase() || "");
 
   const lotesVisibles = lotes.filter(lote => {
@@ -28,14 +26,14 @@ export default function LotesTable() {
   const [visorImagenUrl, setVisorImagenUrl] = useState<string | null>(null);
 
   // 🌟 ESTADOS DEL MODAL DE AUTORIZACIÓN
-  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
+  const [cuentasBancarias, setCuentasBancarias] = useState<any[]>([]);
   const [modalAutorizacion, setModalAutorizacion] = useState<{isOpen: boolean, loteId: number | null}>({isOpen: false, loteId: null});
   const [cuentaSeleccionadaId, setCuentaSeleccionadaId] = useState<string>("");
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
 
   useEffect(() => {
-    void fetchLotes();
-  }, [entidadId, fetchLotes, paginacion.page]);
+    fetchLotes();
+  }, [paginacion.page]); 
 
   // 🌟 HIDRATACIÓN DE CUENTAS BANCARIAS
   useEffect(() => {
@@ -43,7 +41,7 @@ export default function LotesTable() {
     const fetchCuentas = async () => {
       if (!isAdmin) return;
       try {
-        const response = await api.get<CuentaBancaria[]>('/v1/bancos/cuentas');
+        const response = await api.get('/v1/bancos/cuentas');
         if (isMounted) setCuentasBancarias(response.data);
       } catch (error) {
         console.error("Error cargando cuentas bancarias:", error);
@@ -51,7 +49,7 @@ export default function LotesTable() {
     };
     fetchCuentas();
     return () => { isMounted = false; };
-  }, [entidadId, isAdmin]);
+  }, [isAdmin]);
 
   const handlePrevPage = () => {
     if (paginacion.page > 1) {
@@ -80,7 +78,7 @@ export default function LotesTable() {
 
   const triggerAutorizacion = (lote_id: number) => {
     setModalAutorizacion({ isOpen: true, loteId: lote_id });
-    setCuentaSeleccionadaId("");
+    setCuentaSeleccionadaId(""); 
   };
 
   const confirmarAutorizacion = async () => {
@@ -89,7 +87,7 @@ export default function LotesTable() {
         alert("Debe seleccionar una cuenta bancaria de origen para continuar.");
         return;
     }
-
+    
     setIsSubmittingAuth(true);
     try {
         await autorizarLote(modalAutorizacion.loteId, parseInt(cuentaSeleccionadaId));
@@ -142,7 +140,7 @@ export default function LotesTable() {
                     {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                   </button>
                 </div>
-
+                
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">Estado</span>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
@@ -157,7 +155,7 @@ export default function LotesTable() {
 
                 <div className="flex justify-between items-center text-sm font-bold">
                   <span className="text-slate-500">Monto Lote</span>
-                  <span className="text-slate-800 text-base">{formatCurrency(lote.monto_total_lote, 'ARS')}</span>
+                  <span className="text-slate-800 text-base">{formatCurrency(lote.monto_total_lote, lote.moneda_pago)}</span>
                 </div>
 
                 <div className="pt-2 flex justify-end">
@@ -182,7 +180,7 @@ export default function LotesTable() {
                   <div className="mt-2 pt-3 border-t border-slate-100 space-y-3">
                     <p className="text-xs font-bold text-slate-500 uppercase">Órdenes del Lote</p>
                     {lote.detalles && lote.detalles.length > 0 ? (
-                      lote.detalles.map((det) => (
+                      lote.detalles.map((det: any) => (
                         <div key={det.id} className="bg-slate-50 p-2 rounded border border-slate-200 flex flex-col space-y-1 text-xs">
                           <div className="flex justify-between font-medium">
                             <span className="text-indigo-600 font-mono">{det.orden_pago?.codigo_trazabilidad}</span>
@@ -223,7 +221,7 @@ export default function LotesTable() {
                   <Fragment key={lote.id}>
                     <tr className={`transition-colors ${isExpanded ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}>
                       <td className="px-4 py-3 font-mono font-medium text-slate-900 flex items-center space-x-2">
-                        <button
+                        <button 
                           onClick={() => toggleRow(lote.id)}
                           className="p-1 hover:bg-slate-200 rounded-md transition-colors text-slate-500"
                         >
@@ -244,7 +242,7 @@ export default function LotesTable() {
                         </span>
                       </td>
                       <td className="px-4 py-3 font-bold text-slate-800 text-right text-base">
-                        {formatCurrency(lote.monto_total_lote, 'ARS')}
+                        {formatCurrency(lote.monto_total_lote, lote.moneda_pago)}
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
                         {lote.estado_lote === 'DRAFT' && (
@@ -284,7 +282,7 @@ export default function LotesTable() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                   {lote.detalles && lote.detalles.length > 0 ? (
-                                    lote.detalles.map((det) => (
+                                    lote.detalles.map((det: any) => (
                                       <tr key={det.id} className="hover:bg-slate-50">
                                         <td className="px-4 py-2 font-mono text-indigo-600 font-medium">
                                           {det.orden_pago?.codigo_trazabilidad || "OP Desconocida"}
@@ -360,7 +358,7 @@ export default function LotesTable() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
+            
             <div className="p-6 space-y-5">
               <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-lg text-sm flex items-start space-x-2">
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
@@ -371,7 +369,7 @@ export default function LotesTable() {
                 <label className="text-sm font-bold text-slate-700 flex items-center">
                   <Landmark className="w-4 h-4 mr-1 text-slate-500" /> Caja / Cuenta Bancaria de Origen
                 </label>
-                <select
+                <select 
                   className="w-full h-11 rounded-md border border-slate-300 bg-white px-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-shadow"
                   value={cuentaSeleccionadaId}
                   onChange={(e) => setCuentaSeleccionadaId(e.target.value)}
@@ -387,14 +385,14 @@ export default function LotesTable() {
               </div>
 
               <div className="pt-2 flex space-x-3">
-                <button
+                <button 
                   onClick={() => setModalAutorizacion({ isOpen: false, loteId: null })}
                   disabled={isSubmittingAuth}
                   className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-md font-semibold text-sm transition-colors"
                 >
                   Cancelar
                 </button>
-                <button
+                <button 
                   onClick={confirmarAutorizacion}
                   disabled={isSubmittingAuth || !cuentaSeleccionadaId}
                   className="flex-1 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-md font-semibold text-sm transition-colors flex items-center justify-center disabled:opacity-50"
@@ -428,7 +426,7 @@ export default function LotesTable() {
               <img
                 src={visorImagenUrl}
                 alt="Ticket de Respaldo"
-                referrerPolicy="no-referrer"
+                referrerPolicy="no-referrer" 
                 className="max-h-[65vh] max-w-full object-contain rounded-md shadow-md bg-white border border-slate-300"
                 onError={(e) => {
                   (e.target as HTMLImageElement).onerror = null;

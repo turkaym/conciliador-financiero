@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useEffectEvent } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,9 +17,9 @@ interface ImportarExtractoModalProps {
   onAnalyzeFormat: (file: File) => Promise<{ objectName: string, analysis: XRayResponse } | null>
   onConfirmDynamic: (cuentaId: string, cuentaContableId: number, objectName: string, parserCode: string, mapping: Record<string, number>) => Promise<boolean>
   isPolling: boolean
-  progress?: number
-  statusMsg?: string
-  onClearError?: () => void
+  progress?: number      
+  statusMsg?: string     
+  onClearError?: () => void 
   onCancelProcess?: (cuentaId: string, taskId: string) => Promise<boolean>
 }
 
@@ -32,26 +32,47 @@ const PARSERS_DISPONIBLES = [
   { id: "DYNAMIC_XRAY", label: "Formato Desconocido (X-Ray)", hint: "Auto-detección Inteligente. Ideal para nuevos bancos o ERPs." }
 ]
 
-export function ImportarExtractoModal({
-  cuentaId, isLoading, errorMsg, onSubmit, onAnalyzeFormat, onConfirmDynamic,
-  isPolling, progress = 0, statusMsg, onClearError, onCancelProcess
+export function ImportarExtractoModal({ 
+  cuentaId, isLoading, errorMsg, onSubmit, onAnalyzeFormat, onConfirmDynamic, 
+  isPolling, progress = 0, statusMsg, onClearError, onCancelProcess 
 }: ImportarExtractoModalProps) {
   const [open, setOpen] = useState(false)
   const [selectedParser, setSelectedParser] = useState<string>("")
   const [cuentaContableId, setCuentaContableId] = useState<string>("") // 🌟 FIX FASE A
   const [file, setFile] = useState<File | null>(null)
   const [isDragActive, setIsDragActive] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [showConfirmCancel, setShowConfirmCancel] = useState(false)
-
+  const [isSubmitted, setIsSubmitted] = useState(false) 
+  const [showConfirmCancel, setShowConfirmCancel] = useState(false) 
+  
   const [xrayData, setXrayData] = useState<XRayResponse | null>(null)
   const [tempObjectName, setTempObjectName] = useState<string>("")
   const [dynamicMapping, setDynamicMapping] = useState<Record<string, number>>({})
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-
+  
   // 🌟 FIX FASE A: Hook del plan de cuentas
   const { cuentasImputables, fetchCuentasImputables, isLoadingCuentas } = usePlanCuentas();
+
+  useEffect(() => {
+    if (open && cuentasImputables.length === 0) {
+      fetchCuentasImputables();
+    }
+  }, [open, fetchCuentasImputables, cuentasImputables.length]);
+
+  useEffect(() => {
+    if (isPolling) {
+        setOpen(true)
+        setIsSubmitted(true)
+    } else {
+        setShowConfirmCancel(false) 
+    }
+  }, [isPolling])
+
+  useEffect(() => {
+    if (isSubmitted && !isPolling && !isLoading && !errorMsg && !xrayData) {
+        cerrarModalLimpiamente()
+    }
+  }, [isPolling, isLoading, errorMsg, isSubmitted, xrayData])
 
   const cerrarModalLimpiamente = () => {
     setOpen(false)
@@ -65,40 +86,7 @@ export function ImportarExtractoModal({
     setDynamicMapping({})
     if (onClearError) onClearError()
   }
-
-  const cerrarModalTrasCompletar = useEffectEvent(cerrarModalLimpiamente)
-
-  useEffect(() => {
-    if (open && cuentasImputables.length === 0) {
-      fetchCuentasImputables();
-    }
-  }, [open, fetchCuentasImputables, cuentasImputables.length]);
-
-  useEffect(() => {
-    let cancelled = false
-
-    queueMicrotask(() => {
-      if (cancelled) return
-
-      if (isPolling) {
-        setOpen(true)
-        setIsSubmitted(true)
-      } else {
-        setShowConfirmCancel(false)
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [isPolling])
-
-  useEffect(() => {
-    if (isSubmitted && !isPolling && !isLoading && !errorMsg && !xrayData) {
-        cerrarModalTrasCompletar()
-    }
-  }, [isPolling, isLoading, errorMsg, isSubmitted, xrayData])
-
+  
   const executeForceCancel = async () => {
     if (onCancelProcess) {
       await onCancelProcess(cuentaId, "");
@@ -129,29 +117,29 @@ export function ImportarExtractoModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedParser || !file || !cuentaContableId) return
-    setIsSubmitted(true)
+    setIsSubmitted(true) 
 
     if (selectedParser === "DYNAMIC_XRAY") {
         const result = await onAnalyzeFormat(file)
         if (result) {
             setTempObjectName(result.objectName)
             setXrayData(result.analysis)
-
+            
             const cacheKey = `xray_map_${file.name}_${cuentaId}`
             const cachedMap = sessionStorage.getItem(cacheKey)
-
+            
             if (cachedMap) {
-                try { setDynamicMapping(JSON.parse(cachedMap)); }
-                catch { setDynamicMapping(result.analysis.inferred_mapping); }
+                try { setDynamicMapping(JSON.parse(cachedMap)); } 
+                catch(e) { setDynamicMapping(result.analysis.inferred_mapping); }
             } else {
                 setDynamicMapping(result.analysis.inferred_mapping)
             }
         } else {
-            setIsSubmitted(false)
+            setIsSubmitted(false) 
         }
     } else {
         const isEncolado = await onSubmit(cuentaId, parseInt(cuentaContableId, 10), selectedParser, file)
-        if (!isEncolado) setIsSubmitted(false)
+        if (!isEncolado) setIsSubmitted(false) 
     }
   }
 
@@ -160,14 +148,14 @@ export function ImportarExtractoModal({
        alert("Error: Debes mapear al menos la Fecha y el Monto para continuar.");
        return;
     }
-
+    
     if (file) {
       sessionStorage.setItem(`xray_map_${file.name}_${cuentaId}`, JSON.stringify(dynamicMapping));
     }
 
     const isEncolado = await onConfirmDynamic(cuentaId, parseInt(cuentaContableId, 10), tempObjectName, "DYNAMIC_XRAY", dynamicMapping);
     if (isEncolado) {
-        setXrayData(null);
+        setXrayData(null); 
         if (file) sessionStorage.removeItem(`xray_map_${file.name}_${cuentaId}`);
     } else {
         setIsSubmitted(false);
@@ -207,17 +195,17 @@ export function ImportarExtractoModal({
                 <div key={col.index} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-indigo-300 transition-colors min-w-0">
                   <div className="flex justify-between items-center gap-2 mb-3">
                     <div className="flex-1 min-w-0">
-                      <h4
-                        className="font-bold text-slate-800 text-sm truncate"
+                      <h4 
+                        className="font-bold text-slate-800 text-sm truncate" 
                         title={col.header || `Columna ${col.index}`}
                       >
                         {col.header || `Columna ${col.index}`}
                       </h4>
                       <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5">Col #{col.index}</p>
                     </div>
-
-                    <Select
-                      value={Object.keys(dynamicMapping).find(k => dynamicMapping[k] === col.index) || "omitir"}
+                    
+                    <Select 
+                      value={Object.keys(dynamicMapping).find(k => dynamicMapping[k] === col.index) || "omitir"} 
                       onValueChange={(val) => {
                           const newMap = { ...dynamicMapping };
                           Object.keys(newMap).forEach(k => { if (newMap[k] === col.index) delete newMap[k]; });
@@ -237,7 +225,7 @@ export function ImportarExtractoModal({
                       </SelectContent>
                     </Select>
                   </div>
-
+                  
                   <div className="bg-slate-50 rounded-md p-2 space-y-1 border border-slate-100 min-w-0">
                     <p className="text-[10px] text-slate-400 font-bold mb-1">MUESTRA DE DATOS:</p>
                     {col.sample_values.map((val, idx) => (
@@ -261,7 +249,7 @@ export function ImportarExtractoModal({
       </Dialog>
     )
   }
-
+  
   // ==========================================
   // RENDER: PANTALLA PRINCIPAL DE CARGA
   // ==========================================
@@ -314,7 +302,7 @@ export function ImportarExtractoModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6 pt-2">
-
+          
           {/* 🌟 FIX FASE A: Selector obligatorio de imputación madre */}
           <div className="space-y-2 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
             <Label className="text-xs uppercase font-bold text-indigo-900 flex items-center">
@@ -357,7 +345,7 @@ export function ImportarExtractoModal({
 
           <div className="space-y-2">
             <Label>Archivo</Label>
-            <div
+            <div 
               className={`
                 relative border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center transition-colors
                 ${isDragActive ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'}
@@ -369,14 +357,14 @@ export function ImportarExtractoModal({
               onDrop={handleDrop}
               onClick={openFileExplorer}
             >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".csv, .txt, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                className="hidden" 
+                accept=".csv, .txt, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
               />
-
+              
               {!file ? (
                 <>
                   <div className="bg-white p-3 rounded-full shadow-sm mb-3">
@@ -388,10 +376,10 @@ export function ImportarExtractoModal({
                 <>
                   <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
                   <p className="text-sm font-bold text-slate-800">{file.name}</p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
                     className="absolute top-2 right-2 text-slate-400 hover:text-red-500 rounded-full h-8 w-8"
                     onClick={(e) => { e.stopPropagation(); setFile(null); }}
                     disabled={isLoading || isPolling}
@@ -410,8 +398,8 @@ export function ImportarExtractoModal({
                 <span>{progress}%</span>
               </div>
               <div className="w-full bg-indigo-200 rounded-full h-2">
-                <div
-                  className="bg-indigo-600 h-2 rounded-full transition-all duration-300 ease-out"
+                <div 
+                  className="bg-indigo-600 h-2 rounded-full transition-all duration-300 ease-out" 
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
@@ -419,17 +407,17 @@ export function ImportarExtractoModal({
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => isPolling ? setShowConfirmCancel(true) : cerrarModalLimpiamente()}
-              disabled={isLoading && !isPolling}
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={() => isPolling ? setShowConfirmCancel(true) : cerrarModalLimpiamente()} 
+              disabled={isLoading && !isPolling} 
               className={isPolling ? "text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" : ""}
             >
               {isPolling ? 'Detener' : 'Cancelar'}
             </Button>
             <Button type="submit" disabled={isFormIncomplete} className="min-w-[140px] gap-2">
-              {(isLoading || isPolling) ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {(isLoading || isPolling) ? <Loader2 className="h-4 w-4 animate-spin" /> : null} 
               {isPolling ? 'Encolado' : selectedParser === "DYNAMIC_XRAY" ? <><ScanLine className="h-4 w-4" /> Analizar</> : 'Procesar'}
             </Button>
           </div>

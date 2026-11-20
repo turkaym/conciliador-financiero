@@ -21,7 +21,7 @@ from core.api.deps import redis_client
 logger = logging.getLogger("API_BANCOS")
 
 class BancoService:
-
+    
     def obtener_cuentas(self, db: Session, entidad_id: int):
         cajas_nuevas = db.query(CuentaTesoreria).filter(
             CuentaTesoreria.entidad_id == entidad_id,
@@ -40,7 +40,7 @@ class BancoService:
 
             caja_mock = {
                 'id': caja.id,
-                'banco': banco_limpio,
+                'banco': banco_limpio, 
                 'numero_cuenta': caja.numero_cuenta or "S/N",
                 'cbu': caja.cbu_cvu,
                 'alias': caja.alias,
@@ -52,7 +52,7 @@ class BancoService:
                 'is_syncing': getattr(caja, 'is_syncing', False),
                 'last_task_id': getattr(caja, 'last_task_id', None),
                 'is_virtual_clearing': getattr(caja, 'is_virtual_clearing', False),
-                'tipo_canal': canal_inferido,
+                'tipo_canal': canal_inferido, 
                 'proveedor_clearing_id': getattr(caja, 'proveedor_clearing_id', None),
                 'cuenta_contable_id': getattr(caja, 'cuenta_contable_id', None),
                 'progress': None,
@@ -65,39 +65,39 @@ class BancoService:
     def crear_cuenta(self, db: Session, cuenta_in: CuentaBancariaCreate, user_id: int):
         banco_str = cuenta_in.banco.value if hasattr(cuenta_in.banco, 'value') else str(cuenta_in.banco)
         moneda_str = cuenta_in.moneda.value if hasattr(cuenta_in.moneda, 'value') else str(cuenta_in.moneda)
-
+        
         canal_frontend = cuenta_in.tipo_canal.value if hasattr(cuenta_in.tipo_canal, 'value') else str(cuenta_in.tipo_canal)
         tipo_db = "BILLETERA_VIRTUAL" if canal_frontend == "PASARELA" else "BANCO"
         saldo_inicial = getattr(cuenta_in, 'saldo_actual', 0.0)
 
         # 🌟 FIX ARQUITECTURA: Mapeo inteligente de cuenta contable con fallback
         cuenta_contable_id = getattr(cuenta_in, 'cuenta_contable_id', None)
-
+        
         if not cuenta_contable_id:
             codigo_inferido = "BANCOS"
             if canal_frontend == "PASARELA":
                 codigo_inferido = "BILLETERAS_VIRTUALES"
             elif moneda_str != "ARS":
                 codigo_inferido = f"BANCOS_{moneda_str}"
-
+                
             cuenta_contable = db.query(PlanCuentas).filter(
                 PlanCuentas.codigo_sistema == codigo_inferido
             ).first()
-
+            
             # Fallback estricto a la cuenta ancla del sistema
             if not cuenta_contable:
                 cuenta_contable = db.query(PlanCuentas).filter(PlanCuentas.codigo_sistema == "BANCOS").first()
-
+                
             if not cuenta_contable:
                 raise ValueError("Rotura de Configuración: No existe la cuenta contable ancla 'BANCOS' en el plan de cuentas.")
-
+                
             cuenta_contable_id = cuenta_contable.id
 
         nueva_caja = CuentaTesoreria(
             entidad_id=cuenta_in.entidad_id,
             cuenta_contable_id=cuenta_contable_id,
-            nombre=banco_str,
-            tipo_cuenta=tipo_db,
+            nombre=banco_str, 
+            tipo_cuenta=tipo_db, 
             moneda=moneda_str,
             cbu_cvu=cuenta_in.cbu,
             alias=cuenta_in.alias,
@@ -106,7 +106,7 @@ class BancoService:
             is_active=True,
             is_virtual_clearing=getattr(cuenta_in, 'is_virtual_clearing', False)
         )
-
+        
         db.add(nueva_caja)
         try:
             db.commit()
@@ -130,9 +130,9 @@ class BancoService:
             "numero_cuenta": nueva_caja.numero_cuenta or "S/N",
             "cbu": nueva_caja.cbu_cvu,
             "alias": nueva_caja.alias,
-            "tipo_cuenta": tipo_frontend,
+            "tipo_cuenta": tipo_frontend, 
             "moneda": moneda_str,
-            "saldo_actual": saldo_inicial,
+            "saldo_actual": saldo_inicial, 
             "saldo_retenido": 0.0,
             "is_active": True,
             "is_syncing": False,
@@ -141,16 +141,16 @@ class BancoService:
             "tipo_canal": canal_frontend,
             "cuenta_contable_id": nueva_caja.cuenta_contable_id
         }
-
+        
         return cuenta_mock
 
     def registrar_movimiento_con_saldo(
-        self,
-        db: Session,
-        mov_in: MovimientoBancarioCreate,
-        entidad_id: int,
-        user_id: int,
-        user_role: str = "operator",
+        self, 
+        db: Session, 
+        mov_in: MovimientoBancarioCreate, 
+        entidad_id: int, 
+        user_id: int, 
+        user_role: str = "operator", 
         umbral_aprobacion: float = 0.0
     ):
         if redis_client:
@@ -159,7 +159,7 @@ class BancoService:
                 raise ValueError("Transacción en proceso. Aguarde un instante para evitar duplicados.")
 
         periodo_service.validar_fecha_operacion(db, mov_in.fecha)
-
+        
         cuenta = db.query(CuentaTesoreria).filter(
             CuentaTesoreria.id == mov_in.cuenta_id,
             CuentaTesoreria.entidad_id == entidad_id,
@@ -170,10 +170,10 @@ class BancoService:
             raise PermissionError("Cuenta de Tesorería no encontrada o no pertenece a la entidad activa.")
 
         mov_dict = mov_in.model_dump()
-
+        
         if "concepto" in mov_dict:
             mov_dict["concepto_crudo"] = mov_dict.pop("concepto")
-
+            
         concepto_safe = mov_dict.get("concepto_crudo", "MOVIMIENTO MANUAL")
         ref_banco = mov_in.referencia_banco
 
@@ -189,13 +189,13 @@ class BancoService:
         monto_absoluto = abs(monto_transaccion)
         es_egreso = monto_transaccion < 0
         tipo_mov = "INGRESO" if monto_transaccion >= 0 else "EGRESO"
-
+        
         saldo_actual_dec = Decimal(str(cuenta.saldo_actual))
         saldo_retenido_dec = Decimal(str(getattr(cuenta, 'saldo_retenido', 0.0)))
         saldo_disponible = saldo_actual_dec - saldo_retenido_dec
 
         requiere_aprobacion = (umbral_aprobacion > 0) and (monto_absoluto >= Decimal(str(umbral_aprobacion))) and (user_role != "admin" and user_role != "dueño")
-
+        
         if es_egreso and monto_absoluto > saldo_disponible:
             raise ValueError(f"Fondos insuficientes. Saldo disponible: ${saldo_disponible:.2f}")
 
@@ -203,7 +203,7 @@ class BancoService:
             if requiere_aprobacion:
                 if es_egreso:
                     cuenta.saldo_retenido = saldo_retenido_dec + monto_absoluto
-
+                
                 nueva_solicitud = SolicitudMovimientoTesoreria(
                     cuenta_id=cuenta.id, tipo=tipo_mov, fecha=mov_in.fecha, monto=monto_absoluto,
                     moneda=cuenta.moneda, concepto_crudo=concepto_safe, referencia_externa=ref_banco,
@@ -213,15 +213,15 @@ class BancoService:
                 db.add(cuenta)
                 db.commit()
                 db.refresh(nueva_solicitud)
-
+                
                 setattr(nueva_solicitud, "concepto_bancario_crudo", nueva_solicitud.concepto_crudo)
                 setattr(nueva_solicitud, "referencia_banco", nueva_solicitud.referencia_externa)
                 return nueva_solicitud
-
+                
             else:
                 nuevo_saldo_exacto = saldo_actual_dec + monto_transaccion
-                cuenta.saldo_actual = nuevo_saldo_exacto
-
+                cuenta.saldo_actual = nuevo_saldo_exacto 
+                
                 nuevo_movimiento = MovimientoTesoreria(
                     cuenta_id=cuenta.id, tipo=tipo_mov, fecha=mov_in.fecha, monto=monto_absoluto,
                     moneda=cuenta.moneda, saldo_resultante=nuevo_saldo_exacto, concepto_crudo=concepto_safe,
@@ -229,11 +229,11 @@ class BancoService:
                 )
                 db.add(nuevo_movimiento)
                 db.add(cuenta)
-                db.flush()
+                db.flush() 
 
                 if mov_in.cuenta_contable_id:
                     cuenta_origen_contable_id = cuenta.cuenta_contable_id
-
+                    
                     if not cuenta_origen_contable_id:
                         raise ValueError(f"Rotura de Configuración: La caja '{cuenta.nombre}' no tiene una cuenta contable asociada para la Partida Doble.")
 
@@ -242,7 +242,7 @@ class BancoService:
                         concepto=f"{tipo_mov} Directo | Ref: {ref_banco} | Caja ID: {cuenta.id}"
                     )
                     db.add(nuevo_asiento)
-                    db.flush()
+                    db.flush() 
 
                     if es_egreso:
                         linea_debe = LineaAsiento(asiento_id=nuevo_asiento.id, cuenta_id=mov_in.cuenta_contable_id, debe=monto_absoluto, haber=0)
@@ -253,15 +253,15 @@ class BancoService:
 
                     db.add_all([linea_debe, linea_haber])
                     nuevo_movimiento.asiento_id = nuevo_asiento.id
-
+                
                 db.commit()
                 db.refresh(nuevo_movimiento)
-
+                
                 setattr(nuevo_movimiento, "concepto_bancario_crudo", nuevo_movimiento.concepto_crudo)
                 setattr(nuevo_movimiento, "referencia_banco", nuevo_movimiento.referencia_externa)
                 setattr(nuevo_movimiento, "estado", "APROBADO")
                 return nuevo_movimiento
-
+            
         # 🌟 FIX DEUDA TÉCNICA: Captura explícita de IntegrityError evadiendo parsing de strings
         except IntegrityError:
             db.rollback()
@@ -270,9 +270,9 @@ class BancoService:
             db.rollback()
             logger.error(f"Error relacional en tesorería: {e}")
             raise e
-
+        
     def obtener_extracto_inteligente(self, db: Session, cuenta_id: int, skip: int, limit: int, entidad_id: int):
-
+        
         cuenta = db.query(CuentaTesoreria).filter(
             CuentaTesoreria.id == cuenta_id, CuentaTesoreria.entidad_id == entidad_id
         ).first()
@@ -322,12 +322,12 @@ class BancoService:
         movimientos = []
         for row in resultados_crudos:
             row_map = row._mapping if hasattr(row, '_mapping') else row
-
+            
             tipo_registro = row_map['tipo_registro']
             id_original = int(row_map['id_original'])
-
+            
             monto_final = row_map['monto'] if row_map['tipo'] == "INGRESO" else -row_map['monto']
-
+            
             if tipo_registro == 'SOLICITUD':
                 estado_real = "PENDING_APPROVAL"
             elif row_map['comprobante_id'] is not None:
@@ -344,7 +344,7 @@ class BancoService:
                 creador_nombre = "Operador"
 
             mov_mock = {
-                'id': id_original,
+                'id': id_original, 
                 'cuenta_id': cuenta_id,
                 'fecha': row_map['fecha'],
                 'monto': monto_final,
@@ -352,8 +352,8 @@ class BancoService:
                 'concepto_bancario_crudo': row_map['concepto_crudo'] or "SIN CONCEPTO",
                 'hash_transaccional': "",
                 'referencia_banco': row_map['referencia_externa'] or "",
-                'usuario_creador_id': creador,
-                'estado': estado_real,
+                'usuario_creador_id': creador, 
+                'estado': estado_real, 
                 'ocurrencia_diaria': 1,
                 'usuario_creador_nombre': creador_nombre,
                 'usuario_resolutor_nombre': None,
@@ -373,13 +373,13 @@ class BancoService:
         }
 
     def resolver_aprobacion_movimiento(
-        self,
-        db: Session,
-        registro_id: int,
-        tipo_registro: str,
-        entidad_id: int,
-        accion: str,
-        admin_id: int,
+        self, 
+        db: Session, 
+        registro_id: int, 
+        tipo_registro: str, 
+        entidad_id: int, 
+        accion: str, 
+        admin_id: int, 
         motivo_rechazo: str = None
     ):
         if tipo_registro != "SOLICITUD":
@@ -391,7 +391,7 @@ class BancoService:
 
         if not solicitud:
             raise PermissionError("Solicitud de movimiento no encontrada.")
-
+        
         if solicitud.estado != "PENDING_APPROVAL":
             raise ValueError(f"Transacción inválida. La solicitud actual tiene estado: {solicitud.estado}")
 
@@ -417,14 +417,14 @@ class BancoService:
             if accion == "aprobar":
                 saldo_actual = Decimal(str(cuenta.saldo_actual))
                 nuevo_saldo = saldo_actual + monto_transaccional
-
+                
                 if nuevo_saldo < 0:
                     raise ValueError(f"Fondos insuficientes. Saldo actual: ${saldo_actual:.2f}")
-
+                    
                 cuenta.saldo_actual = nuevo_saldo
                 if es_egreso:
                     cuenta.saldo_retenido = Decimal(str(getattr(cuenta, 'saldo_retenido', 0.0))) - monto_absoluto
-
+                
                 nuevo_movimiento = MovimientoTesoreria(
                     cuenta_id=cuenta.id,
                     tipo=solicitud.tipo,
@@ -438,17 +438,17 @@ class BancoService:
                 )
                 db.add(nuevo_movimiento)
                 db.flush()
-
+                
                 solicitud.estado = "APROBADO"
                 solicitud.movimiento_definitivo_id = nuevo_movimiento.id
-
+                
             elif accion == "rechazar":
                 if not motivo_rechazo or not str(motivo_rechazo).strip():
                     raise ValueError("El motivo de rechazo es estrictamente obligatorio.")
-
+                    
                 solicitud.estado = "RECHAZADO"
                 solicitud.motivo_rechazo = str(motivo_rechazo).strip()
-
+                
                 if es_egreso:
                     cuenta.saldo_retenido = Decimal(str(getattr(cuenta, 'saldo_retenido', 0.0))) - monto_absoluto
             else:
@@ -456,10 +456,10 @@ class BancoService:
 
             db.commit()
             db.refresh(solicitud)
-
+            
             setattr(solicitud, "tipo_registro", "SOLICITUD")
             return solicitud
-
+            
         except SQLAlchemyError as e:
             db.rollback()
             logger.error(f"Fallo relacional al resolver la aprobación: {e}")
@@ -494,9 +494,9 @@ class BancoService:
         else:
             nuevo_saldo = saldo_actual - monto_absoluto
             tipo_extorno = "EGRESO"
-
+        
         hash_extorno = hashlib.sha256(f"{movimiento.hash_transaccional}_EXTORNO_{uuid.uuid4().hex}".encode()).hexdigest()
-
+        
         movimiento_extorno = MovimientoTesoreria(
             cuenta_id=cuenta.id,
             tipo=tipo_extorno,
@@ -509,7 +509,7 @@ class BancoService:
             referencia_externa=movimiento.referencia_externa,
             hash_transaccional=hash_extorno,
             comprobante_id=movimiento.comprobante_id,
-            anulado=False
+            anulado=False 
         )
         db.add(movimiento_extorno)
 

@@ -7,7 +7,7 @@ from core.database.models_tenant import CuentaBancaria, MovimientoBancario, Matc
 from core.schemas.banco import CuentaBancariaCreate
 
 class CRUDBanco:
-
+    
     # ==========================================
     # C U E N T A S   B A N C A R I A S
     # ==========================================
@@ -26,7 +26,7 @@ class CRUDBanco:
         ).first()
 
     def existe_cbu(self, db: Session, cbu: str):
-        if not cbu:
+        if not cbu: 
             return False
         return db.query(CuentaBancaria).filter(CuentaBancaria.cbu == cbu).first() is not None
 
@@ -34,7 +34,7 @@ class CRUDBanco:
         db_obj = CuentaBancaria(**obj_in.model_dump())
         db.add(db_obj)
         # 🌟 FIX: Quitamos db.commit() para mantener la atomicidad transaccional en el Servicio
-        db.flush()
+        db.flush() 
         db.refresh(db_obj)
         return db_obj
 
@@ -56,8 +56,8 @@ class CRUDBanco:
             MovimientoBancario.cuenta_id == cuenta_id,
             CuentaBancaria.entidad_id == entidad_id # 🛡️ Blindaje Perimetral
         ).order_by(
-            desc(MovimientoBancario.fecha),
-            desc(MovimientoBancario.id)
+            desc(MovimientoBancario.fecha), 
+            desc(MovimientoBancario.id) 
         ).offset(skip).limit(limit).all()
 
     def count_movimientos(self, db: Session, cuenta_id: int, entidad_id: int) -> int:
@@ -76,8 +76,8 @@ class CRUDBanco:
         db_obj = MovimientoBancario(**obj_in)
         db.add(db_obj)
         # 🌟 FIX: Delegamos el manejo de excepciones a las capas superiores. Solo hacemos flush.
-        db.flush()
-        db.refresh(db_obj)
+        db.flush() 
+        db.refresh(db_obj) 
         return db_obj
 
     # ==========================================
@@ -92,7 +92,7 @@ class CRUDBanco:
     def get_conciliados_bulk(self, db: Session, movimiento_ids: List[int]) -> Set[int]:
         if not movimiento_ids:
             return set()
-
+            
         # 🌟 FIX: Consulta sobre la tabla pivot de detalles
         registros = db.query(MatchDetalleMovimiento.movimiento_id).filter(
             MatchDetalleMovimiento.movimiento_id.in_(movimiento_ids)

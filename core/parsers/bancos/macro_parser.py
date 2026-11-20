@@ -19,7 +19,7 @@ class BancoMacroParser(BaseParser[StandardMovement]):
                 if pd.isna(row.get('Fecha')): continue
                 monto = parse_monto_seguro(row.get('Monto'))
                 if monto == Decimal('0.00'): continue
-
+                
                 yield StandardMovement(
                     fecha=row['Fecha'],
                     concepto=str(row.get('Concepto', 'Sin concepto')),

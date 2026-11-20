@@ -1,10 +1,10 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
 } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,7 +30,7 @@ export function ComprobantesTable({
   const isBorradoBloqueado = (comp: Comprobante) => {
     const tieneCaeValido = comp.cae !== null && comp.cae !== undefined && comp.cae.trim() !== "";
     if (tieneCaeValido) return true;
-    if (comp.clase_documento === "REMITO" && comp.estado === "FACTURADO") return true;
+    if (comp.clase_documento === "REMITO" && comp.estado === "FACTURADO") return true; 
     if (["EMITIDO", "PAGADA", "AUTORIZADA", "EN_LOTE"].includes(comp.estado)) return true;
     return false;
   };
@@ -41,7 +41,7 @@ export function ComprobantesTable({
         <Table>
           <TableHeader className="bg-slate-50">
             <TableRow>
-              <TableHead className="font-semibold text-slate-600 pl-4 w-12"></TableHead>
+              <TableHead className="font-semibold text-slate-600 pl-4 w-12"></TableHead> 
               <TableHead className="font-semibold text-slate-600">Op.</TableHead>
               <TableHead className="font-semibold text-slate-600">Fecha</TableHead>
               <TableHead className="font-semibold text-slate-600">Comprobante</TableHead>
@@ -75,12 +75,12 @@ export function ComprobantesTable({
                     {deletingId === comp.id ? (
                        <Loader2 className="h-4 w-4 animate-spin text-slate-400 ml-2" />
                     ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         className={`h-8 w-8 transition-opacity ${
-                          bloqueado
-                            ? (requiereNotaCredito ? 'opacity-0 group-hover:opacity-100 hover:text-amber-600 hover:bg-amber-50' : 'opacity-30 cursor-not-allowed')
+                          bloqueado 
+                            ? (requiereNotaCredito ? 'opacity-0 group-hover:opacity-100 hover:text-amber-600 hover:bg-amber-50' : 'opacity-30 cursor-not-allowed') 
                             : 'opacity-0 group-hover:opacity-100 hover:text-red-600 hover:bg-red-50'
                         }`}
                         onClick={() => {
@@ -92,8 +92,8 @@ export function ComprobantesTable({
                         }}
                         disabled={bloqueado && !requiereNotaCredito}
                         title={
-                          bloqueado
-                            ? (requiereNotaCredito ? "Anular (Emitir Nota de Crédito)" : "Documento vinculado o bloqueado")
+                          bloqueado 
+                            ? (requiereNotaCredito ? "Anular (Emitir Nota de Crédito)" : "Documento vinculado o bloqueado") 
                             : "Eliminar borrador/remito"
                         }
                       >

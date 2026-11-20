@@ -26,18 +26,18 @@ def upgrade() -> None:
 
     # 1. Inyección de Condición Fiscal (Razones Sociales y Contactos)
     op.execute(f"""
-        ALTER TABLE {target_schema}.razones_sociales_propias
+        ALTER TABLE {target_schema}.razones_sociales_propias 
         ADD COLUMN IF NOT EXISTS condicion_fiscal VARCHAR(50) DEFAULT 'NO_CATEGORIZADO' NOT NULL;
     """)
 
     op.execute(f"""
-        ALTER TABLE {target_schema}.contactos_comerciales
+        ALTER TABLE {target_schema}.contactos_comerciales 
         ADD COLUMN IF NOT EXISTS condicion_fiscal VARCHAR(50) DEFAULT 'NO_CATEGORIZADO' NOT NULL;
     """)
 
     # 2. Desglose Estructural Híbrido en Comprobantes (Columnas JSONB y Numeric)
     op.execute(f"""
-        ALTER TABLE {target_schema}.comprobantes
+        ALTER TABLE {target_schema}.comprobantes 
         ADD COLUMN IF NOT EXISTS importe_neto_gravado NUMERIC(18, 2) DEFAULT 0.0,
         ADD COLUMN IF NOT EXISTS importe_no_gravado NUMERIC(18, 2) DEFAULT 0.0,
         ADD COLUMN IF NOT EXISTS importe_exento NUMERIC(18, 2) DEFAULT 0.0,
@@ -48,11 +48,11 @@ def upgrade() -> None:
 
     # 3. Índices GIN de Alta Velocidad (Tolerante a fallos si ya existen)
     op.execute(f"""
-        CREATE INDEX IF NOT EXISTS ix_comprobantes_iva_gin
+        CREATE INDEX IF NOT EXISTS ix_comprobantes_iva_gin 
         ON {target_schema}.comprobantes USING gin (subtotales_iva);
     """)
     op.execute(f"""
-        CREATE INDEX IF NOT EXISTS ix_comprobantes_tributos_gin
+        CREATE INDEX IF NOT EXISTS ix_comprobantes_tributos_gin 
         ON {target_schema}.comprobantes USING gin (otros_tributos);
     """)
 
@@ -68,7 +68,7 @@ def downgrade() -> None:
 
     # Destrucción de Columnas (Cascada segura IF EXISTS)
     op.execute(f"""
-        ALTER TABLE {target_schema}.comprobantes
+        ALTER TABLE {target_schema}.comprobantes 
         DROP COLUMN IF EXISTS importe_neto_gravado,
         DROP COLUMN IF EXISTS importe_no_gravado,
         DROP COLUMN IF EXISTS importe_exento,

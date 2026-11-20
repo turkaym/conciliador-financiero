@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api from '@/api/axios';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuthStore } from '@/store/useAuthStore'; 
+import { toast } from "react-toastify";
 
 // 🌟 FIX CORE: Interface para blindar las respuestas de error de Axios
 export interface ApiError {
@@ -100,7 +101,7 @@ interface EgresosState {
   setFiltros: (filtros: Partial<EgresosState['filtros']>) => void;
   setPaginacion: (page: number) => void;
   destroyState: () => void;
-
+  
   fetchOrdenes: (resetPage?: boolean) => Promise<void>;
   fetchLotes: () => Promise<void>;
   crearLote: (payload: LotePagoCreate) => Promise<LotePago>;
@@ -140,7 +141,7 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
   setOrdenes: (ordenes) => set({ ordenes }),
   setLotes: (lotes) => set({ lotes }),
   setLoading: (status) => set({ isLoading: status }),
-
+  
   setFiltros: (nuevosFiltros) => set((state) => ({
     filtros: { ...state.filtros, ...nuevosFiltros },
     paginacion: { ...state.paginacion, page: 1, hasMore: true }
@@ -160,7 +161,7 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
 
   fetchOrdenes: async (resetPage = false) => {
     if (get().isLoading) return;
-
+    
     const entidadId = useAuthStore.getState().entidadActiva?.id;
     if (!entidadId) return;
 
@@ -174,7 +175,7 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
 
     if (diffDays > 180) {
       alert("🛑 El rango máximo de consulta permitido es de 180 días.");
-      return;
+      return; 
     }
 
     if (resetPage) set({ paginacion: { ...paginacion, page: 1 } });
@@ -192,12 +193,12 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
       params.append('offset', String(offset));
       params.append('limit', String(paginacion.limit));
 
-      const { data } = await api.get('/v1/pagos/ordenes', {
-        params,
+      const { data } = await api.get('/v1/pagos/ordenes', { 
+        params, 
         headers: { 'x-entity-id': String(entidadId) }
       });
-
-      set((state) => ({
+      
+      set((state) => ({ 
         ordenes: data,
         paginacion: {
           ...state.paginacion,
@@ -237,10 +238,10 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
     try {
       const { data } = await api.post('/v1/pagos/lotes', payload, { headers: { 'x-entity-id': String(entidadId) } });
       const idsEnsamblados = payload.detalles.map(d => d.orden_pago_id);
-
-      set((state) => ({
+      
+      set((state) => ({ 
         lotes: [data, ...state.lotes],
-        ordenes: state.ordenes.filter(o => !idsEnsamblados.includes(o.id))
+        ordenes: state.ordenes.filter(o => !idsEnsamblados.includes(o.id)) 
       }));
       return data;
     } catch (error: unknown) {
@@ -276,11 +277,11 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
     set({ isLoading: true });
     try {
       const { data } = await api.patch(
-        `/v1/pagos/lotes/${lote_id}/autorizar`,
+        `/v1/pagos/lotes/${lote_id}/autorizar`, 
         { cuenta_bancaria_id },
         { headers: { 'x-entity-id': String(entidadId) } }
       );
-
+      
       set((state) => ({
         lotes: state.lotes.map(l => l.id === lote_id ? data : l)
       }));
@@ -302,24 +303,24 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-
+      
       const contentDisposition = response.headers['content-disposition'];
       let fileName = `interbanking_lote_${loteId}.txt`;
       if (contentDisposition) {
         const match = contentDisposition.match(/filename="?([^"]+)"?/);
         if (match && match.length === 2) fileName = match[1];
       }
-
+      
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
-
+      
     } catch (error: unknown) {
       const err = error as ApiError;
       let errorMessage = "Fallo al intentar generar el archivo bancario.";
-
+      
       if (err.response && err.response.data instanceof Blob) {
         try {
           const text = await err.response.data.text();
@@ -331,7 +332,7 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
       } else if (err.response?.data && typeof err.response.data === 'object' && 'detail' in err.response.data) {
         errorMessage = String(err.response.data.detail);
       }
-
+      
       throw new Error(errorMessage);
     }
   },
@@ -339,24 +340,24 @@ export const useEgresosStore = create<EgresosState>((set, get) => ({
   liquidarOrdenIndividual: async (orden_id: number, cuenta_tesoreria_id: number) => {
     const state = get();
     if (state.isLoading) return;
-
+    
     const entidadId = useAuthStore.getState().entidadActiva?.id;
     if (!entidadId) return;
 
     set({ isLoading: true });
     try {
-      const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
+      const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
         : Date.now().toString() + Math.random().toString(36).substring(2);
 
       await api.post(
         `/v1/pagos/ordenes/${orden_id}/liquidar-individual`,
         { cuenta_tesoreria_id },
-        {
-          headers: {
+        { 
+          headers: { 
             'x-entity-id': String(entidadId),
             'Idempotency-Key': idempotencyKey
-          }
+          } 
         }
       );
       setTimeout(() => state.fetchOrdenes(false), 100);

@@ -11,7 +11,7 @@ class SecretManager:
 
     def _generate_fernet(self, master_key: str) -> Fernet:
         """Deriva una llave de 32 bytes estable a partir de la SECRET_KEY"""
-        salt = b'conciliador_salt_static'
+        salt = b'conciliador_salt_static' 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,

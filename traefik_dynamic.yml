@@ -15,10 +15,10 @@ http:
     api-service:
       loadBalancer:
         servers:
-          - url: "http://api-gateway:80"
+          - url: "http://conciliador_api:80"
 
     # Servicio destino: Frontend
     app-service:
       loadBalancer:
         servers:
-          - url: "http://frontend:80"
+          - url: "http://conciliador_frontend:5173"

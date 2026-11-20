@@ -1,17 +1,16 @@
 import api from '@/api/axios';
-import axios, { type AxiosRequestConfig } from 'axios';
 
 /**
  * 📡 [OFFLINE-FIRST] Exponential Backoff
  * Blindaje para reintentar peticiones ante cortes de red.
  */
-export const fetchWithBackoff = async (url: string, payload: unknown, config?: AxiosRequestConfig, maxRetries = 3) => {
+export const fetchWithBackoff = async (url: string, payload: any, maxRetries = 3) => {
   let retries = 0;
   while (retries < maxRetries) {
     try {
-      return await api.post(url, payload, config);
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response) throw error; // Error de servidor (4xx, 500), no reintentamos.
+      return await api.post(url, payload);
+    } catch (error: any) {
+      if (error.response) throw error; // Error de servidor (4xx, 500), no reintentamos.
       retries++;
       if (retries >= maxRetries) throw new Error("Conexión inestable. El servidor no respondió.");
       const waitTime = Math.pow(2, retries - 1) * 1000;
@@ -19,7 +18,6 @@ export const fetchWithBackoff = async (url: string, payload: unknown, config?: A
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
-  throw new Error("Conexión inestable. El servidor no respondió.");
 };
 
 /**
@@ -27,15 +25,15 @@ export const fetchWithBackoff = async (url: string, payload: unknown, config?: A
  * Limita la ejecución de una función para no saturar el Main Thread.
  * Ideal para eventos SSE de progreso que llegan muy rápido.
  */
-export function throttle<TThis, TArgs extends unknown[]>(fn: (this: TThis, ...args: TArgs) => void, limit: number) {
+export function throttle<T extends (...args: any[]) => any>(fn: T, limit: number): T {
   let inThrottle: boolean;
-  return function(this: TThis, ...args: TArgs) {
+  return function(this: any, ...args: any[]) {
     if (!inThrottle) {
       fn.apply(this, args);
       inThrottle = true;
       setTimeout(() => inThrottle = false, limit);
     }
-  };
+  } as T;
 }
 
 /**

@@ -1,70 +1,61 @@
 import { useState, useCallback } from 'react';
 import api from '@/api/axios';
+import axios from 'axios';
 import { useAuthStore } from '@/store/useAuthStore';
-import { extractApiError } from '@/lib/utils';
 
 // ==========================================
 // INTERFACES (Contratos DTO estrictos)
 // ==========================================
 export interface IncompleteInvoice {
   // 🌟 FIX POLIMORFISMO: El ID ahora es string para soportar CBT-X u OP-Y
-  id: string;
-  numero_formateado: string;
+  id: string; 
+  numero_formateado?: string;
   razon_social: string;
-  fecha: string | null;
+  fecha: string;
+  numero?: string;
   monto: number;
-  moneda: string;
-  clase_documento: string | null;
+  moneda?: string;
+  clase_documento?: string; 
+  tipo_operacion?: string;
 }
 
 export interface IncompleteMovement {
   id: number;
-  fecha: string | null;
-  referencia: string;
   concepto: string;
   monto: number;
-  moneda: string;
+  moneda?: string;
 }
 
 export interface ConciliacionStatusResponse {
   tenant: string;
   entidad_id: number;
   summary: { matched_count: number; ar_pending: number; ap_pending: number; };
-  pendings: {
+  pendings: { 
     ar: { invoices: IncompleteInvoice[]; bank_movements: IncompleteMovement[]; };
     ap: { invoices: IncompleteInvoice[]; bank_movements: IncompleteMovement[]; };
   };
 }
 
-export interface HistoryComprobanteDetail {
-  id: string;
-  numero: number;
-  numero_formateado: string;
-  monto_total: number;
-  monto_aplicado: number;
-}
-
-export interface HistoryMovementDetail {
-  id: number;
-  concepto: string;
+export interface HistoryMatchDetail {
+  id: string | number;
+  numero?: string;
+  concepto?: string;
+  numero_formateado?: string;
   monto_total: number;
   monto_aplicado: number;
 }
 
 export interface HistoryMatch {
   id: number;
-  asiento_id: number | null;
   score: number;
   metodo: string;
-  comprobantes: HistoryComprobanteDetail[];
-  movimientos: HistoryMovementDetail[];
+  comprobantes: HistoryMatchDetail[];
+  movimientos: HistoryMatchDetail[];
 }
 
 export interface HistoryResponse {
   items: HistoryMatch[];
   total: number;
-  limit: number;
-  offset: number;
 }
 
 export interface RetencionSufridaPayload {
@@ -74,24 +65,26 @@ export interface RetencionSufridaPayload {
   numero_certificado: string;
 }
 
-interface ManualMatchPayload {
-  comprobantes_ids: string[];
-  movimientos_ids: number[];
-  ajustes_fiscales?: RetencionSufridaPayload[];
-}
-
 // ==========================================
 // HOOK ZUSTAND-AWARE
 // ==========================================
 export const useConciliacion = () => {
   const [data, setData] = useState<ConciliacionStatusResponse | null>(null);
   const [historyData, setHistoryData] = useState<HistoryResponse | null>(null);
-
+  
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false); 
   const [error, setError] = useState<string | null>(null);
 
   const { entidadActiva, tenant_id } = useAuthStore();
+
+  const extractErrorMessage = (err: unknown, defaultMsg: string): string => {
+    if (axios.isAxiosError(err)) {
+      const serverDetail = err.response?.data?.detail;
+      return typeof serverDetail === 'string' ? serverDetail : defaultMsg;
+    }
+    return defaultMsg;
+  };
 
   const fetchStatus = useCallback(async (limit: number = 100, offset: number = 0) => {
     if (!entidadActiva?.id || !tenant_id) return;
@@ -103,7 +96,7 @@ export const useConciliacion = () => {
       });
       setData(response.data);
     } catch (err) {
-      setError(extractApiError(err, 'Error al obtener el estado de conciliación.'));
+      setError(extractErrorMessage(err, 'Error al obtener el estado de conciliación.'));
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +111,7 @@ export const useConciliacion = () => {
       });
       setHistoryData(response.data);
     } catch (err) {
-      setError(extractApiError(err, 'Error al obtener el historial forense.'));
+      setError(extractErrorMessage(err, 'Error al obtener el historial forense.'));
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +127,7 @@ export const useConciliacion = () => {
       await fetchHistory();
       return true;
     } catch (err) {
-      setError(extractApiError(err, 'Falló la ejecución del motor automático.'));
+      setError(extractErrorMessage(err, 'Falló la ejecución del motor automático.'));
       return false;
     } finally {
       setIsProcessing(false);
@@ -143,19 +136,19 @@ export const useConciliacion = () => {
 
   // 🌟 FIX POLIMORFISMO: comprobantesIds viaja obligatoriamente como array de strings al backend
   const triggerManualMatch = async (
-    movimientosIds: number[],
-    comprobantesIds: string[],
+    movimientosIds: number[], 
+    comprobantesIds: string[], 
     ajustesFiscales?: RetencionSufridaPayload[]
   ) => {
     if (!tenant_id) return false;
     setIsProcessing(true);
     setError(null);
     try {
-      const payload: ManualMatchPayload = {
+      const payload: any = {
         comprobantes_ids: comprobantesIds,
         movimientos_ids: movimientosIds
       };
-
+      
       if (ajustesFiscales && ajustesFiscales.length > 0) {
         payload.ajustes_fiscales = ajustesFiscales;
       }
@@ -165,7 +158,7 @@ export const useConciliacion = () => {
       await fetchHistory();
       return true;
     } catch (err) {
-      setError(extractApiError(err, 'Falló la vinculación manual. Verifique la matemática del ajuste fiscal o recargue los saldos.'));
+      setError(extractErrorMessage(err, 'Falló la vinculación manual. Verifique la matemática del ajuste fiscal o recargue los saldos.'));
       return false;
     } finally {
       setIsProcessing(false);
@@ -182,7 +175,7 @@ export const useConciliacion = () => {
       await fetchHistory();
       return true;
     } catch (err) {
-      setError(extractApiError(err, 'No se pudo deshacer la conciliación. Puede estar bloqueada fiscalmente.'));
+      setError(extractErrorMessage(err, 'No se pudo deshacer la conciliación. Puede estar bloqueada fiscalmente.'));
       return false;
     } finally {
       setIsProcessing(false);

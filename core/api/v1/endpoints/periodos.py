@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 # 🌟 FIX: Importamos RoleChecker
 from core.api.deps import get_tenant_db_session, get_current_user, CachedUser, RoleChecker
-from core.services.periodo_service import periodo_service
+from core.services.periodo_service import periodo_service 
 from core.schemas.periodo import PeriodoCierreRequest, PeriodoResponse
 
 # 🌟 FIX RBAC: Permiso base para leer los periodos (para que la UI deshabilite inputs a los operadores)
@@ -19,19 +19,19 @@ def cerrar_periodo_contable(
     current_user: CachedUser = Depends(get_current_user)
 ):
     """
-    Sella un mes contable. A partir de este momento, cualquier intento de
-    crear, modificar o anular comprobantes o asientos en este mes será
+    Sella un mes contable. A partir de este momento, cualquier intento de 
+    crear, modificar o anular comprobantes o asientos en este mes será 
     rechazado por la base de datos o el servicio.
     """
     try:
         periodo = periodo_service.cerrar_periodo(
-            db=db,
-            anio=request.anio,
-            mes=request.mes,
-            usuario_id=current_user.id
+            db=db, 
+            anio=request.anio, 
+            mes=request.mes, 
+            usuario_id=current_user.id 
         )
         return {
-            "status": "success",
+            "status": "success", 
             "message": f"Período {request.mes}/{request.anio} cerrado exitosamente y sellado."
         }
     except ValueError as e:

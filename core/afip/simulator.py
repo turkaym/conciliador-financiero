@@ -4,7 +4,7 @@ from .wsfe import BaseFiscalProvider
 
 class SimulatedWSFEClient(BaseFiscalProvider):
     """
-    Simulador de Grado Industrial.
+    Simulador de Grado Industrial. 
     Imita el comportamiento de ARCA sin latencia ni errores de certificado.
     """
     def __init__(self, environment="sim"):
@@ -18,8 +18,8 @@ class SimulatedWSFEClient(BaseFiscalProvider):
         """Genera un comprobante aleatorio pero con estructura real."""
         logger_name = "SIMULATOR"
         # Simulamos una demora de red realista
-        import time; time.sleep(0.2)
-
+        import time; time.sleep(0.2) 
+        
         return {
             "tipo_cbte": tipo_cbte,
             "punto_venta": punto_venta,

@@ -19,23 +19,23 @@ logger = logging.getLogger("AI_TOOLS_AFIP")
 
 class EmitirComprobanteInput(BaseModel):
     clase_documento: str = Field(
-        ...,
+        ..., 
         description="El tipo de comprobante a emitir. DEBE ser uno de estos valores exactos: 'FACTURA', 'REMITO', 'NOTA_CREDITO', 'NOTA_DEBITO', 'RECIBO'."
     )
     cuit_cliente: str = Field(..., description="El CUIT del cliente (11 dígitos, sin guiones).")
     monto_total: float = Field(..., description="El importe total bruto del comprobante. Si es un Remito sin valor, enviar 0.")
     condicion_fiscal: str = Field(
-        ...,
+        ..., 
         description="Condición fiscal del cliente. Valores permitidos: 'Responsable Inscripto', 'Monotributo', 'Exento', 'Consumidor Final'."
     )
     concepto: str = Field(..., description="Una breve descripción de lo que se está facturando o remitiendo.")
     razon_social: Optional[str] = Field(None, description="El nombre o razón social del cliente, si fue proporcionado.")
     comprobante_origen_id: Optional[int] = Field(
-        None,
+        None, 
         description="CRÍTICO: ID interno del comprobante original. OBLIGATORIO si la clase_documento es 'NOTA_CREDITO' o 'NOTA_DEBITO'. Ignorar para Facturas o Remitos."
     )
     moneda: str = Field(
-        "ARS",
+        "ARS", 
         description="La moneda de la operación. Valores permitidos: 'ARS' o 'USD'. Si no se especifica, asuma 'ARS'."
     )
 
@@ -58,7 +58,7 @@ def tool_emitir_comprobante_afip(
     configurable = config.get("configurable", {})
     tenant_schema = configurable.get("tenant_schema")
     entidad_id = configurable.get("entidad_id")
-
+    
     if not tenant_schema or not entidad_id:
         return "ERROR INTERNO: No se pudo inyectar el contexto de seguridad Multi-Tenant."
 
@@ -90,11 +90,11 @@ def tool_emitir_comprobante_afip(
         return "ERROR DE INFRAESTRUCTURA: No se pudo verificar la seguridad de la transacción. Intente nuevamente."
 
     logger.info(f"🤖 [TOOL] IA ejecutando {clase_enum.value} ({moneda_enum.value}) para CUIT {cuit_cliente} | Tenant: {tenant_schema}")
-
+    
     try:
         with tenant_session_ctx(tenant_schema) as db_write:
             from core.database.models_tenant import PlanCuentas, RazonSocialPropia
-
+            
             emisor = db_write.query(RazonSocialPropia).filter(RazonSocialPropia.id == entidad_id).first()
             if not emisor:
                 r_sync.delete(lock_key)
@@ -105,7 +105,7 @@ def tool_emitir_comprobante_afip(
             if not cuenta_ventas:
                 r_sync.delete(lock_key)
                 return "ERROR DE NEGOCIO: No existe la cuenta ancla 'VENTAS' en el plan de cuentas."
-
+            
             # 🌟 FIX B2B: Uso del Oráculo Cambiario Real
             try:
                 cotizacion_valor = cotizacion_service.obtener_cotizacion_oficial_segura(
@@ -122,15 +122,15 @@ def tool_emitir_comprobante_afip(
                 "consumidor final": "CONSUMIDOR_FINAL"
             }
             cf_limpia = cf_map.get(str(condicion_fiscal).lower(), "CONSUMIDOR_FINAL")
-
+            
             comprobante_in = ComprobanteCreate(
                 entidad_id=entidad_id,
-                punto_venta=1,
-                clase_documento=clase_enum,
+                punto_venta=1, 
+                clase_documento=clase_enum, 
                 tipo_operacion="VENTA",
-                numero=1,
-                fecha_emision=datetime.utcnow().strftime("%Y-%m-%d"),
-                cuit_emisor=cuit_real,
+                numero=1, 
+                fecha_emision=datetime.utcnow().strftime("%Y-%m-%d"), 
+                cuit_emisor=cuit_real, 
                 cuit_receptor=cuit_cliente.replace("-", ""),
                 razon_social_receptor=razon_social,
                 condicion_fiscal_receptor=cf_limpia,
@@ -139,7 +139,7 @@ def tool_emitir_comprobante_afip(
                 importe_total=Decimal(str(monto_total)),
                 importe_neto_gravado=Decimal(str(monto_total)),
                 cuenta_contable_id=cuenta_ventas.id,
-                comprobante_origen_id=comprobante_origen_id
+                comprobante_origen_id=comprobante_origen_id 
             )
 
             if comprobante_origen_id:
@@ -152,12 +152,12 @@ def tool_emitir_comprobante_afip(
             else:
                 resultado = comprobante_service.emitir_y_guardar_comprobante(
                     db=db_write,
-                    afip_client=None,
+                    afip_client=None, 
                     comprobante_in=comprobante_in,
                     tenant_id=entidad_id
                 )
             comprobante_id = resultado.id
-
+        
         return f"¡Éxito! El {clase_enum.value} en {moneda_enum.value} fue procesado correctamente. ID Interno: {comprobante_id}."
 
     except ValueError as ve:

@@ -13,14 +13,14 @@ def tenant_test_client(schema_name: str):
     # 1. Enrutamiento Dinámico del Inquilino
     tenant_engine = engine.execution_options(schema_translate_map={None: schema_name})
     connection = tenant_engine.connect()
-
+    
     # 2. Transacción Maestra (Aislamiento físico)
     transaction = connection.begin()
     session = Session(bind=connection)
-
+    
     # 3. Savepoint (Permite que el código interno haga .commit() lógicos sin impactar el disco)
     session.begin_nested()
-
+    
     # Reinicia el savepoint automáticamente si la función testeada hace commit
     @event.listens_for(session, "after_transaction_end")
     def restart_savepoint(session_obj, transaction_obj):

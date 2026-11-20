@@ -33,11 +33,11 @@ def send_message_to_copilot(
     """
     # 1. Generación o mantenimiento del Hilo de Conversación
     thread_id = payload.thread_id if payload.thread_id else str(uuid.uuid4())
-
+    
     # 2. Extracción de Identidad Segura
     tenant_schema = current_user.tenant.schema_name
     user_id = str(current_user.id)
-
+    
     # 3. Delegación Asíncrona al AI-Worker
     task = process_agent_message_task.delay(
         tenant_schema=tenant_schema,
@@ -46,9 +46,9 @@ def send_message_to_copilot(
         thread_id=thread_id,
         user_message=payload.message
     )
-
+    
     logger.info(f"🧠 [AI-ROUTER] Mensaje delegado a Celery. Task: {task.id} | Thread: {thread_id}")
-
+    
     return {
         "task_id": task.id,
         "thread_id": thread_id,
@@ -69,7 +69,7 @@ async def stream_ai_response(
         task = AsyncResult(task_id)
         last_state_str = None
         max_retries = 180  # 180 ciclos de 0.5s = 90 segundos de timeout máximo
-
+        
         for _ in range(max_retries):
             # 1. Fallo Crítico
             if task.state == 'FAILURE':
@@ -77,14 +77,14 @@ async def stream_ai_response(
                 payload = json.dumps({"status": "ERROR", "message": error_info})
                 yield f"data: {payload}\n\n"
                 break
-
+            
             # 2. Éxito Transaccional
             elif task.state == 'SUCCESS':
                 result_data = task.result if isinstance(task.result, dict) else {"respuesta": str(task.result)}
                 payload = json.dumps({"status": "SUCCESS", "data": result_data})
                 yield f"data: {payload}\n\n"
                 break
-
+            
             # 3. Estados Intermedios (PROGRESS, PENDING, o Custom)
             else:
                 # Recuperamos los metadatos inyectados por Celery (self.update_state)
@@ -93,9 +93,9 @@ async def stream_ai_response(
                     "status": task.state,
                     "message": current_info.get("message", "Conectando con el Copiloto...")
                 }
-
+                
                 state_str = json.dumps(state_data)
-
+                
                 # Emitimos el evento solo si el estado cambió, para no saturar el canal del cliente
                 if state_str != last_state_str:
                     yield f"data: {state_str}\n\n"
@@ -105,14 +105,14 @@ async def stream_ai_response(
                     # Enviamos un comentario SSE vacío para evitar el Timeout (504 Gateway Timeout)
                     # de balanceadores de carga como Nginx o Cloudflare.
                     yield ": heartbeat\n\n"
-
+            
             # Descansamos el Event Loop de FastAPI para atender otras peticiones
             await asyncio.sleep(0.5)
-
+            
         else:
             # Si el bucle termina sin break, excedimos los 90 segundos.
             timeout_payload = json.dumps({
-                "status": "TIMEOUT",
+                "status": "TIMEOUT", 
                 "message": "El agente tardó demasiado en responder. La tarea sigue en segundo plano."
             })
             yield f"data: {timeout_payload}\n\n"

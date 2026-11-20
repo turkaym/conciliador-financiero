@@ -1,4 +1,4 @@
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, FileText, CheckCircle2, Loader2 } from "lucide-react"
 import type { RetencionSufridaPayload } from "../hooks/useConciliacion"
@@ -14,12 +14,12 @@ interface AjusteFiscalModalProps {
   onSubmit: (ajuste: RetencionSufridaPayload | undefined) => void
 }
 
-export function AjusteFiscalModal({
-  isOpen,
-  onClose,
-  diferencia,
-  onSubmit,
-  isProcessing
+export function AjusteFiscalModal({ 
+  isOpen, 
+  onClose, 
+  diferencia, 
+  onSubmit, 
+  isProcessing 
 }: AjusteFiscalModalProps) {
   const [modoAjuste, setModoAjuste] = useState<'PARCIAL' | 'RETENCION'>('PARCIAL')
   const [tipoImpuesto, setTipoImpuesto] = useState('RETENCION_IIBB')
@@ -46,11 +46,11 @@ export function AjusteFiscalModal({
             <span className="text-sm font-semibold text-slate-600">Monto Faltante:</span>
             <span className="font-black text-indigo-600 text-lg">{formatearMonedaSegura(diferencia, 'ARS')}</span>
           </div>
-
+          
           <div className="space-y-3">
             <label className="text-xs font-bold text-slate-500 uppercase">¿Cómo desea justificar este faltante?</label>
-
-            <div
+            
+            <div 
               onClick={() => setModoAjuste('PARCIAL')}
               className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${modoAjuste === 'PARCIAL' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-100 hover:border-slate-200'}`}
             >
@@ -61,7 +61,7 @@ export function AjusteFiscalModal({
               <p className="text-xs text-slate-500 mt-1 ml-6">El cliente pagó de menos. Quedará un saldo pendiente de cobro en la factura.</p>
             </div>
 
-            <div
+            <div 
               onClick={() => setModoAjuste('RETENCION')}
               className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${modoAjuste === 'RETENCION' ? 'border-amber-500 bg-amber-50/50' : 'border-slate-100 hover:border-slate-200'}`}
             >
@@ -78,7 +78,7 @@ export function AjusteFiscalModal({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Impuesto</label>
-                  <select
+                  <select 
                     className="w-full h-9 mt-1 border-slate-200 rounded-md text-xs focus:ring-amber-500 focus:border-amber-500"
                     value={tipoImpuesto} onChange={(e) => setTipoImpuesto(e.target.value)}
                   >
@@ -90,7 +90,7 @@ export function AjusteFiscalModal({
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Jurisdicción</label>
-                  <select
+                  <select 
                     className="w-full h-9 mt-1 border-slate-200 rounded-md text-xs focus:ring-amber-500 focus:border-amber-500"
                     value={jurisdiccion} onChange={(e) => setJurisdiccion(e.target.value)}
                   >
@@ -103,7 +103,7 @@ export function AjusteFiscalModal({
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1"><FileText className="w-3 h-3"/> N° de Certificado Fiscal</label>
-                <input
+                <input 
                   type="text" placeholder="Ej: 0001-00045678" required
                   className="flex h-9 w-full mt-1 rounded-md border border-slate-300 px-3 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                   value={numeroCertificado} onChange={(e) => setNumeroCertificado(e.target.value)}
@@ -115,8 +115,8 @@ export function AjusteFiscalModal({
 
         <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={isProcessing}>Cancelar</Button>
-          <Button
-            className={`${modoAjuste === 'RETENCION' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-indigo-600 hover:bg-indigo-700'} text-white font-bold transition-colors`}
+          <Button 
+            className={`${modoAjuste === 'RETENCION' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-indigo-600 hover:bg-indigo-700'} text-white font-bold transition-colors`} 
             disabled={(modoAjuste === 'RETENCION' && !numeroCertificado) || isProcessing}
             onClick={() => {
               if (modoAjuste === 'PARCIAL') onSubmit(undefined)

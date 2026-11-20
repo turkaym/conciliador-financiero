@@ -28,26 +28,26 @@ def upgrade() -> None:
     # 1. EXTENSIÓN DEL LEDGER DE TESORERÍA
     # ==========================================
     op.execute(f"""
-        ALTER TABLE {target_schema}.movimientos_tesoreria
+        ALTER TABLE {target_schema}.movimientos_tesoreria 
         ADD COLUMN IF NOT EXISTS saldo_pendiente NUMERIC(18, 2);
     """)
 
     # Inicializamos el saldo pendiente con el monto original de forma retroactiva (si había datos previos)
     op.execute(f"""
-        UPDATE {target_schema}.movimientos_tesoreria
-        SET saldo_pendiente = ABS(monto)
+        UPDATE {target_schema}.movimientos_tesoreria 
+        SET saldo_pendiente = ABS(monto) 
         WHERE saldo_pendiente IS NULL;
     """)
 
     # Aplicamos la restricción de No Nulo de forma segura
     op.execute(f"""
-        ALTER TABLE {target_schema}.movimientos_tesoreria
+        ALTER TABLE {target_schema}.movimientos_tesoreria 
         ALTER COLUMN saldo_pendiente SET NOT NULL;
     """)
 
     # Índice para alta performance en búsquedas del Motor Automático
     op.execute(f"""
-        CREATE INDEX IF NOT EXISTS ix_{target_schema}_mov_tesoreria_saldo_pend
+        CREATE INDEX IF NOT EXISTS ix_{target_schema}_mov_tesoreria_saldo_pend 
         ON {target_schema}.movimientos_tesoreria (saldo_pendiente);
     """)
 
@@ -55,20 +55,20 @@ def upgrade() -> None:
     # 2. MIGRACIÓN DEL PEGAMENTO DE CONCILIACIÓN
     # ==========================================
     op.execute(f"""
-        ALTER TABLE {target_schema}.match_detalle_movimientos
+        ALTER TABLE {target_schema}.match_detalle_movimientos 
         ADD COLUMN IF NOT EXISTS movimiento_tesoreria_id INTEGER;
     """)
 
     # Borrado quirúrgico de la vieja clave foránea (Idempotente)
     op.execute(f"""
-        DO $$
-        DECLARE
+        DO $$ 
+        DECLARE 
             fk_name text;
-        BEGIN
+        BEGIN 
             SELECT constraint_name INTO fk_name
             FROM information_schema.key_column_usage
-            WHERE table_schema = '{target_schema}'
-              AND table_name = 'match_detalle_movimientos'
+            WHERE table_schema = '{target_schema}' 
+              AND table_name = 'match_detalle_movimientos' 
               AND column_name = 'movimiento_id';
 
             IF fk_name IS NOT NULL THEN
@@ -78,7 +78,7 @@ def upgrade() -> None:
     """)
 
     op.execute(f"""
-        ALTER TABLE {target_schema}.match_detalle_movimientos
+        ALTER TABLE {target_schema}.match_detalle_movimientos 
         DROP COLUMN IF EXISTS movimiento_id CASCADE;
     """)
 
@@ -87,8 +87,8 @@ def upgrade() -> None:
         DO $$
         BEGIN
             IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint
-                WHERE conname = 'fk_match_detalle_mov_tes_id'
+                SELECT 1 FROM pg_constraint 
+                WHERE conname = 'fk_match_detalle_mov_tes_id' 
                 AND connamespace = '{target_schema}'::regnamespace
             ) THEN
                 ALTER TABLE {target_schema}.match_detalle_movimientos
@@ -110,17 +110,17 @@ def downgrade() -> None:
     # 1. ROLLBACK DEL PEGAMENTO DE CONCILIACIÓN
     # ==========================================
     op.execute(f"""
-        ALTER TABLE {target_schema}.match_detalle_movimientos
+        ALTER TABLE {target_schema}.match_detalle_movimientos 
         ADD COLUMN IF NOT EXISTS movimiento_id INTEGER;
     """)
 
     op.execute(f"""
-        ALTER TABLE {target_schema}.match_detalle_movimientos
+        ALTER TABLE {target_schema}.match_detalle_movimientos 
         DROP CONSTRAINT IF EXISTS fk_match_detalle_mov_tes_id;
     """)
 
     op.execute(f"""
-        ALTER TABLE {target_schema}.match_detalle_movimientos
+        ALTER TABLE {target_schema}.match_detalle_movimientos 
         DROP COLUMN IF EXISTS movimiento_tesoreria_id CASCADE;
     """)
 
@@ -132,6 +132,6 @@ def downgrade() -> None:
     """)
 
     op.execute(f"""
-        ALTER TABLE {target_schema}.movimientos_tesoreria
+        ALTER TABLE {target_schema}.movimientos_tesoreria 
         DROP COLUMN IF EXISTS saldo_pendiente CASCADE;
     """)

@@ -129,7 +129,7 @@ def export_sire_txt(
                 tipo_comprobante_origen=tipo_cbte_real,
                 numero_comprobante_origen=(reg.numero_comprobante_origen or "0000000000000000").replace("-", "").replace(" ", "")[-16:],
                 monto_comprobante_origen=reg.base_imponible + reg.monto_impuesto,
-                codigo_regimen=codigo_regimen,
+                codigo_regimen=codigo_regimen, 
                 cuit_sujeto_retenido=reg.cuit_sujeto.replace("-", ""),
                 base_imponible=reg.base_imponible,
                 monto_retencion=reg.monto_impuesto,
@@ -139,7 +139,7 @@ def export_sire_txt(
 
         contenido_txt = FixedWidthFileGenerator.generate(lineas_sire)
         filename = f"SIRE_{jurisdiccion}_{periodo_fiscal}.txt"
-
+        
         return Response(content=contenido_txt, media_type="text/plain", headers={"Content-Disposition": f"attachment; filename={filename}"})
 
     except Exception as e:

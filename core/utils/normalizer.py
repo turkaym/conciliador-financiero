@@ -23,17 +23,17 @@ def sanitize_string(text: Any) -> str:
     """
     if text is None or str(text).strip() == "":
         return ""
-
+    
     text_str = str(text)
     # 1. Eliminar caracteres Unicode invisibles (Bugs clásicos de exportaciones bancarias Excel)
     text_str = re.sub(r'[\u200B-\u200D\uFEFF]', '', text_str)
-
+    
     # 2. Normalizar acentos (Ej: "Crédito" -> "Credito")
     text_str = unicodedata.normalize('NFKD', text_str).encode('ASCII', 'ignore').decode('utf-8')
-
+    
     # 3. Limpiar espacios redundantes (Trim interno y externo)
     text_str = " ".join(text_str.split())
-
+    
     return text_str
 
 def normalizar_moneda(valor_crudo: Any) -> str:
@@ -41,14 +41,14 @@ def normalizar_moneda(valor_crudo: Any) -> str:
     Intercepta cualquier denominación de moneda y la traduce forzosamente a ISO 4217.
     """
     if not valor_crudo:
-        return "ARS"
-
+        return "ARS" 
+        
     valor_limpio = sanitize_string(valor_crudo).upper()
-
+    
     if valor_limpio in MAPA_DIVISAS_ISO:
         moneda_normalizada = MAPA_DIVISAS_ISO[valor_limpio]
         return moneda_normalizada
-
+        
     return valor_limpio
 
 def normalizar_cuit(cuit_crudo: Any) -> str:

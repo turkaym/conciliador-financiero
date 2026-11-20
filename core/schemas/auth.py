@@ -29,20 +29,20 @@ class UserCreate(BaseModel):
     def validate_cuit(cls, v):
         if not v.isdigit() or len(v) != 11:
             raise ValueError('El CUIT debe contener exactamente 11 números sin guiones.')
-
+        
         multiplicadores = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
         total = sum(int(v[i]) * multiplicadores[i] for i in range(10))
         resto = total % 11
         digito_verificador = 11 - resto
-
+        
         if digito_verificador == 11:
             digito_verificador = 0
         elif digito_verificador == 10:
-            digito_verificador = 9
+            digito_verificador = 9 
 
         if int(v[10]) != digito_verificador:
             raise ValueError('El CUIT ingresado no es válido (Módulo 11 de AFIP).')
-
+            
         return v
 
 class LoginRequest(BaseModel):
@@ -54,17 +54,17 @@ class LoginRequest(BaseModel):
 # ==========================================
 class UserResponse(BaseModel):
     # 🌟 MEJORA: Se agregan campos de identidad para validación Maker-Checker en el Frontend
-    id: str
+    id: str 
     email: str
     role: str
     tenant_id: str
     # 🌟 FIX FASE 4.1: Permite el paso de Capabilities por la aduana de Pydantic
-    permissions: list[str] = []
+    permissions: list[str] = [] 
 
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    tenant_id: str
+    tenant_id: str 
     user: UserResponse # 🌟 Ahora propagará id, role y permissions correctamente
     features: dict[str, Any] = {}
 
@@ -73,9 +73,9 @@ class TokenData(BaseModel):
     tenant_id: Optional[str] = None
     role: str = "operator"
     # 🌟 FIX FASE 4.1: Sincronización del JWT interno
-    permissions: list[str] = []
+    permissions: list[str] = [] 
     features: list | dict = []
-
+    
 class OTPRequest(BaseModel):
     email: EmailStr
 

@@ -7,7 +7,7 @@ from core.database.models.pagos import OrdenPago, LotePago, LotePagoDetalle
 from core.database.models_tenant import Comprobante, MovimientoTesoreria
 from core.database.models.tesoreria import CuentaTesoreria
 from core.database.models.contabilidad import RegistroTributario
-from core.utils.enums import EstadoOrdenPago, EstadoLotePago, EstadoComprobante
+from core.utils.enums import EstadoOrdenPago, EstadoLotePago, EstadoComprobante 
 
 logger = logging.getLogger("REVERSIONES")
 
@@ -17,15 +17,15 @@ def _enum_name(val):
 class ReversionesService:
 
     def anular_orden_pago(
-        self,
-        db: Session,
-        entidad_id: int,
-        orden_id: int,
+        self, 
+        db: Session, 
+        entidad_id: int, 
+        orden_id: int, 
         user_id: str = "SYSTEM",
         user_role: str = "operador",
         umbral_aprobacion: float = 0.0
     ) -> OrdenPago:
-
+        
         # Bloque 0: Adquisición de Candado de Fila (Prevención de Condición de Carrera)
         try:
             orden = db.query(OrdenPago).filter(
@@ -35,7 +35,7 @@ class ReversionesService:
         except OperationalError:
             db.rollback()
             raise HTTPException(
-                status_code=status.HTTP_423_LOCKED,
+                status_code=status.HTTP_423_LOCKED, 
                 detail="La orden está siendo procesada por otra transacción concurrentemente. Intente nuevamente."
             )
 
@@ -61,7 +61,7 @@ class ReversionesService:
                 if det.comprobante_id and det.comprobante_id in facturas_map:
                     factura = facturas_map[det.comprobante_id]
                     factura.saldo_pendiente += det.monto_asignado_moneda_origen
-
+                    
                     if factura.saldo_pendiente >= factura.importe_total:
                         factura.estado = EstadoComprobante.EMITIDO.value
                     else:
@@ -82,7 +82,7 @@ class ReversionesService:
                 if abs(movimiento_original.saldo_pendiente) < abs(movimiento_original.monto):
                     db.rollback()
                     raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
+                        status_code=status.HTTP_403_FORBIDDEN, 
                         detail="Bloqueo de Auditoría: El movimiento bancario ya fue conciliado. Deshaga el match en el módulo de Conciliación antes de anular."
                     )
 
@@ -110,7 +110,7 @@ class ReversionesService:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Bloqueo Fiscal (SICORE/SIRE): La retención {reg.clase_tributo} ya fue exportada a AFIP el {fecha_str}. Operación abortada para prevenir descuadre en la Declaración Jurada. Emita una Nota de Crédito."
                 )
-
+            
             # Solo si no está exportado, permitimos el borrado lógico
             reg.is_active = False
 
@@ -127,13 +127,13 @@ class ReversionesService:
 
         db.commit()
         db.refresh(orden)
-
+        
         logger.info(f"Orden {orden.codigo_trazabilidad} anulada exitosamente bajo normativas fiscales.")
-
+        
         # 🌟 FIX ARQUITECTURA: Degradación elegante para el broker asíncrono
         try:
             from core.tasks.reversiones_tasks import task_notificar_anulacion
-
+            
             task_notificar_anulacion.apply_async(
                 kwargs={
                     "entidad_id": entidad_id,
@@ -143,7 +143,7 @@ class ReversionesService:
             )
         except Exception as celery_err:
             logger.error(f"Fallo al encolar tarea asíncrona de notificación para OP {orden.id}. Transacción SQL completada. Error broker: {str(celery_err)}")
-
+        
         return orden
 
 reversiones_service = ReversionesService()

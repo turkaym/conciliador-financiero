@@ -24,7 +24,7 @@ def upgrade() -> None:
 
     # Modificamos el tipo de dato físico a BIGINT (64-bits)
     op.execute(f"""
-        ALTER TABLE {target_schema}.comprobantes
+        ALTER TABLE {target_schema}.comprobantes 
         ALTER COLUMN numero TYPE BIGINT;
     """)
 
@@ -34,6 +34,6 @@ def downgrade() -> None:
 
     # Downgrade defensivo a Integer
     op.execute(f"""
-        ALTER TABLE {target_schema}.comprobantes
+        ALTER TABLE {target_schema}.comprobantes 
         ALTER COLUMN numero TYPE INTEGER;
     """)

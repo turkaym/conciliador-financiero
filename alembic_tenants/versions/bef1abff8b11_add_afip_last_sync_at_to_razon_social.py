@@ -21,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     # 🌟 DDL Defensivo: Agregamos la columna de telemetría de forma idempotente
     op.execute(f"""
         ALTER TABLE {target_schema}.razones_sociales_propias
@@ -32,7 +32,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     # 🌟 DDL Defensivo: Eliminamos la columna de forma segura en caso de rollback
     op.execute(f"""
         ALTER TABLE {target_schema}.razones_sociales_propias

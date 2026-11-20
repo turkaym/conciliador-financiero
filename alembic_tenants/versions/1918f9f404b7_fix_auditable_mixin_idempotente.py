@@ -34,7 +34,7 @@ def upgrade() -> None:
     # Ejecución de parche crudo idempotente (SQL Nativo v4.0)
     for tabla in tablas_auditables:
         op.execute(f"""
-            ALTER TABLE {target_schema}.{tabla}
+            ALTER TABLE {target_schema}.{tabla} 
             ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;
         """)

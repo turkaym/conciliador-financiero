@@ -25,14 +25,14 @@ def validar_periodo_historico(periodo: str):
     """Verifica que el período YYYYMM no sea futuro."""
     if len(periodo) != 6 or not periodo.isdigit():
         raise HTTPException(status_code=400, detail="Formato de período inválido. Debe ser YYYYMM.")
-
+    
     hoy = datetime.now()
     periodo_actual = hoy.year * 100 + hoy.month
     periodo_ingresado = int(periodo)
-
+    
     if periodo_ingresado > periodo_actual:
         raise HTTPException(
-            status_code=400,
+            status_code=400, 
             detail=f"Operación denegada. No se puede ingestar un padrón de un período futuro ({periodo})."
         )
 
@@ -42,7 +42,7 @@ def validar_periodo_historico(periodo: str):
 
 class PresignedUrlResponse(BaseModel):
     upload_url: str
-    form_fields: Dict[str, str]
+    form_fields: Dict[str, str] 
     object_name: str
     expires_in_minutes: int
 
@@ -103,7 +103,7 @@ def confirm_upload_and_trigger(
         "task_id": task.id,
         "message": "Confirmación recibida. Padrones encolados para procesamiento asíncrono."
     }
-
+    
 class MultipartConfirmRequest(BaseModel):
     jurisdiccion: str
     periodo: str
@@ -165,7 +165,7 @@ def forzar_sincronizacion_cotizacion(
             args=[tenant_id, moneda.upper(), origen.upper()],
             kwargs={"correlation_id": getattr(request.state, 'correlation_id', None)},
             queue='afip_queue',
-            expires=120
+            expires=120 
         )
         return {
             "status": "ACCEPTED",
@@ -175,7 +175,7 @@ def forzar_sincronizacion_cotizacion(
     except Exception as e:
         logger.error(f"Fallo al encolar tarea de cotización: {e}")
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="El motor asíncrono no está disponible. Intente más tarde.")
-
+    
 # ==========================================
 # 📊 TELEMETRÍA E INSPECCIÓN FISCAL
 # ==========================================
@@ -190,7 +190,7 @@ def obtener_historial_ingestas(
     historial = db.query(HistorialIngestaPadron).filter(
         HistorialIngestaPadron.entidad_id == x_entity_id
     ).order_by(HistorialIngestaPadron.iniciado_el.desc()).limit(50).all()
-
+    
     return historial
 
 @router.get("/consulta/{cuit}", response_model=PadronFiscalResponse)
@@ -212,8 +212,8 @@ def consultar_padron_cuit(
 
     if not registro:
         raise HTTPException(
-            status_code=404,
+            status_code=404, 
             detail=f"El CUIT {cuit} no fue encontrado en el padrón de {jurisdiccion.upper()} para el período {periodo}."
         )
-
+    
     return registro

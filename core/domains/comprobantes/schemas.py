@@ -45,35 +45,35 @@ class ComprobanteAsociadoCreate(BaseModel):
 # ESQUEMA BASE (Soporte Amnistía Histórica / Lectura Tolerante)
 # ==========================================
 class ComprobanteBase(BaseModel):
-    entidad_id: int
+    entidad_id: int  
     cuenta_contable_id: Optional[int] = Field(default=None, description="ID de la imputación contable en el Plan de Cuentas")
-
+    
     tipo_operacion: str = Field(default="VENTA")
     clase_documento: ClaseDocumento = Field(default=ClaseDocumento.FACTURA)
-    tipo_cbte_afip: Optional[int] = None
-
+    tipo_cbte_afip: Optional[int] = None 
+    
     # 🌟 FIX ARQUITECTURA: Relajación de lectura para documentos internos (Espejos OPs, Anticipos)
     # ge=0 (Greater or Equal) permite que Punto de Venta y Número sean 0 en lectura.
     punto_venta: int = Field(ge=0)
     numero: int = Field(ge=0)
-
+    
     fecha_emision: date
     cuit_emisor: str = Field(pattern=r'^\d{11}$')
     cuit_receptor: str = Field(pattern=r'^\d{11}$')
-
+    
     importe_neto_gravado: Decimal = Field(default=Decimal('0.0'), ge=0)
     importe_no_gravado: Decimal = Field(default=Decimal('0.0'), ge=0)
     importe_exento: Decimal = Field(default=Decimal('0.0'), ge=0)
     importe_total: Decimal = Field(..., ge=0)
-
+    
     moneda: MonedaEnum = MonedaEnum.ARS
-    cotizacion: Decimal = Field(default=Decimal('1.0'), gt=0)
-
+    cotizacion: Decimal = Field(default=Decimal('1.0'), gt=0) 
+    
     cae: Optional[str] = Field(default=None, pattern=r'^\d{14}$')
     vencimiento_cae: Optional[date] = None
-    estado: str = "BORRADOR"
+    estado: str = "BORRADOR" 
     comprobante_origen_id: Optional[int] = None
-
+    
     es_fiscal: bool = Field(default=True, exclude=True)
 
     @field_validator('moneda', mode='before')
@@ -110,10 +110,10 @@ class ComprobanteCreate(ComprobanteBase):
     subtotales_iva: List[SubtotalIva] = Field(default_factory=list)
     otros_tributos: List[OtroTributo] = Field(default_factory=list)
     comprobantes_asociados: List[ComprobanteAsociadoCreate] = Field(default_factory=list)
-
+    
     condicion_fiscal_receptor: Optional[CondicionFiscalAFIP] = None
     razon_social_receptor: Optional[str] = Field(default=None, max_length=255, description="Nombre o Razón Social para agendamiento B2B")
-
+    
     condicion_venta: str = Field(default="CUENTA_CORRIENTE", description="CONTADO o CUENTA_CORRIENTE")
     cuenta_tesoreria_id: Optional[int] = Field(default=None, description="Requerido si condicion_venta es CONTADO")
     nomenclatura_afip_sugerida: Optional[str] = Field(default=None, description="Ej: FC-A 0001-00000054")
@@ -145,7 +145,7 @@ class ComprobanteCreate(ComprobanteBase):
         suma_iva = sum((item.importe for item in self.subtotales_iva), Decimal('0.0'))
         suma_tributos = sum((item.importe for item in self.otros_tributos), Decimal('0.0'))
         calculado = self.importe_neto_gravado + self.importe_no_gravado + self.importe_exento + suma_iva + suma_tributos
-
+        
         diferencia = abs(self.importe_total - calculado)
         if diferencia > tolerancia:
             raise ValueError(f"Descuadre matemático E2E. Declarado: {self.importe_total}. Suma interna: {calculado}. Diferencia: {diferencia}")
@@ -166,17 +166,17 @@ class SyncTaskResponse(BaseModel):
 class ComprobanteResponse(ComprobanteBase):
     id: int
     saldo_pendiente: Decimal
-    es_saldo_a_favor: bool
-    is_active: bool
+    es_saldo_a_favor: bool 
+    is_active: bool 
     legacy_fiscal_data: bool
-
+    
     subtotales_iva: Optional[List[SubtotalIva]] = None
     otros_tributos: Optional[List[OtroTributo]] = None
-
+    
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True) 
 
     @computed_field
     @property
@@ -184,14 +184,14 @@ class ComprobanteResponse(ComprobanteBase):
         # 🌟 FIX VISUAL UI: Manejo polimórfico explícito para los espejos de OPs
         if self.tipo_operacion == "ORDEN_PAGO_MIRROR":
             return f"OP-{self.numero}"
-
+            
         afip_mapping = {
             1: "FC-A", 2: "ND-A", 3: "NC-A", 15: "REC-A",
             6: "FC-B", 7: "ND-B", 8: "NC-B", 16: "REC-B",
             11: "FC-C", 12: "ND-C", 13: "NC-C", 17: "REC-C",
             51: "FC-M", 52: "ND-M", 53: "NC-M", 54: "REC-M"
         }
-
+        
         prefix = "CB"
         if self.tipo_cbte_afip and self.tipo_cbte_afip in afip_mapping:
             prefix = afip_mapping[self.tipo_cbte_afip]

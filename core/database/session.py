@@ -27,17 +27,16 @@ else:
     logger.info("🔧 [ENGINE] API detectada: Usando QueuePool nativo para máximo rendimiento síncrono.")
     pool_class = QueuePool
     pool_kwargs = {
-        "pool_size": 20,
-        "max_overflow": 10,
+        "pool_size": 20, 
+        "max_overflow": 10, 
         "pool_timeout": 30,
-        "pool_recycle": 1800
+        "pool_recycle": 1800 
     }
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.DATABASE_URL, 
     poolclass=pool_class,
     pool_pre_ping=True,
-    connect_args={"prepare_threshold": None},
     **pool_kwargs
 )
 
@@ -46,7 +45,7 @@ def setup_postgresql_extensions(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
     try:
         cursor.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
-        cursor.execute("COMMIT;")
+        cursor.execute("COMMIT;") 
     except Exception as e:
         logger.error(f"💥 Fallo al aprovisionar extensiones: {e}")
     finally:
@@ -89,25 +88,25 @@ def audit_after_flush(session, flush_context):
     """
     if getattr(session, '_auditing_now', False):
         return
-
+        
     session._auditing_now = True
     try:
         master_events = []
         tenant_events = []
-
+        
         user_id, ip_address, current_tenant = _get_audit_context()
         secret = getattr(settings, "SECRET_KEY", "fallback_secret")
 
         def procesar_evento(obj, action, changes_dict):
             if getattr(obj, "__tablename__", "") in ["audit_trail", "logs_auditoria", "system_logs", "cola_mensajes_muertos"]:
                 return
-
+            
             is_master = hasattr(obj.__class__, '__table_args__') and isinstance(obj.__class__.__table_args__, dict) and obj.__class__.__table_args__.get('schema') == 'public'
-
+            
             raw_details = json.dumps(changes_dict, sort_keys=True)
             firma_str = f"{'MASTER' if is_master else 'TENANT'}|{action}|{obj.__tablename__}|{user_id}|{raw_details}|{secret}"
             hash_firma = hashlib.sha256(firma_str.encode('utf-8')).hexdigest()
-
+            
             if is_master:
                 master_events.append({
                     "tenant_id": int(current_tenant) if current_tenant and str(current_tenant).isdigit() else None,
@@ -139,7 +138,7 @@ def audit_after_flush(session, flush_context):
             for attr in obj.__mapper__.attrs:
                 if not isinstance(attr, ColumnProperty):
                     continue
-
+                    
                 history = get_history(obj, attr.key)
                 if history.has_changes():
                     changes[attr.key] = {
@@ -221,20 +220,20 @@ def ai_readonly_session(schema_name: str):
     """
     connection = engine.connect()
     connection = connection.execution_options(schema_translate_map={None: schema_name})
-
+    
     TenantSession = sessionmaker(bind=connection, autocommit=False, autoflush=False)
     db = TenantSession()
-
+    
     try:
         # 1. Bajamos los privilegios del usuario 'admin' en esta transacción específica
         db.execute(text("SET LOCAL ROLE ai_readonly_role;"))
         # 2. Impedimos alteraciones estructurales/DML
         db.execute(text("SET LOCAL default_transaction_read_only = 'on';"))
-
+        
         yield db
-
+        
         # En Solo Lectura el commit es irrelevante para datos, pero sella la transacción
-        db.commit()
+        db.commit() 
     except Exception as e:
         db.rollback()
         logger.error(f"💥 Operación destructiva detectada en sesión IA (Bloqueada por PostgreSQL): {e}")

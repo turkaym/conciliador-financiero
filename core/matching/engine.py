@@ -10,30 +10,30 @@ from core.database.models_tenant import (
 )
 from core.tasks.accounting import generar_asiento_conciliacion
 from core.matching.transactions import registrar_match_seguro
-from core.utils.enums import TipoMovimientoTesoreria
+from core.utils.enums import TipoMovimientoTesoreria 
 
 logger = logging.getLogger("MATCHING_ENGINE")
 logger.setLevel(logging.INFO)
 
-BATCH_SIZE = 500
+BATCH_SIZE = 500  
 
 def run_advanced_matching(db: Session, tenant_id: str, entidad_id: int) -> int:
     """
     Motor Automático Determinista (Enterprise Level).
     Preparado para ingesta futura de IA. Solo ejecuta matches 1:1 matemáticamente perfectos.
     """
-
+    
     todas_las_reglas = db.query(ReglaAprendizaje).filter(
         ReglaAprendizaje.activa == True,
-        ReglaAprendizaje.entidad_id == entidad_id
+        ReglaAprendizaje.entidad_id == entidad_id 
     ).all()
-
+    
     reglas_por_cuit = {}
     for regla in todas_las_reglas:
         reglas_por_cuit.setdefault(regla.cuit_asociado, []).append(regla)
 
     total_matches_creados = 0
-    last_id = 0
+    last_id = 0 
 
     while True:
         pendientes = db.query(Comprobante).filter(
@@ -44,18 +44,18 @@ def run_advanced_matching(db: Session, tenant_id: str, entidad_id: int) -> int:
         ).order_by(Comprobante.id).limit(BATCH_SIZE).all()
 
         if not pendientes:
-            break
+            break 
 
         matches_en_lote = []
 
         for cbte_referencia in pendientes:
-            last_id = cbte_referencia.id
+            last_id = cbte_referencia.id  
             monto_buscado = abs(cbte_referencia.saldo_pendiente)
             tipo_mov_requerido = TipoMovimientoTesoreria.INGRESO if cbte_referencia.tipo_operacion == "VENTA" else TipoMovimientoTesoreria.EGRESO
 
             mov_match = None
             metodo = None
-            score_final = 1.0
+            score_final = 1.0 
 
             # ====================================================================
             # TIER 1: Match Perfecto (Monto Exacto + Fecha Exacta)
@@ -68,7 +68,7 @@ def run_advanced_matching(db: Session, tenant_id: str, entidad_id: int) -> int:
                 MovimientoTesoreria.fecha == cbte_referencia.fecha_emision,
                 CuentaTesoreria.moneda == cbte_referencia.moneda
             ).first()
-
+            
             if mov_match:
                 metodo = "exact_amount_date"
 
@@ -86,7 +86,7 @@ def run_advanced_matching(db: Session, tenant_id: str, entidad_id: int) -> int:
                         CuentaTesoreria.moneda == cbte_referencia.moneda,
                         MovimientoTesoreria.concepto_crudo.ilike(f"%{numero_str}%")
                     ).first()
-
+                    
                     if mov_match:
                         metodo = "invoice_reference"
                         score_final = 0.95
@@ -116,23 +116,23 @@ def run_advanced_matching(db: Session, tenant_id: str, entidad_id: int) -> int:
             # ====================================================================
             if mov_match and metodo:
                 try:
-                    with db.begin_nested():
+                    with db.begin_nested(): 
                         cbte_locks = db.query(Comprobante).filter(
                             Comprobante.id == cbte_referencia.id,
                             Comprobante.saldo_pendiente == monto_buscado # Aseguramos que nadie lo tocó
                         ).with_for_update(nowait=True).all()
-
+                        
                         mov_locks = db.query(MovimientoTesoreria).filter(
                             MovimientoTesoreria.id == mov_match.id,
                             MovimientoTesoreria.saldo_pendiente == monto_buscado # Aseguramos que nadie lo tocó
                         ).with_for_update(nowait=True).all()
-
+                        
                         if not cbte_locks or not mov_locks:
                             logger.info(f"⚠️ [CARRERA DETECTADA] Cbte o Mov alterado por otro proceso. Saltando.")
                             continue
-
+                            
                         match_id = registrar_match_seguro(
-                            db, [cbte_locks[0].id], [mov_locks[0].id], score_final, metodo, tenant_id,
+                            db, [cbte_locks[0].id], [mov_locks[0].id], score_final, metodo, tenant_id, 
                             "SYSTEM_ENGINE", mov_locks[0].concepto_crudo if metodo == "invoice_reference" else None
                         )
                         if match_id:
@@ -144,14 +144,14 @@ def run_advanced_matching(db: Session, tenant_id: str, entidad_id: int) -> int:
 
         if matches_en_lote:
             try:
-                db.commit()
+                db.commit() 
                 total_matches_creados += len(matches_en_lote)
                 logger.info(f"💾 Lote procesado: {len(matches_en_lote)} matches automáticos guardados.")
-
+                
                 for m_id in matches_en_lote:
                     generar_asiento_conciliacion.apply_async(
                         kwargs={"tenant_id": tenant_id, "match_id": m_id},
-                        queue='accounting_queue'
+                        queue='accounting_queue' 
                     )
             except Exception as e:
                 db.rollback()

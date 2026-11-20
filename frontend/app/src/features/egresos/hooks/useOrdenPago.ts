@@ -1,41 +1,27 @@
 import { useState, useEffect, useRef } from "react";
 import api from "@/api/axios";
 import { toast } from "react-toastify";
-import { useAuthStore } from "@/store/useAuthStore";
+import { useAuthStore } from "@/store/useAuthStore"; 
 import type { Comprobante } from "@/features/comprobantes/types";
-import type { CuentaBancaria } from "@/features/bancos/types";
-import { extractApiError } from "@/lib/utils";
+import type { ContactoComercial } from "@/features/ingesta/types";
 
-interface ContactoComercial {
-  id: number;
-  razon_social: string;
-  cuit: string;
-}
-
-export interface RetencionCalculada {
+interface RetencionCalculada {
   tipo_impuesto: string;
   jurisdiccion: string;
-  alicuota_aplicada: string | number;
-  monto_impuesto: string | number;
-}
-
-interface SimularRetencionResponse {
-  monto_bruto: string | number;
-  retenciones_sugeridas: RetencionCalculada[];
-  total_retenciones: string | number;
-  neto_a_transferir: string | number;
+  alicuota_aplicada: number;
+  monto_impuesto: number;
 }
 
 export function useOrdenPago() {
-  const entidadActiva = useAuthStore((state) => state.entidadActiva);
-  const user = useAuthStore((state) => state.user);
-
+  const entidadActiva = useAuthStore((state: any) => state.entidadActiva); 
+  const user = useAuthStore((state: any) => state.user);
+  
   const isAdminRole = ["admin", "editor", "dueño"].includes(user?.role?.toLowerCase() || "");
-
+  
   const [proveedores, setProveedores] = useState<ContactoComercial[]>([]);
-  const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
+  const [cuentas, setCuentas] = useState<any[]>([]);
   const [facturasDelProveedor, setFacturasDelProveedor] = useState<Comprobante[]>([]);
-
+  
   const [isLoadingMaestros, setIsLoadingMaestros] = useState(true);
   const [isLoadingFacturas, setIsLoadingFacturas] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,13 +32,13 @@ export function useOrdenPago() {
   const [montoAbonar, setMontoAbonar] = useState<string>("");
   const [cuentaOrigenId, setCuentaOrigenId] = useState<string>("");
   const [tipoCambio, setTipoCambio] = useState<string>("1.0");
-
+  
   const [retencionesSugeridas, setRetencionesSugeridas] = useState<RetencionCalculada[]>([]);
   const [aplicarRetenciones, setAplicarRetenciones] = useState(true);
-
+  
   const [netoCalculadoMotor, setNetoCalculadoMotor] = useState<number>(0);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     if (!entidadActiva?.id) return;
@@ -60,10 +46,10 @@ export function useOrdenPago() {
     let isMounted = true;
     const fetchMaestros = async () => {
       try {
-        const headers = { 'x-entity-id': entidadActiva.id };
+        const headers = { 'x-entity-id': entidadActiva.id }; 
         const [resProv, resCuentas] = await Promise.all([
-          api.get<ContactoComercial[]>('/v1/pagos/proveedores', { headers }),
-          api.get<CuentaBancaria[]>('/v1/bancos/cuentas', { headers })
+          api.get('/v1/pagos/proveedores', { headers }),
+          api.get('/v1/bancos/cuentas', { headers })
         ]);
         if (isMounted) {
           setProveedores(resProv.data || []);
@@ -92,10 +78,10 @@ export function useOrdenPago() {
       setIsLoadingFacturas(true);
       try {
         const headers = { 'x-entity-id': entidadActiva.id };
-        const res = await api.get<Comprobante[]>(`/v1/comprobantes/pendientes-proveedor/${proveedorId}`, { headers });
+        const res = await api.get(`/v1/comprobantes/pendientes-proveedor/${proveedorId}`, { headers });
         if (isMounted) {
           setFacturasDelProveedor(res.data || []);
-          setFacturasSeleccionadasIds(new Set());
+          setFacturasSeleccionadasIds(new Set()); 
           setMontoAbonar("");
         }
       } catch (error) {
@@ -113,7 +99,7 @@ export function useOrdenPago() {
     if (newSelection.has(facturaId)) newSelection.delete(facturaId);
     else newSelection.add(facturaId);
     setFacturasSeleccionadasIds(newSelection);
-
+    
     const nuevoMontoTotal = Array.from(newSelection).reduce((acc, id) => {
       const f = facturasDelProveedor.find(fac => fac.id === id);
       return acc + (f ? Number(f.saldo_pendiente || 0) : 0);
@@ -149,11 +135,11 @@ export function useOrdenPago() {
           tipo_cambio: tcNum
         };
 
-        const { data } = await api.post<SimularRetencionResponse>('/v1/fiscal/simular-retencion', payload, { headers: { 'x-entity-id': entidadActiva.id } });
+        const { data } = await api.post('/v1/fiscal/simular-retencion', payload, { headers: { 'x-entity-id': entidadActiva.id } });
         setRetencionesSugeridas(data?.retenciones_sugeridas || []);
         setNetoCalculadoMotor(Number(data?.neto_a_transferir) || 0);
-      } catch (error: unknown) {
-        toast.warning(extractApiError(error, "No se pudo calcular la matriz impositiva para este pago."));
+      } catch (error: any) {
+        toast.warning(error.response?.data?.detail || "No se pudo calcular la matriz impositiva para este pago.");
         setRetencionesSugeridas([]);
         setNetoCalculadoMotor(montoNumerico);
       } finally {
@@ -164,15 +150,13 @@ export function useOrdenPago() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(fetchRetenciones, 500);
 
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
+    return () => clearTimeout(debounceRef.current);
   }, [montoAbonar, facturasSeleccionadasIds, tipoCambio, cuentaOrigenId, proveedorId, cuentas, entidadActiva?.id]);
 
   // 🌟 FIX DEUDA TÉCNICA: Se añade el parámetro customRetenciones para evitar mutaciones directas del estado desde el formulario
   const handleSubmit = async (e: React.FormEvent, customRetenciones?: RetencionCalculada[]) => {
     e.preventDefault();
-
+    
     if (facturasSeleccionadasIds.size === 0 || !montoAbonar || !entidadActiva?.id) {
       return toast.warning("Complete todos los campos obligatorios (Proveedor y Facturas).");
     }
@@ -186,7 +170,7 @@ export function useOrdenPago() {
 
       const payload = {
         proveedor_id: parseInt(proveedorId),
-        facturas_ids: Array.from(facturasSeleccionadasIds),
+        facturas_ids: Array.from(facturasSeleccionadasIds), 
         monto_bruto_abonar: parseFloat(montoAbonar),
         cuenta_origen_id: cuentaFinalId,
         moneda_pago: monedaPago,
@@ -196,24 +180,24 @@ export function useOrdenPago() {
       };
 
       // 🌟 El Idempotency-Key ahora lo inyecta axios.ts de forma automática y segura
-      await api.post('/v1/pagos/ordenes/pago-multiple', payload, {
-        headers: { 'x-entity-id': entidadActiva.id }
+      await api.post('/v1/pagos/ordenes/pago-multiple', payload, { 
+        headers: { 'x-entity-id': entidadActiva.id } 
       });
-
+      
       if (payload.cuenta_origen_id) {
         toast.success("Liquidación directa ejecutada. Fondos debitados al instante.");
       } else {
         toast.success("Operación autorizada y encolada con éxito en el Hub Interbanking.");
       }
-
+      
       setProveedorId("");
       setFacturasSeleccionadasIds(new Set());
       setFacturasDelProveedor([]);
       setCuentaOrigenId("");
       setTipoCambio("1.0");
 
-    } catch (error: unknown) {
-      toast.error(extractApiError(error, "Fallo crítico al procesar la orden de pago múltiple."));
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || "Fallo crítico al procesar la orden de pago múltiple.");
     } finally {
       setIsSubmitting(false);
     }
@@ -226,16 +210,16 @@ export function useOrdenPago() {
   const saldoActual = Number(cuentaSeleccionada?.saldo_actual) || 0;
   const saldoRetenido = Number(cuentaSeleccionada?.saldo_retenido) || 0;
   const saldoDisponible = saldoActual - saldoRetenido;
-
+  
   const netoSeguro = Number(netoFinalUI) || 0;
   const saldoSeguro = Number(saldoDisponible) || 0;
-
+  
   const tieneSaldoInsuficiente = cuentaOrigenId !== "" && netoSeguro > saldoSeguro;
 
   return {
-    proveedores, cuentas, facturasDelProveedor,
+    proveedores, cuentas, facturasDelProveedor, 
     isLoadingMaestros, isLoadingFacturas, isSubmitting, isCalculatingTax,
-    proveedorId, setProveedorId,
+    proveedorId, setProveedorId, 
     facturasSeleccionadasIds, toggleFactura,
     montoAbonar, setMontoAbonar, cuentaOrigenId, setCuentaOrigenId,
     tipoCambio, setTipoCambio,

@@ -15,7 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from core.utils.enums import ClaseDocumento, EstadoOrdenPago
 from core.database.models.pagos import OrdenPago
 from core.database.models_tenant import (
-    Comprobante, MovimientoTesoreria, ConciliacionMatch,
+    Comprobante, MovimientoTesoreria, ConciliacionMatch, 
     MatchDetalleComprobante, MatchDetalleMovimiento,
     LogAuditoria, ReglaAprendizaje, AsientoContable
 )
@@ -37,9 +37,9 @@ def aprender_regla(db: Session, concepto: str, cbte: Comprobante, entidad_id: in
 
     regla = db.query(ReglaAprendizaje).filter(
         ReglaAprendizaje.patron_concepto == patron,
-        ReglaAprendizaje.entidad_id == entidad_id
+        ReglaAprendizaje.entidad_id == entidad_id 
     ).first()
-
+    
     if regla:
         regla.frecuencia_uso += 1
         regla.updated_at = func.now()
@@ -49,32 +49,32 @@ def aprender_regla(db: Session, concepto: str, cbte: Comprobante, entidad_id: in
             cuit_asociado=cbte.cuit_receptor,
             tipo_cbte_asociado=cbte.tipo_cbte_afip,
             frecuencia_uso=1,
-            entidad_id=entidad_id
+            entity_id=entidad_id 
         )
         db.add(nueva_regla)
-
+        
 def registrar_match_seguro(
-    db: Session,
-    cbte_ids: List[int],
-    mov_ids: List[int],
-    score: float,
-    metodo: str,
-    tenant_id: str,
-    usuario_id: str,
-    concepto_asociado: Optional[str] = None,
+    db: Session, 
+    cbte_ids: List[int], 
+    mov_ids: List[int], 
+    score: float, 
+    metodo: str, 
+    tenant_id: str, 
+    usuario_id: str, 
+    concepto_asociado: Optional[str] = None, 
     ajustes_fiscales: list = None,
     op_ids: List[int] = None
 ) -> Optional[int]:
     """Crea el Match N:M con materialización de OPs como Espejos Ledger y tipado criptográfico."""
-
+    
     op_ids = op_ids or []
     cbtes = []
-
+    
     if cbte_ids:
         cbtes = db.query(Comprobante).filter(Comprobante.id.in_(cbte_ids)).order_by(Comprobante.id).with_for_update().all()
         if len(cbtes) != len(cbte_ids):
             logger.warning("Error: No se encontraron todos los comprobantes regulares.")
-            return None
+            return None 
 
     # 🌟 FIX ARQUITECTÓNICO: Si hay Órdenes de Pago, las materializamos en el Libro Mayor
     if op_ids:
@@ -82,14 +82,14 @@ def registrar_match_seguro(
         if len(ops_db) != len(op_ids):
             logger.warning("Error: No se encontraron todas las ordenes de pago solicitadas.")
             return None
-
+            
         for op in ops_db:
             # Creamos un Comprobante Espejo (Mirror) transitorio para asentar la lógica en Ledger
             nuevo_cbte_op = Comprobante(
                 entidad_id=op.entidad_id,
                 tipo_operacion="ORDEN_PAGO_MIRROR", # Marca de agua crítica para la reversión
-                clase_documento=ClaseDocumento.FACTURA.name if hasattr(ClaseDocumento.FACTURA, 'name') else "FACTURA",
-                punto_venta=0,
+                clase_documento=ClaseDocumento.FACTURA.name if hasattr(ClaseDocumento.FACTURA, 'name') else "FACTURA", 
+                punto_venta=0, 
                 numero=op.id, # El número oficia de Foreign Key dura hacia la OP real
                 fecha_emision=op.created_at.date() if op.created_at else datetime.now(timezone.utc).date(),
                 cuit_emisor="00000000000",
@@ -107,20 +107,20 @@ def registrar_match_seguro(
                 is_active=True
             )
             db.add(nuevo_cbte_op)
-            db.flush()
-
+            db.flush() 
+            
             estado_pagada = getattr(EstadoOrdenPago, 'PAGADA', list(EstadoOrdenPago)[-1])
             op.estado_orden = estado_pagada
             op.actualizado_por_id = usuario_id
-
+            
             cbtes.append(nuevo_cbte_op)
 
     movs = db.query(MovimientoTesoreria).filter(MovimientoTesoreria.id.in_(mov_ids)).order_by(MovimientoTesoreria.id).with_for_update().all()
 
     if not cbtes or len(movs) != len(mov_ids):
         logger.warning("Error: No se encontraron todos los registros.")
-        return None
-
+        return None 
+        
     monedas_cbtes = {c.moneda for c in cbtes}
     monedas_movs = {m.moneda for m in movs}
     if len(monedas_cbtes) > 1 or len(monedas_movs) > 1 or monedas_cbtes != monedas_movs:
@@ -137,47 +137,47 @@ def registrar_match_seguro(
     poder_de_pago_efectivo = total_pago + total_ajustes
 
     if total_deuda == 0 or total_pago == 0:
-        return None
+        return None 
 
     nuevo_match = ConciliacionMatch(score=score, metodo=metodo)
     db.add(nuevo_match)
-    db.flush()
+    db.flush() 
 
     nuevos_detalles = []
 
     remanente_a_cubrir_deuda = min(total_deuda, poder_de_pago_efectivo)
-
+    
     for c in cbtes:
         if remanente_a_cubrir_deuda <= 0: break
         aplicar = min(abs(c.saldo_pendiente), remanente_a_cubrir_deuda)
         nuevos_detalles.append(MatchDetalleComprobante(match_id=nuevo_match.id, comprobante_id=c.id, monto_aplicado=aplicar))
-
+        
         if c.saldo_pendiente > 0:
             c.saldo_pendiente -= aplicar
         else:
             c.saldo_pendiente += aplicar
-
+            
         c.estado = "CONCILIADO" if abs(c.saldo_pendiente) == 0 else "PARCIALMENTE CONCILIADO"
         remanente_a_cubrir_deuda -= aplicar
 
-    remanente_a_asignar_pago = total_pago
+    remanente_a_asignar_pago = total_pago 
     for m in movs:
         if remanente_a_asignar_pago <= 0: break
         aplicar = min(abs(m.saldo_pendiente), remanente_a_asignar_pago)
-
-        monto_para_detalle = min(aplicar, total_deuda)
+        
+        monto_para_detalle = min(aplicar, total_deuda) 
         if monto_para_detalle > 0:
             nuevos_detalles.append(MatchDetalleMovimiento(
-                match_id=nuevo_match.id,
-                movimiento_tesoreria_id=m.id,
+                match_id=nuevo_match.id, 
+                movimiento_tesoreria_id=m.id, 
                 monto_aplicado=monto_para_detalle
             ))
-
+        
         if m.saldo_pendiente > 0:
             m.saldo_pendiente -= aplicar
         else:
             m.saldo_pendiente += aplicar
-
+            
         m.estado = "CONCILIADO" if abs(m.saldo_pendiente) == 0 else "PARCIALMENTE CONCILIADO"
         remanente_a_asignar_pago -= aplicar
 
@@ -187,21 +187,21 @@ def registrar_match_seguro(
     excedente_real = total_pago - total_deuda
     if excedente_real > 0:
         logger.info(f"💸 [OVERPAYMENT] Creando Anticipo por ${excedente_real}.")
-
+        
         today_local = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3))).date()
-
+        
         anticipo = Comprobante(
             entidad_id=cbtes[0].entidad_id,
             tipo_operacion=cbtes[0].tipo_operacion,
-            clase_documento=ClaseDocumento.RECIBO,
-            punto_venta=0,
+            clase_documento=ClaseDocumento.RECIBO, 
+            punto_venta=0, 
             numero=0,
             fecha_emision=today_local,
             cuit_emisor=cbtes[0].cuit_emisor,
             cuit_receptor=cbtes[0].cuit_receptor,
-            importe_neto=0.0,
-            importe_iva=0.0,
-            importe_tributos=0.0,
+            importe_neto=0.0, 
+            importe_iva=0.0, 
+            importe_tributos=0.0, 
             importe_neto_gravado=0.0,
             importe_total=excedente_real,
             saldo_pendiente=excedente_real,
@@ -213,10 +213,10 @@ def registrar_match_seguro(
         )
         db.add(anticipo)
         db.flush()
-
+        
         db.add(MatchDetalleComprobante(
-            match_id=nuevo_match.id,
-            comprobante_id=anticipo.id,
+            match_id=nuevo_match.id, 
+            comprobante_id=anticipo.id, 
             monto_aplicado=excedente_real
         ))
 
@@ -236,27 +236,27 @@ def registrar_match_seguro(
     payload_str = json.dumps(payload, sort_keys=True)
     firma = hashlib.sha256(payload_str.encode('utf-8')).hexdigest()
 
-    db.flush()
+    db.flush() 
 
     log = LogAuditoria(
         entidad="ConciliacionMatch",
         entidad_id=nuevo_match.id,
         accion="MATCH_CONFIRMADO" if metodo == "manual_fix" else "MATCH_AUTOMATICO",
-        usuario_id=str(usuario_id),
+        usuario_id=str(usuario_id), 
         ip_origen="internal",
         detalles=payload_str,
         hash_firma=firma
     )
     db.add(log)
-
+    
     return nuevo_match.id
 
 def force_manual_match(
-    db: Session,
-    tenant_id: str,
-    comprobantes_ids: List[int],
-    movimientos_ids: List[int],
-    usuario_id: str,
+    db: Session, 
+    tenant_id: str, 
+    comprobantes_ids: List[int], 
+    movimientos_ids: List[int], 
+    usuario_id: str, 
     ajustes_fiscales: list = None,
     op_ids: List[int] = None
 ) -> bool:
@@ -269,7 +269,7 @@ def force_manual_match(
                 raise ValueError("Validación fallida: No se pudo generar el identificador del match.")
 
         db.commit()
-
+        
         try:
             generar_asiento_conciliacion.apply_async(
                 kwargs={"tenant_id": tenant_id, "match_id": match_id},
@@ -277,20 +277,20 @@ def force_manual_match(
             )
         except Exception as cel_e:
             logger.critical(f"⚠️ [BROKER CAÍDO] Match {match_id} consolidado pero Asiento NO encolado: {cel_e}")
-
+            
         return True
-
+        
     except ValueError as ve:
         db.rollback()
         logger.error(f"Error de validación de negocio (API HTTP 400): {ve}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
-
+    
     # 🌟 FIX DEUDA TÉCNICA: Captura explícita de errores SQL
     except SQLAlchemyError as sqle:
         db.rollback()
         logger.error(f"Fallo relacional al consolidar Match Manual: {sqle}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Fallo en base de datos al consolidar la operación.")
-
+        
     except Exception as e:
         db.rollback()
         logger.error(f"Error crítico en Match Manual: {e}", exc_info=True)
@@ -313,37 +313,37 @@ def ejecutar_reversion_segura(db: Session, tenant_id: str, match_id: int) -> boo
 
         for detalle_c in match.detalles_comprobantes:
             if detalle_c.comprobante:
-
+                
                 # 🌟 FIX ARQUITECTÓNICO REVERSIÓN OP
                 if detalle_c.comprobante.tipo_operacion == "ORDEN_PAGO_MIRROR":
                     op_id = detalle_c.comprobante.numero
-
+                    
                     op = db.query(OrdenPago).filter(OrdenPago.id == op_id).first()
                     if op:
                         estado_auth = getattr(EstadoOrdenPago, 'AUTORIZADA', list(EstadoOrdenPago)[0])
                         op.estado_orden = estado_auth
-
+                        
                     detalle_c.comprobante.estado = "ANULADO"
                     detalle_c.comprobante.is_active = False
-                    continue
-
+                    continue 
+                
                 es_anticipo = detalle_c.comprobante.es_saldo_a_favor
                 creado_por_este_match = es_anticipo and (detalle_c.comprobante.comprobante_origen_id in ids_comprobantes_en_match)
-
+                
                 if creado_por_este_match:
                     if detalle_c.comprobante.saldo_pendiente != detalle_c.comprobante.importe_total:
                         logger.error(f"Integridad Comprometida: Anticipo {detalle_c.comprobante.id} ya consumido parcialmente.")
                         raise ValueError("El anticipo generado por esta conciliación ya fue utilizado en otra operación. Desconcilie las operaciones hijas primero.")
-
+                    
                     detalle_c.comprobante.estado = "ANULADO"
                     detalle_c.comprobante.is_active = False
                     continue
-
+                
                 if detalle_c.comprobante.importe_total >= 0:
                     detalle_c.comprobante.saldo_pendiente += detalle_c.monto_aplicado
                 else:
                     detalle_c.comprobante.saldo_pendiente -= detalle_c.monto_aplicado
-
+                    
                 detalle_c.comprobante.estado = "PENDIENTE" if abs(detalle_c.comprobante.saldo_pendiente) == abs(detalle_c.comprobante.importe_total) else "PARCIALMENTE CONCILIADO"
 
         for detalle_m in match.detalles_movimientos:
@@ -356,7 +356,7 @@ def ejecutar_reversion_segura(db: Session, tenant_id: str, match_id: int) -> boo
 
         match.is_active = False
         db.commit()
-
+        
         if asiento_orig_id:
             try:
                 revertir_asiento_conciliacion.apply_async(
@@ -367,17 +367,17 @@ def ejecutar_reversion_segura(db: Session, tenant_id: str, match_id: int) -> boo
                 logger.critical(f"⚠️ [BROKER CAÍDO] Reversión de Match {match.id} consolidada pero Anulación de Asiento NO encolada: {cel_e}")
 
         return True
-
+    
     except ValueError as ve:
         db.rollback()
         raise ve
-
+    
     # 🌟 FIX DEUDA TÉCNICA: Captura explícita de errores SQL
     except SQLAlchemyError as sqle:
         db.rollback()
         logger.error(f"Fallo relacional en reversión de match: {sqle}", exc_info=True)
         raise
-
+        
     except Exception as e:
         db.rollback()
         logger.error(f"Error sistémico en reversión de match: {e}", exc_info=True)

@@ -11,12 +11,12 @@ def validar_cuit_mod11(cuit: str) -> str:
     """Valida matemáticamente un CUIT argentino usando Módulo 11."""
     if not cuit.isdigit() or len(cuit) != 11:
         raise ValueError("El CUIT debe contener exactamente 11 dígitos numéricos.")
-
+    
     base = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
     calc = sum(int(cuit[i]) * base[i] for i in range(10))
     resto = calc % 11
     digito_verificador = 0 if resto == 0 else (9 if resto == 1 else 11 - resto)
-
+    
     if digito_verificador != int(cuit[10]):
         raise ValueError(f"CUIT Inválido. Falla matemática en dígito verificador.")
     return cuit
@@ -28,7 +28,7 @@ class ConceptoOperativoCreate(BaseModel):
     codigo: str = Field(..., max_length=12)
     nombre_descriptivo: str = Field(..., max_length=100)
 
-class ConceptoResponse(BaseModel):
+class ConceptoResponse(BaseModel):  
     id: int
     codigo: str
     nombre_descriptivo: str
@@ -40,10 +40,10 @@ class ContactoComercialBase(BaseModel):
     cbu: Optional[str] = Field(None, min_length=22, max_length=22)
     is_proveedor: bool = True
     is_cliente: bool = False
-    is_entidad_financiera: bool = False
-
+    is_entidad_financiera: bool = False 
+    
     condicion_fiscal: CondicionFiscalAFIP = Field(
-        default=CondicionFiscalAFIP.NO_CATEGORIZADO,
+        default=CondicionFiscalAFIP.NO_CATEGORIZADO, 
         description="Requisito estricto para la inferencia de Letras en Facturación B2B."
     )
 
@@ -76,11 +76,11 @@ class OrdenPagoCreate(BaseModel):
     proveedor_id: Optional[int] = Field(None, description="Opcional para Sifón Fiscal.")
     cuenta_contable_id: int = Field(..., description="Imputación contable obligatoria")
     factura_id: Optional[int] = Field(None, description="ID del comprobante existente a cancelar (si aplica)")
-
+    
     monto_estimado: Decimal = Field(..., gt=0, description="El importe debe ser mayor a 0")
     moneda: MonedaISO = MonedaISO.ARS
     tipo_cambio_estimado: Decimal = Field(default=Decimal("1.0"), gt=0)
-
+    
     requiere_comprobante_fiscal: bool = True
     comprobante_interno_url: Optional[str] = None
     numero_ticket: Optional[str] = Field(None, max_length=50, description="Número de remito/ticket físico")
@@ -109,7 +109,7 @@ class OrdenPagoResponse(BaseModel):
     estado_orden: EstadoOrdenPago
     requiere_comprobante_fiscal: bool
     excluir_reportes_fiscales: bool
-    comprobante_interno_url: Optional[str] = None
+    comprobante_interno_url: Optional[str] = None 
     created_at: datetime
     creado_por_id: Optional[str] = None
     actualizado_por_id: Optional[str] = None
@@ -179,7 +179,7 @@ class BuscadorEgresosQueryParams(BaseModel):
     def proteger_motor_bd(self) -> 'BuscadorEgresosQueryParams':
         if self.fecha_inicio > self.fecha_fin:
             raise ValueError("La fecha de inicio no puede ser mayor a la fecha de fin.")
-
+        
         delta_dias = (self.fecha_fin - self.fecha_inicio).days
         if delta_dias > 180:
             raise ValueError(
@@ -197,7 +197,7 @@ class SimularRetencionRequest(BaseModel):
     proveedor_id: int = Field(..., description="ID del beneficiario para cruce de padrones")
     facturas_ids: List[int] = Field(..., min_length=1, description="Lista inequívoca de comprobantes a cancelar")
     monto_bruto_abonar: Decimal = Field(..., gt=0, description="Monto bruto propuesto para la liquidación")
-
+    
     # 🌟 FIX BIMONETARISMO: Variables vitales para inferir retenciones correctamente
     moneda_pago: MonedaISO = Field(default=MonedaISO.ARS)
     tipo_cambio: Decimal = Field(default=Decimal("1.0"), gt=0)
@@ -237,15 +237,15 @@ class OrdenPagoMultipleCreate(BaseModel):
     proveedor_id: int
     facturas_ids: List[int] = Field(..., min_length=1)
     monto_bruto_abonar: Decimal = Field(..., gt=0)
-
+    
     # 🌟 FIX ARQUITECTURA: Ahora es Optional[int] y el default es None.
     # Si llega None, se asume que es una Orden Encolada para el Hub Interbanking Masivo.
     cuenta_origen_id: Optional[int] = Field(default=None, description="ID de la cuenta bancaria. Vacío para encolar en Loteo Masivo.")
-
+    
     # 🌟 FIX BIMONETARISMO: Variables vitales para la conciliación cruzada (FX)
     moneda_pago: MonedaISO = Field(default=MonedaISO.ARS)
     tipo_cambio: Decimal = Field(default=Decimal("1.0"), gt=0)
-
+    
     retenciones: List[RetencionDetalleResponse] = []
 
     @model_validator(mode='after')

@@ -24,16 +24,16 @@ def upgrade() -> None:
 
     # 1. Escudo Idempotente: Columnas de Extorno en Asientos Contables
     op.execute(f"""
-        ALTER TABLE {target_schema}.asientos_contables
+        ALTER TABLE {target_schema}.asientos_contables 
         ADD COLUMN IF NOT EXISTS estado VARCHAR DEFAULT 'VIGENTE' NOT NULL,
         ADD COLUMN IF NOT EXISTS asiento_revertido_id INTEGER,
-        ADD CONSTRAINT fk_asientos_revertido
+        ADD CONSTRAINT fk_asientos_revertido 
         FOREIGN KEY (asiento_revertido_id) REFERENCES {target_schema}.asientos_contables(id) ON DELETE SET NULL;
     """)
 
     # 2. Escudo Idempotente: Columnas de Candado Fiscal en Registro Tributario
     op.execute(f"""
-        ALTER TABLE {target_schema}.registro_tributario
+        ALTER TABLE {target_schema}.registro_tributario 
         ADD COLUMN IF NOT EXISTS exportado_ddjj BOOLEAN DEFAULT FALSE NOT NULL,
         ADD COLUMN IF NOT EXISTS fecha_exportacion TIMESTAMP WITH TIME ZONE;
     """)
@@ -47,7 +47,7 @@ def downgrade() -> None:
     op.execute(f"""
         ALTER TABLE {target_schema}.registro_tributario DROP COLUMN IF EXISTS fecha_exportacion;
         ALTER TABLE {target_schema}.registro_tributario DROP COLUMN IF EXISTS exportado_ddjj;
-
+        
         ALTER TABLE {target_schema}.asientos_contables DROP CONSTRAINT IF EXISTS fk_asientos_revertido;
         ALTER TABLE {target_schema}.asientos_contables DROP COLUMN IF EXISTS asiento_revertido_id;
         ALTER TABLE {target_schema}.asientos_contables DROP COLUMN IF EXISTS estado;

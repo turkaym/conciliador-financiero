@@ -10,7 +10,7 @@ interface BandejaAprobacionesProps {
   pendientes: MovimientoBancario[];
   isLoading: boolean;
   // 🌟 FIX TIPADO: Ahora soporta el parámetro opcional de rechazo
-  onResolver: (id: number, tipoRegistro: MovimientoBancario['tipo_registro'], accion: 'aprobar' | 'rechazar', motivoRechazo?: string) => Promise<boolean | void>;
+  onResolver: (id: number, accion: 'aprobar' | 'rechazar', motivoRechazo?: string) => Promise<boolean | void>;
 }
 
 export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: BandejaAprobacionesProps) {
@@ -31,10 +31,10 @@ export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: Bande
   const confirmarRechazo = async () => {
     if (!rechazoId || !motivo.trim()) return;
     setIsSubmittingRechazo(true);
-
+    
     // Disparamos la resolución hacia el Backend
-    await onResolver(rechazoId, 'SOLICITUD', 'rechazar', motivo.trim());
-
+    await onResolver(rechazoId, 'rechazar', motivo.trim());
+    
     setIsSubmittingRechazo(false);
     setRechazoId(null); // Cerramos el modal
   }
@@ -59,7 +59,7 @@ export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: Bande
             <div className="absolute top-0 right-0 p-3 opacity-[0.03]">
               <ShieldAlert className="h-24 w-24 text-amber-900" />
             </div>
-
+            
             <div className="relative z-10 flex justify-between items-start">
               <div>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-widest mb-3 border border-amber-200/50">
@@ -73,7 +73,7 @@ export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: Bande
                 </p>
               </div>
             </div>
-
+            
             <div className="relative z-10 bg-white rounded-xl p-4 border border-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] mt-2">
               <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Monto Retenido</p>
               <p className="text-3xl font-black text-slate-900 tracking-tighter">
@@ -83,18 +83,18 @@ export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: Bande
             </div>
 
             <div className="relative z-10 grid grid-cols-2 gap-3 mt-2">
-              <Button
-                variant="outline"
+              <Button 
+                variant="outline" 
                 className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-colors"
                 disabled={isLoading}
                 onClick={() => handleAbrirRechazo(mov.id)}
               >
                 <XCircle className="h-4 w-4 mr-2" /> Rechazar
               </Button>
-              <Button
+              <Button 
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-200 transition-colors border-transparent"
                 disabled={isLoading}
-                onClick={() => onResolver(mov.id, mov.tipo_registro, 'aprobar')}
+                onClick={() => onResolver(mov.id, 'aprobar')}
               >
                 <CheckCircle className="h-4 w-4 mr-2" /> Aprobar
               </Button>
@@ -115,7 +115,7 @@ export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: Bande
               Para mantener la trazabilidad operativa, debés indicarle al Operador (Maker) por qué estás rechazando esta transacción.
             </DialogDescription>
           </DialogHeader>
-
+          
           <div className="py-4">
             <Input
               placeholder="Ej: El monto no coincide con la factura, comprobante ilegible..."
@@ -128,17 +128,17 @@ export function BandejaAprobaciones({ pendientes, isLoading, onResolver }: Bande
           </div>
 
           <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
+            <Button 
+              type="button" 
+              variant="secondary" 
               onClick={() => setRechazoId(null)}
               disabled={isSubmittingRechazo}
             >
               Cancelar
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
+            <Button 
+              type="button" 
+              variant="destructive" 
               onClick={confirmarRechazo}
               disabled={!motivo.trim() || isSubmittingRechazo}
             >

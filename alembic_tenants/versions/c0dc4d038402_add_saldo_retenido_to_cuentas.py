@@ -24,7 +24,7 @@ def upgrade() -> None:
 
     # Inyección Idempotente SQL
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_bancarias
+        ALTER TABLE {target_schema}.cuentas_bancarias 
         ADD COLUMN IF NOT EXISTS saldo_retenido NUMERIC(18, 2) DEFAULT 0.00 NOT NULL;
     """)
 
@@ -34,6 +34,6 @@ def downgrade() -> None:
 
     # Downgrade Defensivo
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_bancarias
+        ALTER TABLE {target_schema}.cuentas_bancarias 
         DROP COLUMN IF EXISTS saldo_retenido;
     """)

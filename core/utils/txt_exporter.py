@@ -17,11 +17,11 @@ class FixedWidthModel(BaseModel):
         Lanza ValueError si algún dato excede el espacio asignado (Fail-Fast).
         """
         linea_componentes: List[str] = []
-
+        
         # En Pydantic V2, model_fields conserva el orden exacto de declaración
         for nombre_campo, field_info in self.model_fields.items():
             valor = getattr(self, nombre_campo)
-
+            
             # Extraer metadatos de configuración posicional
             extra = field_info.json_schema_extra or {}
             width = extra.get("width")
@@ -62,14 +62,14 @@ class FixedWidthModel(BaseModel):
 
 class FixedWidthFileGenerator:
     """
-    Orquestador encargado de compilar colecciones de modelos posicionales
+    Orquestador encargado de compilar colecciones de modelos posicionales 
     en un bloque de texto listo para ser exportado como archivo .TXT.
     """
     @staticmethod
     def generate(records: List[FixedWidthModel]) -> str:
         if not records:
             return ""
-
+        
         lineas = [record.to_fixed_width_line() for record in records]
         # Asegura finales de línea estilo Windows (CRLF) requeridos por los aplicativos SIAp
         return "\r\n".join(lineas) + "\r\n"

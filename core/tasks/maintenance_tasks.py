@@ -39,11 +39,11 @@ def meta_orchestrator_task(tarea_esclava: str, queue_name: str, extra_kwargs: di
         kwargs = {"tenant_id": tenant_id}
         kwargs.update(extra_kwargs)
         app.send_task(tarea_esclava, kwargs=kwargs, queue=queue_name)
-
+        
         # Cada 50 mensajes, liberamos presión de red por 100ms
         if (i + 1) % 50 == 0:
             time.sleep(0.1)
-
+    
     logger.info(f"✨ [META-CRON] {len(schemas)} tareas '{tarea_esclava}' delegadas exitosamente.")
 
 # ==========================================

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react"
+import { Suspense, lazy } from "react"
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom"
 import { Loader2 } from "lucide-react"
 
@@ -22,15 +22,11 @@ const EquipoPage = lazy(() => import("./pages/Equipo"))
 const ConciliacionPage = lazy(() => import("./pages/Conciliacion"))
 const PadronesPage = lazy(() => import("./pages/Padrones"))
 const EgresosPage = lazy(() => import("./pages/Egresos"))
-const ReglasIAPage = lazy(() => import("./pages/ReglasIA"))
 
 // 🌟 FIX ARQUITECTURA: Importamos el nuevo módulo MDM de Proveedores
 const ProveedoresPage = lazy(() => import("./pages/Proveedores"))
 
 import { useAuthStore } from "./store/useAuthStore"
-import { fetchCapabilities } from "./api/axios"
-import { isFeatureUsable } from "./featureFlags"
-import { aiRulesAccess } from "./features/ai-rules/model"
 import { useSessionManager } from "./hooks/useSessionManager"
 
 // 1. GUARDIA DIRECCIONAL ENTERPRISE: Autenticación, Zero Trust y Empty State
@@ -64,7 +60,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
           <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-400">
             Recibirás una notificación automática por correo una vez habilitada la operatoria.
           </div>
-          <button
+          <button 
             onClick={() => useAuthStore.getState().logout()}
             className="w-full inline-flex justify-center items-center px-4 py-2 border border-slate-200 shadow-sm text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
           >
@@ -97,22 +93,6 @@ const PageLoader = () => (
   </div>
 )
 
-const UnavailablePage = () => (
-  <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-center">
-    <div><h1 className="text-2xl font-bold text-slate-900">Módulo no disponible</h1><p className="mt-2 text-slate-500">La ruta solicitada no está habilitada.</p></div>
-  </main>
-)
-
-const AiRulesRoute = () => {
-  const capabilities = useAuthStore((state) => state.capabilities)
-  const features = useAuthStore((state) => state.features)
-  const role = useAuthStore((state) => state.user?.role)
-  const access = aiRulesAccess(capabilities, features, role)
-  if (access === "unavailable") return <UnavailablePage />
-  if (access === "unauthorized") return <main className="p-8 text-center"><h1 className="text-2xl font-bold text-slate-900">Acceso no autorizado</h1><p className="mt-2 text-slate-500">Tu plan o rol no permite administrar reglas IA.</p></main>
-  return <ReglasIAPage />
-}
-
 // 3. WELCOME PANEL
 const WelcomePanel = () => {
   const user = useAuthStore((state) => state.user)
@@ -125,7 +105,7 @@ const WelcomePanel = () => {
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Bienvenido al Panel</h1>
         <p className="text-slate-500">Aquí verás el resumen de tu conciliación operativa.</p>
       </div>
-
+      
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="bg-indigo-50/50 border border-indigo-100/80 p-4 rounded-xl">
           <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Identidad</p>
@@ -153,18 +133,6 @@ const WelcomePanel = () => {
 
 export default function App() {
   useSessionManager()
-  const [capabilitiesLoaded, setCapabilitiesLoaded] = useState(false)
-  const capabilities = useAuthStore((state) => state.capabilities)
-  const setCapabilities = useAuthStore((state) => state.setCapabilities)
-
-  useEffect(() => {
-    fetchCapabilities()
-      .then(setCapabilities)
-      .catch(() => setCapabilities([]))
-      .finally(() => setCapabilitiesLoaded(true))
-  }, [setCapabilities])
-
-  if (!capabilitiesLoaded) return <PageLoader />
 
   return (
     <>
@@ -177,7 +145,7 @@ export default function App() {
               <JoinPage />
             </Suspense>
           } />
-
+          
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
           <Route path="/dashboard" element={
@@ -187,33 +155,32 @@ export default function App() {
           }>
             <Route element={
               <Suspense fallback={<PageLoader />}>
-                <Outlet />
+                <Outlet /> 
               </Suspense>
             }>
               <Route index element={<WelcomePanel />} />
-
+              
               {/* 🌟 FIX ARQUITECTURA: Rutas inyectadas */}
-              {isFeatureUsable(capabilities, "b2b_directory") && <Route path="directorio" element={<ProveedoresPage />} />}
+              <Route path="directorio" element={<ProveedoresPage />} />
               <Route path="comprobantes" element={<ComprobantesPage />} />
-              {isFeatureUsable(capabilities, "expenses_payments") && <Route path="bancos" element={<BancosPage />} />}
-              {isFeatureUsable(capabilities, "reconciliation") && <Route path="conciliacion" element={<ConciliacionPage />} />}
+              <Route path="bancos" element={<BancosPage />} />
+              <Route path="conciliacion" element={<ConciliacionPage />} />
               <Route path="reportes" element={<ReportesPage />} />
-              {isFeatureUsable(capabilities, "team") && <Route path="equipo" element={<EquipoPage />} />}
-              {isFeatureUsable(capabilities, "tax_registries") && <Route path="padrones" element={<PadronesPage />} />}
-              {isFeatureUsable(capabilities, "expenses_payments") && <Route path="egresos" element={<EgresosPage />} />}
-              <Route path="reglas-ia" element={<AiRulesRoute />} />
+              <Route path="equipo" element={<EquipoPage />} /> 
+              <Route path="padrones" element={<PadronesPage />} /> 
+              <Route path="egresos" element={<EgresosPage />} />
             </Route>
           </Route>
-
-          <Route path="*" element={<UnavailablePage />} />
+          
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
 
       <PaywallModal />
-
-      <ToastContainer
-        position="top-right"
-        autoClose={4000}
+      
+      <ToastContainer 
+        position="top-right" 
+        autoClose={4000} 
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick

@@ -34,10 +34,10 @@ def _get_tenant_threshold_and_role(current_user):
     umbral_aprobacion = 0.0
     if hasattr(current_user, "tenant") and current_user.tenant and hasattr(current_user.tenant, "features") and isinstance(current_user.tenant.features, dict):
         umbral_aprobacion = float(current_user.tenant.features.get("umbral_aprobacion", 0.0))
-
+    
     if umbral_aprobacion == 0.0:
         umbral_aprobacion = 10000.00
-
+        
     return user_role, umbral_aprobacion
 
 # ==========================================
@@ -46,9 +46,9 @@ def _get_tenant_threshold_and_role(current_user):
 def validar_tolerancia_cambiaria(db: Session, moneda: str, tipo_cambio_ingresado: Decimal, fecha_operacion: date):
     if moneda == "ARS":
         return
-
+        
     from core.services.cotizacion_service import cotizacion_service
-
+    
     try:
         # Obtenemos la cotización segura (Local o Fetch JIT)
         tc_oficial = cotizacion_service.obtener_cotizacion_oficial_segura(db, moneda, fecha_operacion)
@@ -60,7 +60,7 @@ def validar_tolerancia_cambiaria(db: Session, moneda: str, tipo_cambio_ingresado
         )
 
     tc_ingresado = Decimal(str(tipo_cambio_ingresado))
-
+    
     # Tolerancia del 20% para absorber Spread Bancario, MEP, CCL
     limite_superior = tc_oficial * Decimal("1.20")
     limite_inferior = tc_oficial * Decimal("0.80")
@@ -114,21 +114,21 @@ def listar_proveedores(
         ContactoComercial.entidad_id == x_entity_id,
         ContactoComercial.is_active == True
     ).all()
-
+    
     if not proveedores:
         p1 = ContactoComercial(
-            entidad_id=x_entity_id,
+            entidad_id=x_entity_id, 
             cuit="33693450239",
-            razon_social="Caja Chica / Gastos Menores",
+            razon_social="Caja Chica / Gastos Menores", 
             cbu="0000000000000000000000",
             is_proveedor=True,
-            condicion_fiscal=CondicionFiscalAFIP.CONSUMIDOR_FINAL
+            condicion_fiscal=CondicionFiscalAFIP.CONSUMIDOR_FINAL 
         )
         db.add(p1)
         db.commit()
         db.refresh(p1)
-        return [p1]
-
+        return [p1]      
+    
     proveedores_validos = [p for p in proveedores if p.cuit != "20123456789"]
     return proveedores_validos
 
@@ -140,8 +140,8 @@ def listar_acreedores_activos(
 ):
     from core.domains.comprobantes.models import Comprobante
     acreedores = db.query(ContactoComercial).join(
-        Comprobante,
-        (ContactoComercial.cuit == Comprobante.cuit_emisor) &
+        Comprobante, 
+        (ContactoComercial.cuit == Comprobante.cuit_emisor) & 
         (Comprobante.entidad_id == x_entity_id)
     ).filter(
         ContactoComercial.entidad_id == x_entity_id,
@@ -150,7 +150,7 @@ def listar_acreedores_activos(
         Comprobante.saldo_pendiente > 0,
         Comprobante.estado.notin_(["ANULADO", "BORRADOR"])
     ).distinct().all()
-
+    
     return acreedores
 
 @router.post("/proveedores", response_model=ContactoComercialResponse, status_code=status.HTTP_201_CREATED)
@@ -203,25 +203,25 @@ def obtener_presigned_url(
 ):
     safe_filename = f"tickets_gastos/{uuid.uuid4().hex}_{filename}"
     schema_name = current_user.tenant.schema_name
-
+    
     put_url_interna = minio_client.generate_presigned_put_url(
-        tenant_schema=schema_name,
-        object_name=safe_filename,
+        tenant_schema=schema_name, 
+        object_name=safe_filename, 
         expiry_minutes=15
     )
-
+    
     external_host = os.getenv("MINIO_EXTERNAL_URL", "http://localhost:9000")
     if not external_host.startswith("http"):
         external_host = f"http://{external_host}"
-
+        
     bucket = minio_client._get_tenant_vault(schema_name)
     url_publica = f"{external_host}/{bucket}/{safe_filename}"
-
+    
     parsed_url = urlparse(put_url_interna)
     put_url_externa = put_url_interna.replace(f"{parsed_url.scheme}://{parsed_url.netloc}", external_host)
-
+    
     return {
-        "upload_url": put_url_externa,
+        "upload_url": put_url_externa, 
         "final_url": url_publica
     }
 
@@ -263,14 +263,14 @@ def crear_orden_pago(
 
         servicio = EgresosService(db=db, entidad_id=x_entity_id)
         user_role, umbral_aprobacion = _get_tenant_threshold_and_role(current_user)
-
+        
         nueva_orden = servicio.crear_orden_pago(
-            data=payload,
+            data=payload, 
             user_id=str(current_user.id),
             user_role=user_role,
             umbral_aprobacion=umbral_aprobacion
         )
-
+        
         if redis_client: redis_client.setex(lock_key, 86400, "resolved")
         return nueva_orden
 
@@ -303,16 +303,16 @@ def procesar_pago_multiple(
 
         servicio = EgresosService(db=db, entidad_id=x_entity_id)
         user_role, umbral_aprobacion = _get_tenant_threshold_and_role(current_user)
-
+        
         nuevo_lote = servicio.crear_orden_pago_multiple(
-            data=payload,
+            data=payload, 
             user_id=str(current_user.id),
             user_role=user_role,
             umbral_aprobacion=umbral_aprobacion
         )
-
+        
         if redis_client: redis_client.setex(lock_key, 86400, "resolved")
-
+        
         if getattr(nuevo_lote, "id", 0) == 0:
             return {
                 "id": 0,
@@ -323,7 +323,7 @@ def procesar_pago_multiple(
                 "cuenta_bancaria_id": None,
                 "detalles": []
             }
-
+        
         return db.query(LotePago).options(
             joinedload(LotePago.detalles).joinedload(LotePagoDetalle.orden_pago)
         ).filter(LotePago.id == nuevo_lote.id).first()
@@ -336,9 +336,9 @@ class LiquidacionIndividualRequest(BaseModel):
     cuenta_tesoreria_id: int
 
 @router.post(
-    "/ordenes/{orden_id}/liquidar-individual",
-    response_model=OrdenPagoResponse,
-    status_code=status.HTTP_200_OK,
+    "/ordenes/{orden_id}/liquidar-individual", 
+    response_model=OrdenPagoResponse, 
+    status_code=status.HTTP_200_OK, 
     dependencies=[Depends(EntityRoleChecker(["admin", "dueño"]))]
 )
 def liquidar_orden_individual(
@@ -360,7 +360,7 @@ def liquidar_orden_individual(
     try:
         from core.services.banco_service import banco_service
         from core.schemas.banco import MovimientoBancarioCreate
-
+        
         from core.database.models.tesoreria import CuentaTesoreria
         from core.database.models.pagos import OrdenPago, LotePago, LotePagoDetalle
         from core.utils.enums import EstadoOrdenPago, EstadoLotePago, EstadoComprobante, TipoComprobanteInterno
@@ -374,7 +374,7 @@ def liquidar_orden_individual(
 
         if not orden:
             raise HTTPException(status_code=404, detail="Orden de Pago no encontrada.")
-
+            
         estado_actual = getattr(orden.estado_orden, 'name', str(orden.estado_orden))
         if estado_actual not in ["BORRADOR", "PENDIENTE_AUTORIZACION", "EN_LOTE", "FACTURA_ASIGNADA"]:
             raise HTTPException(status_code=400, detail=f"La orden no puede liquidarse. Estado actual: {estado_actual}")
@@ -390,7 +390,7 @@ def liquidar_orden_individual(
 
         moneda_cuenta = getattr(cuenta_origen.moneda, 'value', str(cuenta_origen.moneda))
         moneda_orden = getattr(orden.moneda, 'value', str(orden.moneda))
-
+        
         if moneda_cuenta != moneda_orden:
             raise HTTPException(status_code=400, detail="La moneda de la cuenta bancaria no coincide con la moneda de la orden.")
 
@@ -399,9 +399,9 @@ def liquidar_orden_individual(
             raise HTTPException(status_code=400, detail=f"Saldo operativo insuficiente. Disponible: ${saldo_disponible}")
 
         today_local = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3))).date()
-
+        
         detalles = db.query(LotePagoDetalle).filter(LotePagoDetalle.orden_pago_id == orden.id).with_for_update().all()
-
+        
         referencia_lote_banco = orden.codigo_trazabilidad
         if detalles and not detalles[0].lote_id:
             codigo_lote = trazabilidad_service.generar_trace_id(db=db, tenant_id=x_entity_id, tipo_cbte_interno=TipoComprobanteInterno.LOTE_PAGO, prefijo="LOT")
@@ -419,10 +419,10 @@ def liquidar_orden_individual(
             )
             db.add(nuevo_lote)
             db.flush()
-
+            
             for det in detalles:
                 det.lote_id = nuevo_lote.id
-
+            
             referencia_lote_banco = codigo_lote
         elif detalles and detalles[0].lote_id:
             lote_existente = db.query(LotePago).filter(LotePago.id == detalles[0].lote_id).with_for_update().first()
@@ -443,10 +443,10 @@ def liquidar_orden_individual(
             concepto_interno="Liquidación Directa por Interfaz",
             referencia_banco=referencia_lote_banco
         )
-
+        
         banco_service.registrar_movimiento_con_saldo(
-            db=db, mov_in=mov_in, entidad_id=x_entity_id,
-            user_id=str(current_user.id), user_role=getattr(current_user, "role", "admin"),
+            db=db, mov_in=mov_in, entidad_id=x_entity_id, 
+            user_id=str(current_user.id), user_role=getattr(current_user, "role", "admin"), 
             umbral_aprobacion=0.0
         )
 
@@ -456,7 +456,7 @@ def liquidar_orden_individual(
                 facturas = db.query(Comprobante).filter(Comprobante.id.in_(comprobantes_ids)).with_for_update().all()
                 estado_en_pago = getattr(EstadoComprobante, 'EN_PAGO', 'EN_PAGO')
                 estado_pagada = getattr(EstadoComprobante, 'PAGADA', 'PAGADA')
-
+                
                 for factura in facturas:
                     if factura.estado == estado_en_pago:
                         factura.estado = estado_pagada
@@ -466,7 +466,7 @@ def liquidar_orden_individual(
 
         db.commit()
         db.refresh(orden)
-
+        
         if redis_client: redis_client.setex(lock_key, 86400, "resolved")
         return orden
 
@@ -479,9 +479,9 @@ class EnsamblajeBancarioRequest(BaseModel):
     ordenes_ids: List[int]
 
 @router.post(
-    "/lotes/ensamblaje-bancario",
-    response_model=LotePagoResponse,
-    status_code=status.HTTP_201_CREATED,
+    "/lotes/ensamblaje-bancario", 
+    response_model=LotePagoResponse, 
+    status_code=status.HTTP_201_CREATED, 
     dependencies=[Depends(EntityRoleChecker(["admin", "dueño"]))]
 )
 def ensamblar_lote_bancario(
@@ -509,10 +509,10 @@ def ensamblar_lote_bancario(
             raise HTTPException(status_code=400, detail="No se encontraron las órdenes solicitadas o ya fueron procesadas.")
 
         monto_total = sum(op.monto_estimado for op in ordenes)
-
+        
         import uuid
         codigo_lote = f"IBK-{x_entity_id}-{uuid.uuid4().hex[:6].upper()}"
-
+        
         nuevo_lote = LotePago(
             entidad_id=x_entity_id,
             cuenta_tesoreria_id=payload.cuenta_tesoreria_id,
@@ -539,11 +539,11 @@ def ensamblar_lote_bancario(
                 orden_pago_id=op.id,
                 creado_por_id=str(current_user.id),
                 monto_asignado_moneda_origen=op.monto_estimado,
-                monto_asignado_ars=op.monto_estimado,
+                monto_asignado_ars=op.monto_estimado, 
                 tipo_cambio_aplicado=op.tipo_cambio_estimado
             )
             db.add(detalle)
-
+            
             op.estado_orden = estado_cerrado
             op.actualizado_por_id = str(current_user.id)
             db.add(op)
@@ -551,7 +551,7 @@ def ensamblar_lote_bancario(
         db.commit()
 
         if redis_client: redis_client.setex(lock_key, 86400, "resolved")
-
+        
         return db.query(LotePago).options(
             joinedload(LotePago.detalles).joinedload(LotePagoDetalle.orden_pago)
         ).filter(LotePago.id == nuevo_lote.id).first()
@@ -584,11 +584,11 @@ def crear_lote_pago(
 ):
     servicio = EgresosService(db=db, entidad_id=x_entity_id)
     nuevo_lote = servicio.crear_lote_draft(data=payload, user_id=str(current_user.id))
-
+    
     lote_hidratado = db.query(LotePago).options(
         joinedload(LotePago.detalles).joinedload(LotePagoDetalle.orden_pago)
     ).filter(LotePago.id == nuevo_lote.id).first()
-
+    
     return lote_hidratado
 
 @router.patch("/lotes/{lote_id}/solicitar-autorizacion", response_model=LotePagoResponse)
@@ -600,7 +600,7 @@ def solicitar_autorizacion_lote(
 ):
     servicio = EgresosService(db=db, entidad_id=x_entity_id)
     lote_actualizado = servicio.solicitar_autorizacion(lote_id=lote_id, user_id=str(current_user.id))
-
+    
     return db.query(LotePago).options(
         joinedload(LotePago.detalles).joinedload(LotePagoDetalle.orden_pago)
     ).filter(LotePago.id == lote_actualizado.id).first()
@@ -614,13 +614,13 @@ def autorizar_lote_pago(
     current_user = Depends(get_current_user)
 ):
     servicio = EgresosService(db=db, entidad_id=x_entity_id)
-
+    
     lote_actualizado = servicio.autorizar_lote(
-        lote_id=lote_id,
+        lote_id=lote_id, 
         user_id=str(current_user.id),
         cuenta_bancaria_id=payload.cuenta_bancaria_id
     )
-
+    
     return db.query(LotePago).options(
         joinedload(LotePago.detalles).joinedload(LotePagoDetalle.orden_pago)
     ).filter(LotePago.id == lote_actualizado.id).first()
@@ -644,7 +644,7 @@ def exportar_lote_interbanking(
 
     if lote.estado_lote != EstadoLotePago.AUTHORIZED_FOR_PAYMENT:
         raise HTTPException(
-            status_code=400,
+            status_code=400, 
             detail=f"Exportación denegada. El lote debe estar Autorizado. Estado: {lote.estado_lote}"
         )
 
@@ -654,7 +654,7 @@ def exportar_lote_interbanking(
     headers = {
         "Content-Disposition": f"attachment; filename=interbanking_{lote.codigo_lote}.txt"
     }
-
+    
     return StreamingResponse(buffer, media_type="text/plain", headers=headers)
 
 @router.post(
@@ -671,7 +671,7 @@ def anular_orden_pago(
     current_user: CachedUser = Depends(get_current_user)
 ):
     """
-    Anulación transaccional de Orden de Pago.
+    Anulación transaccional de Orden de Pago. 
     Genera contra-asientos y revierte efectos impositivos de forma atómica.
     """
     # 🌟 FIX FASE 3.2: Candado Distribuido en Memoria (Redis)
@@ -679,7 +679,7 @@ def anular_orden_pago(
     base_signature = f"{x_entity_id}:{orden_id}:{current_user.id}"
     lock_hash = hashlib.sha256(base_signature.encode()).hexdigest()
     lock_key = f"idempotency:pagos:anular:{lock_hash}"
-
+    
     if idempotency_key:
         lock_key += f":{idempotency_key}"
 
@@ -703,11 +703,11 @@ def anular_orden_pago(
             user_role=user_role,
             umbral_aprobacion=umbral_aprobacion
         )
-
+        
         # 🌟 Lápida de Idempotencia: Si fue un éxito, bloqueamos futuros intentos idénticos por 1 minuto
         if redis_client:
             redis_client.setex(lock_key, 60, "resolved")
-
+            
         return resultado
 
     except HTTPException as http_exc:

@@ -23,15 +23,15 @@ def upgrade() -> None:
 
     # 🌟 SQL Crudo Idempotente para añadir columnas de auditoría a las 3 tablas principales
     op.execute(f"""
-        ALTER TABLE {target_schema}.ordenes_pago
+        ALTER TABLE {target_schema}.ordenes_pago 
+        ADD COLUMN IF NOT EXISTS creado_por_id VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS actualizado_por_id VARCHAR(50);
+        
+        ALTER TABLE {target_schema}.lotes_pago 
         ADD COLUMN IF NOT EXISTS creado_por_id VARCHAR(50),
         ADD COLUMN IF NOT EXISTS actualizado_por_id VARCHAR(50);
 
-        ALTER TABLE {target_schema}.lotes_pago
-        ADD COLUMN IF NOT EXISTS creado_por_id VARCHAR(50),
-        ADD COLUMN IF NOT EXISTS actualizado_por_id VARCHAR(50);
-
-        ALTER TABLE {target_schema}.lote_pago_detalles
+        ALTER TABLE {target_schema}.lote_pago_detalles 
         ADD COLUMN IF NOT EXISTS creado_por_id VARCHAR(50),
         ADD COLUMN IF NOT EXISTS actualizado_por_id VARCHAR(50);
     """)
@@ -44,7 +44,7 @@ def downgrade() -> None:
     op.execute(f"""
         ALTER TABLE {target_schema}.ordenes_pago DROP COLUMN IF EXISTS creado_por_id;
         ALTER TABLE {target_schema}.ordenes_pago DROP COLUMN IF EXISTS actualizado_por_id;
-
+        
         ALTER TABLE {target_schema}.lotes_pago DROP COLUMN IF EXISTS creado_por_id;
         ALTER TABLE {target_schema}.lotes_pago DROP COLUMN IF EXISTS actualizado_por_id;
 

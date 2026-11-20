@@ -23,7 +23,7 @@ class InterbankingAdapter(BaseExportAdapter):
         # ==============================================================================
         # 1. ESCUDO FAIL-FAST PERIMETRAL (Sincrónico)
         # ==============================================================================
-
+        
         # A) Validación Estricta de la Cuenta de Origen (Débito)
         # 🌟 FIX ARQUITECTURA: Se apunta a la relación 'cuenta_tesoreria' de la nueva BD
         cuenta_origen = getattr(lote, 'cuenta_tesoreria', None)
@@ -32,7 +32,7 @@ class InterbankingAdapter(BaseExportAdapter):
                 status_code=422,
                 detail="Exportación abortada. El lote no posee una cuenta de tesorería de origen asignada para el débito."
             )
-
+            
         # 🌟 FIX ARQUITECTURA: La columna correcta en CuentaTesoreria es 'cbu_cvu'
         cbu_origen = getattr(cuenta_origen, 'cbu_cvu', getattr(cuenta_origen, 'numero_cuenta', None))
         if not cbu_origen or len(str(cbu_origen)) != 22 or not str(cbu_origen).isdigit():
@@ -48,7 +48,7 @@ class InterbankingAdapter(BaseExportAdapter):
                 proveedor = detalle.orden_pago.proveedor
             elif detalle.comprobante:
                 pass # Fallback reservado para futuras arquitecturas
-
+                
             if proveedor:
                 cbu_destino = getattr(proveedor, 'cbu', None)
                 # 🌟 FIX NEGOCIO: Bloqueamos estrictamente los CBUs "dummy" de ceros
@@ -70,16 +70,16 @@ class InterbankingAdapter(BaseExportAdapter):
             fecha_lote = lote.fecha_autorizacion.strftime("%Y%m%d") if lote.fecha_autorizacion else "00000000"
             codigo_truncado = lote.codigo_lote[:15].ljust(15)
             yield f"*DATOS*{codigo_truncado}{fecha_lote}{cbu_origen}\n"
-
+            
             # Cuerpo posicional de transferencias
             for detalle in detalles:
                 if detalle.orden_pago and detalle.orden_pago.proveedor:
                     prov = detalle.orden_pago.proveedor
-
+                    
                     # Formateo a 16 caracteres para que al quitar el punto queden exactamente 15.
                     importe_str = f"{detalle.monto_asignado_ars:016.2f}".replace('.', '')
                     referencia = detalle.orden_pago.codigo_trazabilidad[:15].ljust(15)
-
+                    
                     yield f"{prov.cuit}{prov.cbu}{importe_str}{referencia}\n"
 
         return _stream_generator()

@@ -24,7 +24,7 @@ def upgrade() -> None:
 
     # 🌟 DDL Defensivo: Permitimos NULL y quitamos el default
     op.execute(f"""
-        ALTER TABLE {target_schema}.movimientos_tesoreria
+        ALTER TABLE {target_schema}.movimientos_tesoreria 
         ALTER COLUMN saldo_resultante DROP NOT NULL,
         ALTER COLUMN saldo_resultante DROP DEFAULT;
     """)
@@ -35,11 +35,11 @@ def downgrade() -> None:
 
     # 🌟 Rollback Idempotente: Primero parcheamos posibles nulos para que el SET NOT NULL no colapse
     op.execute(f"""
-        UPDATE {target_schema}.movimientos_tesoreria
-        SET saldo_resultante = 0.00
+        UPDATE {target_schema}.movimientos_tesoreria 
+        SET saldo_resultante = 0.00 
         WHERE saldo_resultante IS NULL;
-
-        ALTER TABLE {target_schema}.movimientos_tesoreria
+        
+        ALTER TABLE {target_schema}.movimientos_tesoreria 
         ALTER COLUMN saldo_resultante SET DEFAULT '0.00',
         ALTER COLUMN saldo_resultante SET NOT NULL;
     """)

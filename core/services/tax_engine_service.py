@@ -28,7 +28,7 @@ class TaxEngineService:
         ).first()
         if existente:
             raise HTTPException(status_code=409, detail="Ya existe una regla para este impuesto y jurisdicción.")
-
+            
         nueva_regla = ReglaImpuesto(entidad_id=entidad_id, **payload.model_dump())
         db.add(nueva_regla)
         db.commit()
@@ -39,10 +39,10 @@ class TaxEngineService:
         regla = db.query(ReglaImpuesto).filter(ReglaImpuesto.id == regla_id, ReglaImpuesto.entidad_id == entidad_id).first()
         if not regla:
             raise HTTPException(status_code=404, detail="Regla no encontrada.")
-
+            
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(regla, key, value)
-
+            
         db.commit()
         db.refresh(regla)
         return regla
@@ -65,7 +65,7 @@ class TaxEngineService:
         for regla in reglas:
             if monto_base <= regla.monto_minimo_sujeto:
                 continue
-
+            
             alicuota_final = regla.alicuota_defecto
             origen = "DEFECTO"
 
@@ -82,7 +82,7 @@ class TaxEngineService:
                     elif "PERCEPCION" in regla.tipo_impuesto.upper():
                         alicuota_final = padron_entry.alicuota_percepcion
                     origen = "PADRON"
-
+            
             if alicuota_final <= Decimal('0.0'):
                 continue
 
@@ -111,7 +111,7 @@ class TaxEngineService:
         fecha_registro: date, impuestos_calculados: List[ImpuestoCalculado], comprobante_id: Optional[int] = None,
         asiento_id: Optional[int] = None, numero_comprobante_origen: Optional[str] = None
     ) -> List[RegistroTributario]:
-
+        
         if not impuestos_calculados:
             return []
 
@@ -122,14 +122,14 @@ class TaxEngineService:
             numero_cert = None
             if clase_tributo == "RETENCION_EMITIDA":
                 secuencia = db.query(SecuenciaFiscal).filter(
-                    SecuenciaFiscal.entidad_id == entidad_id, SecuenciaFiscal.punto_venta == 1, SecuenciaFiscal.tipo_cbte == 999
+                    SecuenciaFiscal.entidad_id == entidad_id, SecuenciaFiscal.punto_venta == 1, SecuenciaFiscal.tipo_cbte == 999 
                 ).with_for_update().first()
-
+                
                 if not secuencia:
                     secuencia = SecuenciaFiscal(entidad_id=entidad_id, punto_venta=1, tipo_cbte=999, ultimo_numero=0)
                     db.add(secuencia)
                     db.flush()
-
+                
                 secuencia.ultimo_numero += 1
                 numero_cert = f"{secuencia.punto_venta:04d}-{secuencia.ultimo_numero:08d}"
 
@@ -152,8 +152,8 @@ class TaxEngineService:
                 origen_alicuota=imp.origen_alicuota
             )
             # Inyección silenciosa del código de régimen temporal en el objeto para la exportación
-            setattr(registro, '_codigo_regimen_dinamico', imp.codigo_regimen_afip)
-
+            setattr(registro, '_codigo_regimen_dinamico', imp.codigo_regimen_afip) 
+            
             db.add(registro)
             registros.append(registro)
 

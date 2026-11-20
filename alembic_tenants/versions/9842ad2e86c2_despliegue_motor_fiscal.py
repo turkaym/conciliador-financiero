@@ -24,29 +24,29 @@ def upgrade() -> None:
 
     # 1. Corrección Arquitectónica: Inyección defensiva de columna en tabla existente
     op.execute(f"""
-        ALTER TABLE {target_schema}.secuencias_fiscales
+        ALTER TABLE {target_schema}.secuencias_fiscales 
         ADD COLUMN IF NOT EXISTS entidad_id INTEGER REFERENCES {target_schema}.razones_sociales_propias(id) ON DELETE CASCADE;
     """)
-
+    
     # Seteamos un valor por defecto seguro (1) para los registros que ya existan antes de aplicar el NOT NULL
     op.execute(f"""
-        UPDATE {target_schema}.secuencias_fiscales
-        SET entidad_id = 1
+        UPDATE {target_schema}.secuencias_fiscales 
+        SET entidad_id = 1 
         WHERE entidad_id IS NULL;
     """)
-
+    
     op.execute(f"""
-        ALTER TABLE {target_schema}.secuencias_fiscales
+        ALTER TABLE {target_schema}.secuencias_fiscales 
         ALTER COLUMN entidad_id SET NOT NULL;
     """)
 
     # Reestructuración del constraint único para incluir el aislamiento por entidad
     op.execute(f"""
-        ALTER TABLE {target_schema}.secuencias_fiscales
+        ALTER TABLE {target_schema}.secuencias_fiscales 
         DROP CONSTRAINT IF EXISTS uix_ptovta_tipocbte;
     """)
     op.execute(f"""
-        ALTER TABLE {target_schema}.secuencias_fiscales
+        ALTER TABLE {target_schema}.secuencias_fiscales 
         ADD CONSTRAINT uix_ptovta_tipocbte UNIQUE (entidad_id, punto_venta, tipo_cbte);
     """)
 
@@ -87,7 +87,7 @@ def upgrade() -> None:
         );
     """)
     op.execute(f"""
-        CREATE INDEX IF NOT EXISTS ix_reglas_impuestos_id
+        CREATE INDEX IF NOT EXISTS ix_reglas_impuestos_id 
         ON {target_schema}.reglas_impuestos (id);
     """)
 

@@ -2,7 +2,7 @@ import logging
 import redis
 from config.config import settings
 from core.afip.auth import AfipAuthManager
-from datetime import datetime, timezone
+from datetime import datetime, timezone 
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Header
 from sqlalchemy.orm import Session
 from cryptography import x509
@@ -22,7 +22,7 @@ async def upload_afip_credentials(
     x_entity_id: int = Header(..., alias="X-Entity-ID"),
     certificate: UploadFile = File(...),
     private_key: UploadFile = File(...),
-    db: Session = Depends(get_tenant_db),
+    db: Session = Depends(get_tenant_db), 
     current_user: CachedUser = Depends(get_current_user)
 ):
     if current_user.tenant.schema_name != schema_name:
@@ -88,7 +88,7 @@ async def upload_afip_credentials(
         db.rollback()
         logger.error(f"Fallo crítico procesando la bóveda de credenciales AFIP: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Fallo interno al asegurar e indexar las credenciales.")
-
+    
 # Inicializamos el cliente Redis para el endpoint de Test
 redis_client_test = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
@@ -114,11 +114,11 @@ async def test_afip_connection(
     try:
         raw_env = getattr(settings, 'PROMETEO_ENV', 'homo')
         env_mode = "prod" if raw_env in ["produccion", "prod", "production"] else "homo"
-
+        
         # Forzamos force_refresh=True para obligar a ir hasta ARCA y no leer del caché
         with AfipAuthManager(redis_client_test, entidad.afip_certificate, entidad.afip_private_key_encrypted, env_mode) as auth:
             token_data = auth.get_token(entidad.cuit, force_refresh=True)
-
+            
         return {
             "status": "success",
             "message": "Conexión WSAA establecida.",
@@ -130,7 +130,7 @@ async def test_afip_connection(
     except Exception as e:
         logger.error(f"Test AFIP Fallido (Interno): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Fallo criptográfico o estructural al intentar contactar a AFIP.")
-
+    
 @router.delete("/{schema_name}/entidad/{entidad_id}/credentials")
 async def revoke_afip_credentials(
     schema_name: str,
@@ -157,13 +157,13 @@ async def revoke_afip_credentials(
     try:
         db.commit()
         logger.info(f"🗑️ [SECURITY] Credenciales revocadas y purgadas para la entidad {entidad_id} ({entidad.cuit}) por {current_user.email}.")
-
+        
         # Opcional: Podrías limpiar también el token de Redis aquí si quisieras ser extremadamente pulcro
         redis_key = f"wsaa_token:{entidad.cuit}:wsfe:homo" # Asumiendo entorno de prueba
         redis_client_test.delete(redis_key)
-
+        
         return {"status": "success", "message": "Credenciales revocadas y bóveda purgada exitosamente."}
     except Exception as e:
         db.rollback()
         logger.error(f"Error purgando bóveda para entidad {entidad_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Fallo interno al revocar credenciales.")
+        raise HTTPException(status_code=500, detail="Fallo interno al revocar credenciales.")    

@@ -16,7 +16,7 @@ logger = logging.getLogger("BILLING_API")
 router = APIRouter()
 
 class CheckoutRequest(BaseModel):
-    plan_name: str
+    plan_name: str 
 
 # 🌟 FIX RBAC: Inyectamos la seguridad directamente en la firma de la ruta
 @router.post("/checkout", status_code=status.HTTP_200_OK, dependencies=[Depends(RoleChecker(["admin", "dueño"]))])
@@ -76,12 +76,12 @@ def customer_portal(
 @router.post("/webhook", include_in_schema=False)
 async def stripe_webhook(request: Request):
     """
-    Receptor Idempotente de eventos de Stripe.
+    Receptor Idempotente de eventos de Stripe. 
     NO procesa aquí, despacha a RabbitMQ.
     """
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
-
+    
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
@@ -93,12 +93,12 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Firma inválida")
 
     from core.tasks.billing_tasks import process_stripe_webhook_task
-
+    
     process_stripe_webhook_task.apply_async(
         kwargs={
-            "event_dict": event.to_dict(),
-            "object_name": event.get("id")
-        },
+            "event_dict": event.to_dict(), 
+            "object_name": event.get("id") 
+        }, 
         queue="billing_queue"
     )
 

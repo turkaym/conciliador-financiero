@@ -5,10 +5,18 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 
 // Ruta corregida apuntando a utils
 import { formatearMonedaSegura, formatFechaUI } from "../utils/formatters"
-import type { IncompleteMovement } from "../hooks/useConciliacion"
+
+interface MovimientoBancario {
+  id: number
+  fecha: string
+  referencia: string
+  concepto: string
+  monto: number
+  moneda: string
+}
 
 interface ColumnaExtractoProps {
-  movimientosPendientes: IncompleteMovement[]
+  movimientosPendientes: MovimientoBancario[]
   selectedMovs: number[]
   handleSelectMov: (id: number) => void
   flowTab: 'COBROS' | 'PAGOS'
@@ -38,12 +46,12 @@ export function ColumnaExtracto({
           <CardTitle className="text-md font-bold text-indigo-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
               {flowTab === 'COBROS' ? <TrendingUp className="w-4 h-4 text-emerald-600" /> : <TrendingDown className="w-4 h-4 text-indigo-600" />}
-              {flowTab === 'COBROS' ? "Ingresos de Caja / Extracto" : "Egresos de Caja / Extracto"}
+              {flowTab === 'COBROS' ? "Ingresos de Caja / Extracto" : "Egresos de Caja / Extracto"} 
               <span className="text-xs font-normal text-slate-500">({movimientosPendientes.length})</span>
             </div>
           </CardTitle>
         </CardHeader>
-
+        
         <CardContent ref={movParentRef} className="flex-1 p-0 bg-white overflow-y-auto relative pb-24">
           {movimientosPendientes.length === 0 ? (
             <div className="flex items-center justify-center h-full text-sm text-slate-400">
@@ -57,14 +65,14 @@ export function ColumnaExtracto({
 
                 const isSelected = selectedMovs.includes(mov.id)
                 return (
-                  <div
-                    key={virtualRow.key}
+                  <div 
+                    key={virtualRow.key} 
                     onClick={() => handleSelectMov(mov.id)}
                     className={`absolute top-0 left-0 w-full flex items-center px-4 cursor-pointer transition-all border-b border-slate-100 ${isSelected ? 'bg-indigo-50/70 border-l-4 border-l-indigo-600' : 'hover:bg-slate-50 border-l-4 border-l-transparent'}`}
                     style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
                   >
                     <input type="checkbox" checked={isSelected} readOnly className="w-4 h-4 text-indigo-600 rounded mr-4" />
-
+                    
                     <div className="flex-1 min-w-0 py-2 space-y-1">
                       <div className="flex items-center text-[11px] text-slate-400 font-semibold gap-3">
                         <span className="flex items-center gap-1 font-mono"><Calendar className="w-3 h-3"/> {formatFechaUI(mov.fecha)}</span>

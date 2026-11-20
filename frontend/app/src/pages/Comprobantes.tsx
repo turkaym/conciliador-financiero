@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useComprobantes, type ComprobanteFilters } from "../features/comprobantes/hooks/useComprobantes"
 import { ComprobanteFormModal } from "../features/comprobantes/components/ComprobanteFormModal"
@@ -37,7 +37,7 @@ export default function ComprobantesPage() {
 
   const [comprobanteToDelete, setComprobanteToDelete] = useState<Comprobante | null>(null)
   const [page, setPage] = useState(0)
-
+  
   // 🌟 ESTADO DE FILTROS DEL DASHBOARD
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<ComprobanteFilters>({
@@ -49,24 +49,15 @@ export default function ComprobantesPage() {
     fecha_hasta: ""
   })
 
-  const loadEntityComprobantes = useEffectEvent(() => {
-    void fetchComprobantes(0, filters)
-  })
-
-  useEffect(() => useAuthStore.subscribe((state, previousState) => {
-    if (state.entidadActiva?.id !== previousState.entidadActiva?.id) {
-      setPage(0)
-    }
-  }), [])
-
   // 🌟 REACTIVIDAD AL CAMBIO DE EMPRESA
   useEffect(() => {
     if (entidadActiva) {
-      loadEntityComprobantes()
+      setPage(0)
+      fetchComprobantes(0, filters)
     } else {
       clearData()
     }
-  }, [entidadActiva, clearData])
+  }, [entidadActiva, clearData]) // Quitamos fetchComprobantes para evitar render loops
 
   // 🌟 MOTOR DE APLICACIÓN DE FILTROS
   const handleApplyFilters = () => {
@@ -112,7 +103,7 @@ export default function ComprobantesPage() {
 
   return (
     <div className="space-y-6">
-      <DeleteConfirmModal
+      <DeleteConfirmModal 
         comprobante={comprobanteToDelete}
         onClose={() => setComprobanteToDelete(null)}
         onConfirm={handleConfirmarEliminacion}
@@ -127,24 +118,24 @@ export default function ComprobantesPage() {
               Gestioná las facturas de <span className="font-semibold text-slate-700">{entidadActiva.nombre_fantasia}</span>.
             </p>
           </div>
-
+          
           <div className="flex flex-wrap gap-2 sm:gap-3">
-            <Button
-              variant={showFilters ? "secondary" : "outline"}
+            <Button 
+              variant={showFilters ? "secondary" : "outline"} 
               className={`transition-colors ${showFilters ? 'bg-indigo-100 text-indigo-800 border-indigo-200 hover:bg-indigo-200' : 'bg-white'}`}
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="mr-2 h-4 w-4" /> Filtros
             </Button>
 
-            <Button
-              variant="outline"
-              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 bg-white"
-              onClick={handleSyncClick}
+            <Button 
+              variant="outline" 
+              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 bg-white" 
+              onClick={handleSyncClick} 
               disabled={isLoading || isSyncingAfip}
               title={!entidadActiva.has_afip_credentials ? "Requiere configuración en Workspace Fiscal" : "Bajar comprobantes de AFIP"}
             >
-              {isSyncingAfip ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudDownload className="mr-2 h-4 w-4" />}
+              {isSyncingAfip ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudDownload className="mr-2 h-4 w-4" />} 
               {isSyncingAfip ? "Encolando..." : "Sincronizar AFIP"}
             </Button>
 
@@ -152,10 +143,10 @@ export default function ComprobantesPage() {
               <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> Actualizar
             </Button>
 
-            <ComprobanteFormModal
+            <ComprobanteFormModal 
               entidadActiva={entidadActiva}
               remitosPendientes={remitosPendientes}
-              cajasDisponibles={cajasDisponibles}
+              cajasDisponibles={cajasDisponibles} 
               isSaving={isSaving}
               errorMsg={errorMsg}
               onOpen={fetchRemitosPendientes}
@@ -175,10 +166,10 @@ export default function ComprobantesPage() {
         {/* 🌟 PANEL DE CONTROL DE FILTROS (DASHBOARD) MOBILE-FIRST */}
         {showFilters && (
           <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm mb-6 animate-in fade-in slide-in-from-top-2">
-
+            
             {/* 🌟 FIX UX: Grilla base de 6 columnas (las fechas ocupan 2) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-5">
-
+              
               <div className="space-y-1.5 lg:col-span-1">
                 <Label className="text-[10px] uppercase font-bold text-slate-500">Operación</Label>
                 <Select value={filters.tipo_operacion} onValueChange={(val) => setFilters({...filters, tipo_operacion: val})}>
@@ -220,12 +211,12 @@ export default function ComprobantesPage() {
 
               <div className="space-y-1.5 lg:col-span-1">
                 <Label className="text-[10px] uppercase font-bold text-slate-500">Buscar CUIT</Label>
-                <Input
-                  type="text"
-                  placeholder="Ej: 30123456789"
-                  className="h-9 text-xs font-mono w-full"
-                  value={filters.cuit_receptor}
-                  onChange={(e) => setFilters({...filters, cuit_receptor: e.target.value.replace(/\D/g, '')})}
+                <Input 
+                  type="text" 
+                  placeholder="Ej: 30123456789" 
+                  className="h-9 text-xs font-mono w-full" 
+                  value={filters.cuit_receptor} 
+                  onChange={(e) => setFilters({...filters, cuit_receptor: e.target.value.replace(/\D/g, '')})} 
                 />
               </div>
 
@@ -272,8 +263,8 @@ export default function ComprobantesPage() {
             <Loader2 className="h-4 w-4 text-indigo-500 animate-spin" />
           </div>
         )}
-
-        <ComprobantesTable
+        
+        <ComprobantesTable 
           comprobantes={comprobantes}
           isLoading={isLoading}
           deletingId={deletingId}

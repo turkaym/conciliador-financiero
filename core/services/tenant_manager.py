@@ -50,7 +50,7 @@ class TenantManager:
             # Fallback de Resiliencia: Si RabbitMQ muere, limpiamos a mano para no dejar a los usuarios bloqueados
             from core.database.models_master import User
             from core.api.deps import invalidate_user_cache
-
+            
             usuarios = db.query(User).filter(User.tenant_id == tenant_id).all()
             for u in usuarios:
                 try:
@@ -59,7 +59,7 @@ class TenantManager:
                     pass
 
         return tenant
-
+    
     @staticmethod
     def list_tenants(db: Session):
         return db.query(Tenant).order_by(Tenant.id).all()
@@ -71,7 +71,7 @@ class TenantManager:
 
         if db.query(Tenant).filter(Tenant.cuit == cuit).first():
             raise ValueError(f"Ya existe un Tenant registrado con el CUIT {cuit}.")
-
+            
         if schema_name and db.query(Tenant).filter(Tenant.schema_name == schema_name).first():
             raise ValueError(f"El esquema '{schema_name}' ya está en uso.")
 
@@ -82,14 +82,14 @@ class TenantManager:
             name=name,
             cuit=cuit,
             schema_name=schema_name,
-            is_active=False
+            is_active=False 
         )
         db.add(nuevo_tenant)
-
+        
         try:
             db.commit()
             db.refresh(nuevo_tenant)
-
+            
             try:
                 from core.tasks.maintenance_tasks import provision_new_tenant_task, purge_tenant_cache_task
                 provision_new_tenant_task.apply_async(args=[schema_name], queue='accounting_queue')
@@ -97,9 +97,9 @@ class TenantManager:
             except Exception as e_celery:
                 logger.warning(f"⚠️ No se pudo contactar a Celery. Fallback síncrono: {e_celery}")
                 TenantManager.provision_tenant(db, schema_name)
-
+            
             return nuevo_tenant
-
+            
         except Exception as e:
             db.rollback()
             # 🌟 FIX: Preservamos el registro inactivo para mantener la integridad de la auditoría (SystemLogs)
@@ -121,17 +121,17 @@ class TenantManager:
             {"codigo_sistema": "GASTOS_BANCARIOS", "nombre": "Comisiones y Gastos Bancarios", "tipo": "RESULTADO_NEGATIVO"},
             {"codigo_sistema": "DIF_CAMBIO_POS", "nombre": "Diferencia de Cambio", "tipo": "RESULTADO_POSITIVO"}
         ]
-
+        
         cuentas_existentes = tenant_db.query(PlanCuentas.codigo_sistema).all()
         codigos_existentes = [c[0] for c in cuentas_existentes if c[0]]
 
         faltantes = [c for c in cuentas_requeridas if c["codigo_sistema"] not in codigos_existentes]
-
+        
         if faltantes:
             nuevas_cuentas = []
             for c in faltantes:
                 nueva_cuenta = PlanCuentas(
-                    codigo=f"SYS-{c['codigo_sistema']}",
+                    codigo=f"SYS-{c['codigo_sistema']}", 
                     codigo_sistema=c['codigo_sistema'],
                     nombre=c['nombre'],
                     tipo=c['tipo'],
@@ -145,7 +145,7 @@ class TenantManager:
     @staticmethod
     def provision_tenant(db: Session, schema_name: str):
         schema_created = False
-
+        
         tenant_master = db.query(Tenant).filter(Tenant.schema_name == schema_name).first()
         if not tenant_master:
             raise ValueError(f"Incoherencia transaccional: No existe el tenant maestro para {schema_name}")
@@ -153,7 +153,7 @@ class TenantManager:
         try:
             logger.info(f"🏗️ Creando espacio de trabajo para: {schema_name}")
             db.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"'))
-
+            
             # 🌟 FIX B2B: Inyección de Permisos Zero-Trust para la Inteligencia Artificial
             # El agente debe poder leer (y solo leer) este nuevo esquema que acaba de nacer.
             try:
@@ -164,46 +164,46 @@ class TenantManager:
             except Exception as perm_err:
                 logger.warning(f"⚠️ No se pudo asignar el rol de IA (quizás no existe en el motor): {perm_err}")
 
-            db.commit()
+            db.commit() 
             schema_created = True
 
             logger.info("⚙️ Generando tablas físicamente vía API Programática de Alembic...")
-
+            
             BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            PROJECT_ROOT = os.path.dirname(BASE_DIR)
-
+            PROJECT_ROOT = os.path.dirname(BASE_DIR) 
+            
             # Construimos el motor efímero para DDL
             db_user = quote_plus(settings.DB_USER)
             db_pass = quote_plus(settings.DB_PASSWORD)
             bypass_host = os.environ.get("DB_HOST_DIRECT", "postgres")
             bypass_port = os.environ.get("DB_PORT_DIRECT", "5432")
             db_name = os.environ.get("DB_NAME_MASTER", "conciliador_master")
-
+            
             direct_url = f"postgresql://{db_user}:{db_pass}@{bypass_host}:{bypass_port}/{db_name}"
             engine_ddl = create_engine(direct_url, pool_pre_ping=True)
-
+            
             try:
                 # Usamos una conexión activa y forzamos el search_path
                 with engine_ddl.connect() as connection:
                     connection.execute(text(f'SET search_path TO "{schema_name}", public'))
-
+                    
                     # Configuramos Alembic para usar ESTA conexión
                     alembic_cfg = Config(os.path.join(PROJECT_ROOT, "alembic.ini"))
                     alembic_cfg.config_file_name = None # Evita secuestro de logs
                     alembic_cfg.set_main_option("script_location", os.path.join(PROJECT_ROOT, "alembic_tenants"))
-
+                    
                     # Inyectamos la connection en el atributo para que env.py la consuma
                     alembic_cfg.attributes['connection'] = connection
                     alembic_cfg.attributes['tenant_schema'] = schema_name
-
+                    
                     # Ejecutamos la migración
                     command.upgrade(alembic_cfg, "head")
-
+                    
                     # 🌟 FIX PHANTOM DDL: Forzar el guardado físico de la transacción DDL en disco
                     connection.commit()
-
+                    
                     logger.info(f"✅ Estructura base forjada y persistida vía migraciones para {schema_name}.")
-
+                    
             except Exception as alembic_err:
                 logger.critical(f"Alembic Engine Error: {alembic_err}")
                 raise
@@ -216,7 +216,7 @@ class TenantManager:
                 with tenant_session_ctx(schema_name) as tenant_db:
                     DataSeeder.seed_tenant_defaults(tenant_db)
                     TenantManager._inject_cuentas_base(tenant_db)
-
+                    
                     tenant_db.commit() # Sellado atómico de todo el sembrado
             except Exception as e_inner:
                 raise RuntimeError(f"Fallo crítico en el sembrado de datos iniciales: {str(e_inner)}")
@@ -229,7 +229,7 @@ class TenantManager:
 
         except Exception as e:
             db.rollback()
-
+            
             error_traceback = traceback.format_exc()
             nuevo_log = SystemLog(
                 level="CRITICAL",
@@ -239,7 +239,7 @@ class TenantManager:
                 tenant_reference=schema_name
             )
             db.add(nuevo_log)
-            db.commit()
+            db.commit() 
 
             logger.critical(f"💥 FALLO EN PROVISIÓN: {str(e)}. Ejecutando Rollback del esquema...")
             if schema_created:
@@ -279,15 +279,15 @@ class TenantManager:
 
             from core.database.models_master import User
             from core.api.deps import invalidate_user_cache
-
+            
             usuarios_afectados = db.query(User).filter(User.tenant_id == tenant_obj.id).all()
-
+            
             for u in usuarios_afectados:
                 try:
                     invalidate_user_cache(u.email)
                 except Exception as cache_err:
                     logger.debug(f"Caché no encontrada o error al limpiar para {u.email}: {cache_err}")
-
+            
             logger.info(f"💥 Caché de sesiones aniquilada para {len(usuarios_afectados)} usuarios de {schema_name}.")
 
         except Exception as e:

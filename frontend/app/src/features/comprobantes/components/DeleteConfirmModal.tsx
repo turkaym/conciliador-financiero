@@ -1,10 +1,10 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
@@ -16,12 +16,12 @@ interface DeleteConfirmModalProps {
   onConfirm: () => void;
 }
 
-export function DeleteConfirmModal({
-  comprobante,
-  onClose,
-  onConfirm
+export function DeleteConfirmModal({ 
+  comprobante, 
+  onClose, 
+  onConfirm 
 }: DeleteConfirmModalProps) {
-
+  
   const formatNumeroCbte = (pv: number, num: number) => {
     return `${pv.toString().padStart(4, '0')}-${num.toString().padStart(8, '0')}`;
   };

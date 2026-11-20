@@ -24,13 +24,13 @@ def upgrade() -> None:
 
     # DDL Defensivo: Agregamos la columna a Cuentas de Tesorería
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_tesoreria
+        ALTER TABLE {target_schema}.cuentas_tesoreria 
         ADD COLUMN IF NOT EXISTS proveedor_clearing_id INTEGER REFERENCES {target_schema}.contactos_comerciales(id) ON DELETE SET NULL;
     """)
 
     # DDL Defensivo: Agregamos la columna a Cuentas Bancarias
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_bancarias
+        ALTER TABLE {target_schema}.cuentas_bancarias 
         ADD COLUMN IF NOT EXISTS proveedor_clearing_id INTEGER REFERENCES {target_schema}.contactos_comerciales(id) ON DELETE SET NULL;
     """)
 
@@ -40,11 +40,11 @@ def downgrade() -> None:
 
     # Rollback Defensivo
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_tesoreria
+        ALTER TABLE {target_schema}.cuentas_tesoreria 
         DROP COLUMN IF EXISTS proveedor_clearing_id;
     """)
-
+    
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_bancarias
+        ALTER TABLE {target_schema}.cuentas_bancarias 
         DROP COLUMN IF EXISTS proveedor_clearing_id;
     """)

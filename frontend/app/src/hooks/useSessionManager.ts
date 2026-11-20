@@ -8,17 +8,10 @@ const LOCK_KEY = 'auth_refresh_lock'; // 🌟 FIX: Llave para el candado multi-p
 
 export function useSessionManager() {
   const { token, logout, setAuth } = useAuthStore();
-  const lastActivity = useRef<number | null>(null);
+  const lastActivity = useRef<number>(Date.now());
 
   useEffect(() => {
-    if (!token) {
-      lastActivity.current = null;
-      return;
-    }
-
-    if (lastActivity.current === null) {
-      lastActivity.current = Date.now();
-    }
+    if (!token) return;
 
     // 1. RASTREADOR DE ACTIVIDAD
     const updateActivity = () => {
@@ -31,8 +24,8 @@ export function useSessionManager() {
     // 2. EL GUARDIA: Revisa la inactividad cada 60 segundos
     const idleCheckInterval = setInterval(() => {
       const now = Date.now();
-      if (now - (lastActivity.current ?? now) >= IDLE_TIMEOUT_MS) {
-        if (import.meta.env.DEV) {
+      if (now - lastActivity.current >= IDLE_TIMEOUT_MS) {
+        if (process.env.NODE_ENV === 'development') {
           console.warn("🔒 Sesión expirada por inactividad. Cerrando bóveda.");
         }
         logout();
@@ -42,17 +35,17 @@ export function useSessionManager() {
     // 3. EL NEGOCIADOR (Blindado contra multi-pestañas)
     const refreshInterval = setInterval(async () => {
       const now = Date.now();
-      const isUserActive = (now - (lastActivity.current ?? now)) < IDLE_TIMEOUT_MS;
-
+      const isUserActive = (now - lastActivity.current) < IDLE_TIMEOUT_MS;
+      
       if (!isUserActive) return;
 
       // 🌟 FIX CONDICIÓN DE CARRERA: Bloqueo distribuido
       const lockValue = localStorage.getItem(LOCK_KEY);
       const lastRefresh = lockValue ? parseInt(lockValue, 10) : 0;
-
+      
       // Si otra pestaña tomó el candado y renovó el token en los últimos 30 segundos, abortamos
       if (now - lastRefresh < 30000) {
-        if (import.meta.env.DEV) {
+        if (process.env.NODE_ENV === 'development') {
           console.log("🔄 [Sesión] Otra pestaña ya renovó el token. Omitiendo petición duplicada.");
         }
         return;

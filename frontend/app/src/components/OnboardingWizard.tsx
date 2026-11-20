@@ -17,18 +17,18 @@ export default function OnboardingWizard() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
-
+  
   const navigate = useNavigate()
   const location = useLocation()
-
+  
   const email = location.state?.email || ""
   const password = location.state?.password || ""
-
+  
   const setAuth = useAuthStore((state) => state.setAuth)
 
   const handleVerificacion = async (e: React.FormEvent) => {
     e.preventDefault()
-
+    
     if (!email) {
       setErrorMsg("La sesión segura expiró. Por favor, volvé a la pantalla de Login.")
       return
@@ -60,7 +60,7 @@ export default function OnboardingWizard() {
 
     try {
       if (!password) throw new Error("Falta contraseña en memoria");
-
+      
       const formData = new URLSearchParams()
       formData.append("username", email)
       formData.append("password", password)
@@ -68,18 +68,18 @@ export default function OnboardingWizard() {
       const loginResponse = await api.post("/v1/auth/login", formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       })
-
+      
       const { access_token, tenant_id, user, features } = loginResponse.data
-
-      // 🌟 FIX CONDICIÓN DE CARRERA (FRONTEND):
+      
+      // 🌟 FIX CONDICIÓN DE CARRERA (FRONTEND): 
       // Guardamos en el estado global...
       setAuth(access_token, tenant_id, user, features)
-
+      
       // ... y esperamos a que el ciclo de renderizado termine antes de navegar
       setTimeout(() => {
         navigate("/dashboard", { replace: true })
       }, 500)
-
+      
     } catch (err) {
       setSuccessMsg("¡Cuenta activada con éxito! Redirigiendo al Login de acceso...")
       setTimeout(() => {
@@ -122,7 +122,7 @@ export default function OnboardingWizard() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-slate-100">
-
+          
           {errorMsg && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-start text-sm">
               <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
@@ -140,14 +140,14 @@ export default function OnboardingWizard() {
           <form className="space-y-6" onSubmit={handleVerificacion}>
             <div>
               <Label htmlFor="codigo" className="text-slate-700 font-semibold">Código de Seguridad</Label>
-              <Input
-                id="codigo"
-                required
+              <Input 
+                id="codigo" 
+                required 
                 maxLength={6}
-                placeholder="000000"
-                className="text-center text-2xl font-mono tracking-[0.5em] mt-2 h-14"
-                value={codigoActivacion}
-                onChange={e => setCodigoActivacion(e.target.value.replace(/\D/g, '').substring(0, 6))}
+                placeholder="000000" 
+                className="text-center text-2xl font-mono tracking-[0.5em] mt-2 h-14" 
+                value={codigoActivacion} 
+                onChange={e => setCodigoActivacion(e.target.value.replace(/\D/g, '').substring(0, 6))} 
               />
             </div>
 

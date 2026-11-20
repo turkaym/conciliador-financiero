@@ -13,12 +13,12 @@ import ExportadorFiscal from "@/features/reportes/components/ExportadorFiscal"
 import { FileText, Database, ShieldAlert, CheckCircle2, Landmark, ShieldCheck, Loader2, Settings, Search, RefreshCw, XCircle } from "lucide-react"
 
 export default function Padrones() {
-  const {
-    isLoading, isPolling, errorMsg, globalMessage, setErrorMsg, uploadPadron,
-    historial, isFetchingHistorial, fetchHistorial,
-    searchResult, isSearching, buscarCuit
+  const { 
+    isLoading, isPolling, errorMsg, globalMessage, setErrorMsg, uploadPadron, 
+    historial, isFetchingHistorial, fetchHistorial, 
+    searchResult, isSearching, buscarCuit 
   } = usePadrones();
-
+  
   const user = useAuthStore((state) => state.user);
   const isAdmin = ["admin", "dueño", "editor"].includes(user?.role?.toLowerCase() || "");
   const [activeTab, setActiveTab] = useState(isAdmin ? "reglas" : "ingesta");
@@ -44,7 +44,7 @@ export default function Padrones() {
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12 relative h-full flex flex-col">
-
+      
       {/* Header Fijo */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-6 shrink-0">
         <div>
@@ -57,7 +57,7 @@ export default function Padrones() {
           </p>
         </div>
 
-        <ImportarPadronModal
+        <ImportarPadronModal 
           isLoading={isLoading}
           isPolling={isPolling}
           errorMsg={errorMsg}
@@ -82,17 +82,17 @@ export default function Padrones() {
             <Settings className="w-4 h-4 mr-2" /> Matriz Impositiva
           </button>
         )}
-
+        
         <button onClick={() => setActiveTab("ingesta")} className={`flex items-center px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${activeTab === "ingesta" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"}`}>
           <Database className="w-4 h-4 mr-2" /> Padrones de Riesgo
         </button>
-
+        
         {isAdmin && (
           <button onClick={() => setActiveTab("sire")} className={`flex items-center px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${activeTab === "sire" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"}`}>
             <FileText className="w-4 h-4 mr-2" /> Exportador DDJJ
           </button>
         )}
-
+        
         {isAdmin && (
           <button onClick={() => setActiveTab("boveda")} className={`flex items-center px-4 py-2 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${activeTab === "boveda" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"}`}>
             <ShieldCheck className="w-4 h-4 mr-2" /> Bóveda AFIP
@@ -102,7 +102,7 @@ export default function Padrones() {
 
       {/* 🌟 RENDERIZADO DINÁMICO */}
       <div className="flex-1 overflow-y-auto">
-
+        
         {activeTab === "reglas" && isAdmin && (
           <div className="animate-in fade-in duration-300 py-2">
             <ConfiguracionFiscalABM />
@@ -112,7 +112,7 @@ export default function Padrones() {
         {/* CENTRO DE CONTROL DE PADRONES Y BUSCADOR */}
         {activeTab === "ingesta" && (
           <div className="space-y-8 animate-in fade-in duration-300 py-2">
-
+            
             {/* Inspector Fiscal */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="bg-slate-50 border-b border-slate-200 p-4">
@@ -125,7 +125,7 @@ export default function Padrones() {
                 <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 items-end">
                   <div className="w-full sm:w-1/3">
                     <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">CUIT del Proveedor</label>
-                    <input
+                    <input 
                       type="text" required maxLength={11} placeholder="Ej: 30111111118"
                       value={searchCuit} onChange={(e) => setSearchCuit(e.target.value)}
                       className="w-full h-10 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -140,7 +140,7 @@ export default function Padrones() {
                   </div>
                   <div className="w-full sm:w-1/4">
                     <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Período (YYYYMM)</label>
-                    <input
+                    <input 
                       type="month" required value={searchPer} onChange={(e) => setSearchPer(e.target.value)}
                       className="w-full h-10 rounded-md border border-slate-300 px-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                     />
@@ -182,7 +182,7 @@ export default function Padrones() {
                   <RefreshCw className={`w-5 h-5 ${isFetchingHistorial ? 'animate-spin' : ''}`} />
                 </button>
               </div>
-
+              
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>

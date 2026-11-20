@@ -31,12 +31,12 @@ def upgrade() -> None:
     # 3. Recrear el índice GIN de búsqueda difusa apuntando a la nueva columna
     op.drop_index('ix_mov_concepto_trgm', table_name='movimientos_bancarios', schema=target_schema)
     op.create_index(
-        'ix_mov_concepto_trgm',
-        'movimientos_bancarios',
-        ['concepto_bancario_crudo'],
-        unique=False,
-        schema=target_schema,
-        postgresql_using='gin',
+        'ix_mov_concepto_trgm', 
+        'movimientos_bancarios', 
+        ['concepto_bancario_crudo'], 
+        unique=False, 
+        schema=target_schema, 
+        postgresql_using='gin', 
         postgresql_ops={'concepto_bancario_crudo': 'gin_trgm_ops'}
     )
 
@@ -52,11 +52,11 @@ def downgrade() -> None:
     op.drop_column('movimientos_bancarios', 'concepto_interno', schema=target_schema)
     op.alter_column('movimientos_bancarios', 'concepto_bancario_crudo', new_column_name='concepto', schema=target_schema)
     op.create_index(
-        'ix_mov_concepto_trgm',
-        'movimientos_bancarios',
-        ['concepto'],
-        unique=False,
-        schema=target_schema,
-        postgresql_using='gin',
+        'ix_mov_concepto_trgm', 
+        'movimientos_bancarios', 
+        ['concepto'], 
+        unique=False, 
+        schema=target_schema, 
+        postgresql_using='gin', 
         postgresql_ops={'concepto': 'gin_trgm_ops'}
     )

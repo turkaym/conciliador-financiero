@@ -23,11 +23,11 @@ def replay_dead_letters(
 ):
     """
     🌟 FIX RIESGO 8: Resurrección de Tareas (Replay).
-    Toma mensajes muertos de la cola de base de datos, los marca como resueltos
+    Toma mensajes muertos de la cola de base de datos, los marca como resueltos 
     y los vuelve a inyectar en el broker AMQP (RabbitMQ) para su re-procesamiento.
     """
     tenant_id = current_user.tenant.schema_name
-
+    
     muertos = db.query(ColaMensajesMuertos).filter(
         ColaMensajesMuertos.id.in_(req.dlq_ids),
         ColaMensajesMuertos.resuelto == False
@@ -53,7 +53,7 @@ def replay_dead_letters(
             logger.error(f"Fallo al reinyectar DLQ ID {msg.id}: {e}")
 
     db.commit()
-
+    
     return {
         "message": f"Se re-encolaron {enviados} tareas fallidas en RabbitMQ.",
         "failed_replays": len(muertos) - enviados

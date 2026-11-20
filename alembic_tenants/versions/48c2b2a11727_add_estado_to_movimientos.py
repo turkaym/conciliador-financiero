@@ -24,12 +24,12 @@ def upgrade() -> None:
 
     # Inyección Idempotente SQL (Política v4.0)
     op.execute(f"""
-        ALTER TABLE {target_schema}.movimientos_bancarios
+        ALTER TABLE {target_schema}.movimientos_bancarios 
         ADD COLUMN IF NOT EXISTS estado VARCHAR(50) DEFAULT 'APROBADO';
     """)
-
+    
     op.execute(f"""
-        CREATE INDEX IF NOT EXISTS ix_{target_schema}_mov_bancarios_estado
+        CREATE INDEX IF NOT EXISTS ix_{target_schema}_mov_bancarios_estado 
         ON {target_schema}.movimientos_bancarios (estado);
     """)
 

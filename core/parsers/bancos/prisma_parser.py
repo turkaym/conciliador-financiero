@@ -41,8 +41,8 @@ class PrismaParser_v1:
         # Decodificamos el stream binario de urllib3 (MinIO) al vuelo (Lazy Evaluation).
         # Esto evita que el buffer de red se rompa al alcanzar el EOF abruptamente.
         decoded_stream = (line.decode('utf-8', errors='replace') for line in file_stream)
-        reader = csv.reader(decoded_stream, delimiter=';')
-
+        reader = csv.reader(decoded_stream, delimiter=';') 
+        
         next(reader, None) # Saltar cabecera
 
         for row in reader:
@@ -54,13 +54,13 @@ class PrismaParser_v1:
                 raw_fecha = row[self.mapping['fecha']].strip()
                 fecha_obj = datetime.strptime(raw_fecha, "%d/%m/%Y").date()
                 ref = row[self.mapping['referencia']].strip()
-
+                
                 bruto = Decimal(row[self.mapping['bruto']].replace(',', '.'))
                 comision = Decimal(row[self.mapping['comision']].replace(',', '.'))
                 retencion = Decimal(row[self.mapping['retenciones']].replace(',', '.'))
 
                 # 2. Desempaquetado (Explosión de 1 a N)
-
+                
                 # A. Ingreso Bruto (Mata la factura impaga)
                 if bruto > 0:
                     mov_bruto = ParsedMovement(

@@ -1,15 +1,15 @@
 import { Switch } from "@/components/ui/switch"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
 } from "@/components/ui/dialog"
 import { Loader2, Plus, Landmark } from "lucide-react"
 import type { CuentaBancariaCreate, TipoCuentaEnum, MonedaEnum, TipoCanalEnum } from "../types"
@@ -24,10 +24,10 @@ interface NuevaCuentaModalProps {
 
 export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = [], onOpen }: NuevaCuentaModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-
+  
   const [formCuenta, setFormCuenta] = useState<{
-    tipo_canal: TipoCanalEnum | null;
-    banco: string;
+    tipo_canal: TipoCanalEnum | null; 
+    banco: string; 
     numero_cuenta: string;
     cbu: string;
     alias: string;
@@ -36,32 +36,48 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
     saldo_actual: string;
     is_virtual_clearing: boolean;
     proveedor_clearing_id: string;
-  }>({
+  }>({ 
     tipo_canal: null,
-    banco: "",
-    numero_cuenta: "",
-    cbu: "",
+    banco: "", 
+    numero_cuenta: "", 
+    cbu: "", 
     alias: "",
-    tipo_cuenta: null,
+    tipo_cuenta: null, 
     moneda: "ARS" as MonedaEnum,
     saldo_actual: "0",
     is_virtual_clearing: false,
-    proveedor_clearing_id: ""
+    proveedor_clearing_id: "" 
   });
+
+  useEffect(() => {
+    if (formCuenta.tipo_canal === "PASARELA") {
+      setFormCuenta(prev => ({ 
+        ...prev, 
+        is_virtual_clearing: true, 
+        proveedor_clearing_id: prev.proveedor_clearing_id || "" 
+      }));
+    } else {
+      setFormCuenta(prev => ({ 
+        ...prev, 
+        is_virtual_clearing: false, 
+        proveedor_clearing_id: "" 
+      }));
+    }
+  }, [formCuenta.tipo_canal]);
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
-
+    
     if (open && onOpen) {
       onOpen();
     } else if (!open) {
-      setFormCuenta({
+      setFormCuenta({ 
         tipo_canal: null,
-        banco: "",
-        numero_cuenta: "",
-        cbu: "",
+        banco: "", 
+        numero_cuenta: "", 
+        cbu: "", 
         alias: "",
-        tipo_cuenta: null,
+        tipo_cuenta: null, 
         moneda: "ARS" as MonedaEnum,
         saldo_actual: "0",
         is_virtual_clearing: false,
@@ -72,9 +88,9 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!formCuenta.tipo_canal || !formCuenta.banco || !formCuenta.tipo_cuenta) {
-      return;
+      return; 
     }
 
     if (formCuenta.is_virtual_clearing && !formCuenta.proveedor_clearing_id) {
@@ -83,10 +99,10 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
     }
 
     const payload: CuentaBancariaCreate = {
-      tipo_canal: formCuenta.tipo_canal,
+      tipo_canal: formCuenta.tipo_canal, 
       banco: formCuenta.banco,
       numero_cuenta: formCuenta.numero_cuenta,
-      cbu: formCuenta.cbu.trim() === "" ? null : formCuenta.cbu,
+      cbu: formCuenta.cbu.trim() === "" ? null : formCuenta.cbu, 
       alias: formCuenta.alias.trim() === "" ? null : formCuenta.alias,
       tipo_cuenta: formCuenta.tipo_cuenta,
       moneda: formCuenta.moneda,
@@ -109,10 +125,10 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
           Nueva Cuenta
         </Button>
       </DialogTrigger>
-
+      
       {/* 🌟 FIX UX: Agregamos max-h y overflow-y-auto para evitar desborde */}
-      <DialogContent
-        className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto"
+      <DialogContent 
+        className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto" 
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
@@ -121,23 +137,18 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
             <DialogTitle>Vincular Cuenta Bancaria</DialogTitle>
           </div>
         </DialogHeader>
-
+        
         {errorMsg && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
             {errorMsg}
           </div>
         )}
-
+        
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4 mt-2">
-
+          
           <div className="col-span-2 space-y-2">
             <Label>Naturaleza del Canal</Label>
-            <Select required value={formCuenta.tipo_canal || ""} onValueChange={(v) => setFormCuenta(prev => ({
-              ...prev,
-              tipo_canal: v as TipoCanalEnum,
-              is_virtual_clearing: v === "PASARELA",
-              proveedor_clearing_id: v === "PASARELA" ? prev.proveedor_clearing_id : ""
-            }))}>
+            <Select required value={formCuenta.tipo_canal || ""} onValueChange={(v) => setFormCuenta({...formCuenta, tipo_canal: v as TipoCanalEnum})}>
               <SelectTrigger><SelectValue placeholder="¿Es un banco o una pasarela?" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="BANCO">Banco Tradicional (Santander, Galicia, etc.)</SelectItem>
@@ -148,11 +159,11 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
 
           <div className="col-span-2 space-y-2">
             <Label>Nombre de la Entidad / Banco</Label>
-            <Input
-              required
+            <Input 
+              required 
               placeholder={formCuenta.tipo_canal === 'PASARELA' ? "Ej: Mercado Pago" : "Ej: Banco Santander"}
-              value={formCuenta.banco}
-              onChange={e => setFormCuenta({...formCuenta, banco: e.target.value.toUpperCase()})}
+              value={formCuenta.banco} 
+              onChange={e => setFormCuenta({...formCuenta, banco: e.target.value.toUpperCase()})} 
             />
           </div>
 
@@ -182,42 +193,42 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
 
           <div className="space-y-2">
             <Label>Número de Cuenta</Label>
-            <Input
-              required
+            <Input 
+              required 
               placeholder="Ej: 123-45678/9"
-              value={formCuenta.numero_cuenta}
-              onChange={e => setFormCuenta({...formCuenta, numero_cuenta: e.target.value})}
+              value={formCuenta.numero_cuenta} 
+              onChange={e => setFormCuenta({...formCuenta, numero_cuenta: e.target.value})} 
             />
           </div>
-
+          
           <div className="space-y-2">
             <Label>Alias (Opcional)</Label>
-            <Input
+            <Input 
               placeholder="Ej: mi.cuenta.banco"
-              value={formCuenta.alias}
-              onChange={e => setFormCuenta({...formCuenta, alias: e.target.value})}
+              value={formCuenta.alias} 
+              onChange={e => setFormCuenta({...formCuenta, alias: e.target.value})} 
             />
           </div>
 
           <div className="col-span-2 space-y-2">
             <Label>CBU / CVU / Identificador (22 dígitos)</Label>
-            <Input
+            <Input 
               maxLength={22}
               placeholder="007000..."
-              value={formCuenta.cbu}
-              onChange={e => setFormCuenta({...formCuenta, cbu: e.target.value})}
+              value={formCuenta.cbu} 
+              onChange={e => setFormCuenta({...formCuenta, cbu: e.target.value})} 
             />
           </div>
 
           <div className="col-span-2 space-y-2">
             <Label className="text-indigo-700 font-semibold">Saldo Inicial de Apertura</Label>
-            <Input
-              type="number"
-              step="0.01"
+            <Input 
+              type="number" 
+              step="0.01" 
               className="border-indigo-200 focus:border-indigo-500"
-              required
-              value={formCuenta.saldo_actual}
-              onChange={e => setFormCuenta({...formCuenta, saldo_actual: e.target.value})}
+              required 
+              value={formCuenta.saldo_actual} 
+              onChange={e => setFormCuenta({...formCuenta, saldo_actual: e.target.value})} 
             />
             <p className="text-[11px] text-muted-foreground">
               Se generará un movimiento automático de ajuste por este monto.
@@ -233,9 +244,9 @@ export function NuevaCuentaModal({ isLoading, errorMsg, onSubmit, proveedores = 
                     Obligatorio para pasarelas. Genera la factura automáticamente por las comisiones descontadas en el extracto.
                   </p>
                 </div>
-                <Switch
+                <Switch 
                   checked={formCuenta.is_virtual_clearing}
-                  disabled={true}
+                  disabled={true} 
                 />
               </div>
 
