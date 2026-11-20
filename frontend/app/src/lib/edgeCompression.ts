@@ -11,27 +11,27 @@ export const compressToWebP = (file: File, maxWidth = 1920, quality = 0.7): Prom
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
-
+    
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
-
+      
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const scaleSize = maxWidth / img.width;
-
+        
         // Redimensionar solo si la imagen es más grande que el límite
         const width = img.width > maxWidth ? maxWidth : img.width;
         const height = img.width > maxWidth ? img.height * scaleSize : img.height;
 
         canvas.width = width;
         canvas.height = height;
-
+        
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           return reject(new Error("No se pudo iniciar el contexto del Canvas (2D)"));
         }
-
+        
         ctx.drawImage(img, 0, 0, width, height);
 
         // Transcodificación a WebP (Aceleración de Hardware)
@@ -47,10 +47,10 @@ export const compressToWebP = (file: File, maxWidth = 1920, quality = 0.7): Prom
           }
         }, 'image/webp', quality);
       };
-
+      
       img.onerror = (error) => reject(error);
     };
-
+    
     reader.onerror = (error) => reject(error);
   });
 };

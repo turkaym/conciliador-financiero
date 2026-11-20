@@ -22,12 +22,12 @@ class MinioManager:
         endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
         access_key = os.getenv("MINIO_ROOT_USER", "admin")
         secret_key = os.getenv("MINIO_ROOT_PASSWORD", "admin")
-
+        
         self.client = Minio(
             endpoint,
             access_key=access_key,
             secret_key=secret_key,
-            secure=False
+            secure=False 
         )
 
     def _get_tenant_vault(self, tenant_schema: str) -> str:
@@ -64,7 +64,7 @@ class MinioManager:
             if not self.client.bucket_exists(bucket_name):
                 self.client.make_bucket(bucket_name)
                 logger.info(f"🪣 Bóveda aislada '{bucket_name}' creada exitosamente.")
-
+                
                 # 🌟 FIX ARQUITECTÓNICO: Ciclo de vida dual implementado
                 config = LifecycleConfig(
                     [
@@ -78,7 +78,7 @@ class MinioManager:
                         # Regla 2: Aborta y destruye fragmentos multipart incompletos en todo el bucket tras 24hs
                         Rule(
                             ENABLED,
-                            rule_filter=Filter(prefix=""),
+                            rule_filter=Filter(prefix=""), 
                             rule_id="abort-orphan-multiparts-24h",
                             abort_incomplete_multipart_upload=AbortIncompleteMultipartUpload(days_after_initiation=1)
                         )
@@ -86,10 +86,10 @@ class MinioManager:
                 )
                 self.client.set_bucket_lifecycle(bucket_name, config)
                 logger.info(f"🧹 [LIFECYCLE] Política de recolección de basura Multipart inyectada en {bucket_name}.")
-
+                
                 # 🌟 IaC: Configuración automática de acceso de lectura
                 self.aplicar_politica_lectura_publica(bucket_name)
-
+                
         except S3Error as e:
             logger.error(f"❌ Error verificando/creando bóveda {bucket_name}: {e}")
             raise
@@ -98,28 +98,28 @@ class MinioManager:
     # ESCUDO PARA ARCHIVOS SIMPLES (< 20MB)
     # ==============================================================
     def generate_presigned_post_policy(
-        self,
-        tenant_schema: str,
-        object_name: str,
-        expiry_minutes: int = 15,
-        max_mb: int = 20
+        self, 
+        tenant_schema: str, 
+        object_name: str, 
+        expiry_minutes: int = 15, 
+        max_mb: int = 20 
     ) -> dict:
         bucket_name = self._get_tenant_vault(tenant_schema)
         self.ensure_tenant_vault(tenant_schema)
-
+        
         try:
             expiration = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
             policy = PostPolicy(bucket_name, expiration)
-
+            
             policy.add_equals_condition("key", object_name)
             policy.add_content_length_range_condition(1, max_mb * 1024 * 1024)
-
+            
             return self.client.presigned_post_policy(policy)
-
+            
         except S3Error as e:
             logger.error(f"❌ Error generando POST Policy blindada para {object_name}: {e}")
             raise
-
+        
     # ==============================================================
     # INFRAESTRUCTURA MULTIPART (CHUNKS > 20MB)
     # ==============================================================
@@ -130,15 +130,15 @@ class MinioManager:
             external_host = os.getenv("MINIO_EXTERNAL_URL", "localhost:9000").replace("http://", "").replace("https://", "")
             access_key = os.getenv("MINIO_ROOT_USER", "admin")
             secret_key = os.getenv("MINIO_ROOT_PASSWORD", "admin")
-
+            
             ephemeral_client = Minio(
                 external_host,
                 access_key=access_key,
                 secret_key=secret_key,
                 secure=False,
-                region="us-east-1"
+                region="us-east-1" 
             )
-
+            
             return ephemeral_client.presigned_put_object(
                 bucket_name,
                 object_name,
@@ -154,26 +154,26 @@ class MinioManager:
             sources = [ComposeSource(bucket_name, obj) for obj in source_objects]
             self.client.compose_object(bucket_name, target_object, sources)
             logger.info(f"🧩 Archivo multipart '{target_object}' ensamblado exitosamente ({len(sources)} partes).")
-
+            
             for obj in source_objects:
                 try:
                     self.client.remove_object(bucket_name, obj)
                 except Exception:
-                    pass
-
+                    pass 
+                    
         except S3Error as e:
             logger.error(f"❌ Error ensamblando archivo {target_object}: {e}")
             raise
-
+        
     def quarantine_file(self, tenant_schema: str, object_name: str, task_request_id: str) -> str:
         bucket_name = self._get_tenant_vault(tenant_schema)
         from minio.commonconfig import CopySource
-
+        
         quarantine_name = f"quarantine/{object_name.split('/')[-1]}_{task_request_id}"
         try:
             self.client.copy_object(
-                bucket_name,
-                quarantine_name,
+                bucket_name, 
+                quarantine_name, 
                 CopySource(bucket_name, object_name)
             )
             logger.info(f"🛡️ [QUARANTINE] Archivo movido a {quarantine_name}")
@@ -204,7 +204,7 @@ class MinioManager:
     def upload_file(self, tenant_schema: str, object_name: str, file_path: str):
         bucket_name = self._get_tenant_vault(tenant_schema)
         try:
-            self.ensure_tenant_vault(tenant_schema)
+            self.ensure_tenant_vault(tenant_schema) 
             self.client.fput_object(bucket_name, object_name, file_path)
             logger.info(f"📤 Archivo {object_name} subido a {bucket_name}.")
         except S3Error as e:

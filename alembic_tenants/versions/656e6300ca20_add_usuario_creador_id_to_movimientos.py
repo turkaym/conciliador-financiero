@@ -23,11 +23,11 @@ def upgrade() -> None:
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
 
     op.execute(f"""
-        ALTER TABLE {target_schema}.movimientos_bancarios
+        ALTER TABLE {target_schema}.movimientos_bancarios 
         ADD COLUMN IF NOT EXISTS usuario_creador_id VARCHAR(50) DEFAULT 'SYSTEM' NOT NULL;
     """)
     op.execute(f"""
-        CREATE INDEX IF NOT EXISTS ix_{target_schema}_mov_usuario_creador
+        CREATE INDEX IF NOT EXISTS ix_{target_schema}_mov_usuario_creador 
         ON {target_schema}.movimientos_bancarios (usuario_creador_id);
     """)
 

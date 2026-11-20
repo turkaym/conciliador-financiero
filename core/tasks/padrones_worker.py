@@ -18,12 +18,12 @@ CHUNK_SIZE = 10000
 
 @app.task(bind=True, max_retries=3)
 def procesar_padron_fiscal(
-    self,
-    tenant_id: str,
-    bucket_name: str,
-    object_name: str,
-    jurisdiccion: str,
-    periodo: str,
+    self, 
+    tenant_id: str, 
+    bucket_name: str, 
+    object_name: str, 
+    jurisdiccion: str, 
+    periodo: str, 
     entidad_id: int,
     **kwargs
 ):
@@ -66,11 +66,11 @@ def procesar_padron_fiscal(
         # 🌟 ESCUDO DE VALIDACIÓN (FAIL-FAST) CON DISEÑO OFICIAL
         with open(temp_file_path, 'r', encoding='utf-8') as f:
             primera_linea = f.readline().strip()
-
+            
             if jurisdiccion.upper() == "ARBA":
                 if len(primera_linea.split(';')) < 11:
                     raise ValueError("[BUSINESS_LOGIC] El archivo no coincide con el diseño de registro oficial del Padrón de ARBA (Delimitador ';').")
-
+            
             elif jurisdiccion.upper() == "AGIP":
                 if "CUIT" not in primera_linea.upper():
                     raise ValueError("[BUSINESS_LOGIC] El archivo no coincide con el formato oficial del Padrón de AGIP.")
@@ -87,7 +87,7 @@ def procesar_padron_fiscal(
                     return 0
                 # Deduplicación en memoria para evitar CardinalityViolation
                 lote_dedup = list({(r['entidad_id'], r['cuit'], r['jurisdiccion'], r['periodo']): r for r in lote}.values())
-
+                
                 stmt_insert = insert(PadronFiscal).values(lote_dedup)
                 stmt_upsert = stmt_insert.on_conflict_do_update(
                     index_elements=['entidad_id', 'cuit', 'jurisdiccion', 'periodo'],
@@ -107,10 +107,10 @@ def procesar_padron_fiscal(
                     linea = linea.strip()
                     if not linea:
                         continue
-
+                    
                     if index == 0 and jurisdiccion.upper() == "AGIP" and "CUIT" in linea.upper():
                         continue
-
+                    
                     try:
                         if jurisdiccion.upper() == "ARBA":
                             partes = linea.split(';')
@@ -121,7 +121,7 @@ def procesar_padron_fiscal(
                             cuit = linea[0:11].strip()
                             retencion = float(linea[11:17].strip().replace(',', '.'))
                             percepcion = float(linea[17:23].strip().replace(',', '.'))
-
+                        
                         lote_actual.append({
                             "entidad_id": entidad_id,
                             "jurisdiccion": jurisdiccion,
@@ -137,7 +137,7 @@ def procesar_padron_fiscal(
                     # Inserción en bloques (Chunking)
                     if len(lote_actual) >= CHUNK_SIZE:
                         registros_procesados += _ejecutar_upsert(lote_actual)
-                        lote_actual = []
+                        lote_actual = [] 
 
             # Insertar el remanente final
             registros_procesados += _ejecutar_upsert(lote_actual)
@@ -146,7 +146,7 @@ def procesar_padron_fiscal(
             raise ValueError("[BUSINESS_LOGIC] El archivo fue procesado pero no se encontró ningún registro válido para importar.")
 
         logger.info(f"✅ Padrón {jurisdiccion} procesado exitosamente. {registros_procesados} registros impactados.")
-
+        
         # 🌟 TELEMETRÍA: Registrar éxito
         if historial_id:
             with tenant_session_ctx(tenant_id) as db:
@@ -174,7 +174,7 @@ def procesar_padron_fiscal(
                 })
                 db.commit()
         raise ve
-
+        
     except Exception as e:
         logger.error(f"Fallo crítico procesando padrón: {str(e)}", exc_info=True)
         if historial_id:
@@ -189,7 +189,7 @@ def procesar_padron_fiscal(
                 })
                 db.commit()
         raise self.retry(exc=e, countdown=60)
-
+        
     finally:
         # 🌟 FIX ARQUITECTÓNICO: Limpieza garantizada sin importar el estado final de la tarea
         # 1. Borramos el archivo temporal del disco del worker
@@ -198,7 +198,7 @@ def procesar_padron_fiscal(
                 os.remove(temp_file_path)
             except OSError:
                 pass
-
+        
         # 2. Purgamos el crudo original en MinIO para evitar Storage Leak
         try:
             minio_client.client.remove_object(bucket_name, object_name)

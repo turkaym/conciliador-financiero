@@ -10,13 +10,13 @@ class PrometeoClient:
     def __init__(self):
         self.api_key = os.getenv("PROMETEO_API_KEY", "dummy_key")
         self.env = os.getenv("PROMETEO_ENV", "sandbox")
-
+        
         # Enrutamiento dinámico basado en el entorno
         if self.env.lower() == "production":
             self.base_url = "https://banking.prometeoapi.com"
         else:
             self.base_url = "https://banking.sandbox.prometeoapi.com"
-
+            
         self.headers = {
             "X-API-Key": self.api_key,
             "Accept": "application/json"

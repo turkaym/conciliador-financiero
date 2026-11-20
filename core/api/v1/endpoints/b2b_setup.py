@@ -24,16 +24,16 @@ class WebhookCreate(BaseModel):
 # --- Endpoints API Keys ---
 @router.post("/api-keys", status_code=status.HTTP_201_CREATED)
 def create_api_key(
-    req: ApiKeyCreate,
+    req: ApiKeyCreate, 
     db: Session = Depends(get_tenant_db_session),
     current_user: CachedUser = Depends(RoleChecker(["admin", "propietario"]))
 ):
     prefix = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
     secret_key = secrets.token_urlsafe(32)
-
+    
     # 🌟 FIX SEGURIDAD: Hashing con Argon2
     hashed_key = pwd_context.hash(secret_key)
-
+    
     new_key = ApiKey(
         entidad_id=current_user.tenant.id,
         name=req.name,
@@ -42,7 +42,7 @@ def create_api_key(
     )
     db.add(new_key)
     db.commit()
-
+    
     return {
         "message": "Guarde este token de forma segura, no se volverá a mostrar.",
         "api_key": f"{prefix}.{secret_key}",
@@ -61,13 +61,13 @@ def list_api_keys(
 # --- Endpoints Webhooks ---
 @router.post("/webhooks", status_code=status.HTTP_201_CREATED)
 def subscribe_webhook(
-    req: WebhookCreate,
+    req: WebhookCreate, 
     db: Session = Depends(get_tenant_db_session),
     current_user: CachedUser = Depends(RoleChecker(["admin", "propietario"]))
 ):
     """Registra una URL para recibir eventos asíncronos."""
     webhook_secret = secrets.token_urlsafe(32) # Secreto para firmar el HMAC
-
+    
     sub = WebhookSubscription(
         entidad_id=current_user.tenant.id,
         url=str(req.url),
@@ -76,7 +76,7 @@ def subscribe_webhook(
     )
     db.add(sub)
     db.commit()
-
+    
     return {
         "message": "Suscripción creada.",
         "webhook_id": sub.id,

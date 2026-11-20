@@ -24,12 +24,12 @@ def upgrade() -> None:
     # 🌟 ESCUDO DE IDEMPOTENCIA (SQL Crudo Nativo PostgreSQL)
     # Ignora silenciosamente si la columna o el índice ya existen por inconsistencias previas
     op.execute(f"""
-        ALTER TABLE {target_schema}.logs_auditoria
+        ALTER TABLE {target_schema}.logs_auditoria 
         ADD COLUMN IF NOT EXISTS hash_firma VARCHAR(64) DEFAULT 'LEGACY_MIGRATION' NOT NULL;
     """)
-
+    
     op.execute(f"""
-        CREATE INDEX IF NOT EXISTS ix_{target_schema}_logs_auditoria_hash_firma
+        CREATE INDEX IF NOT EXISTS ix_{target_schema}_logs_auditoria_hash_firma 
         ON {target_schema}.logs_auditoria (hash_firma);
     """)
 

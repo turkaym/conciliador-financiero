@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useEffectEvent } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -27,9 +27,24 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
   const [periodo, setPeriodo] = useState<string>("") // Formato YYYY-MM
   const [file, setFile] = useState<File | null>(null)
   const [isDragActive, setIsDragActive] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-
+  const [isSubmitted, setIsSubmitted] = useState(false) 
+  
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-abrir si estamos escuchando eventos SSE tras un F5
+  useEffect(() => {
+    if (isPolling) {
+        setOpen(true)
+        setIsSubmitted(true)
+    }
+  }, [isPolling])
+
+  // Limpieza y cierre automático al detectar éxito
+  useEffect(() => {
+    if (isSubmitted && !isPolling && !isLoading && !errorMsg) {
+        cerrarModalLimpiamente();
+    }
+  }, [isPolling, isLoading, errorMsg, isSubmitted]);
 
   const cerrarModalLimpiamente = () => {
     setOpen(false);
@@ -39,31 +54,6 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
     setIsSubmitted(false);
     if (onClearError) onClearError();
   }
-
-  const cerrarModalTrasCompletar = useEffectEvent(cerrarModalLimpiamente)
-
-  // Auto-abrir si estamos escuchando eventos SSE tras un F5
-  useEffect(() => {
-    let cancelled = false
-
-    queueMicrotask(() => {
-      if (cancelled || !isPolling) return
-
-      setOpen(true)
-      setIsSubmitted(true)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [isPolling])
-
-  // Limpieza y cierre automático al detectar éxito
-  useEffect(() => {
-    if (isSubmitted && !isPolling && !isLoading && !errorMsg) {
-        cerrarModalTrasCompletar();
-    }
-  }, [isPolling, isLoading, errorMsg, isSubmitted]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -92,12 +82,12 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!jurisdiccion || !periodo || !file) return
-
-    setIsSubmitted(true)
+    
+    setIsSubmitted(true) 
     const isEncolado = await onSubmit(jurisdiccion, periodo, file)
-
+    
     if (!isEncolado) {
-        setIsSubmitted(false)
+        setIsSubmitted(false) 
     }
   }
 
@@ -154,12 +144,12 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
                 </SelectContent>
               </Select>
             </div>
-
+            
             <div className="space-y-2">
               <Label htmlFor="periodo">Período Fiscal</Label>
-              <Input
-                id="periodo"
-                type="month"
+              <Input 
+                id="periodo" 
+                type="month" 
                 value={periodo}
                 onChange={(e) => setPeriodo(e.target.value)}
                 disabled={isLoading || isPolling}
@@ -169,7 +159,7 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
 
           <div className="space-y-2">
             <Label>Archivo del Fisco (.txt, .csv)</Label>
-            <div
+            <div 
               className={`
                 relative border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center transition-colors
                 ${isDragActive ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100'}
@@ -181,14 +171,14 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
               onDrop={handleDrop}
               onClick={openFileExplorer}
             >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".txt, .csv"
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                className="hidden" 
+                accept=".txt, .csv" 
               />
-
+              
               {!file ? (
                 <>
                   <div className="bg-white p-3 rounded-full shadow-sm mb-3">
@@ -202,10 +192,10 @@ export function ImportarPadronModal({ isLoading, errorMsg, onSubmit, isPolling, 
                   <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
                   <p className="text-sm font-bold text-slate-800">{file.name}</p>
                   <p className="text-xs text-slate-500 mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
                     className="absolute top-2 right-2 text-slate-400 hover:text-red-500 rounded-full h-8 w-8"
                     onClick={(e) => { e.stopPropagation(); setFile(null); }}
                     disabled={isLoading || isPolling}

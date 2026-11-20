@@ -24,19 +24,19 @@ def upgrade() -> None:
 
     # 1. Agregamos la nueva columna hacia Tesorería
     op.execute(f"""
-        ALTER TABLE {target_schema}.lotes_pago
+        ALTER TABLE {target_schema}.lotes_pago 
         ADD COLUMN IF NOT EXISTS cuenta_tesoreria_id INTEGER;
     """)
 
     # 2. Inyectamos la Llave Foránea mediante un bloque DO para garantizar idempotencia en PostgreSQL
     op.execute(f"""
-        DO $$
-        BEGIN
+        DO $$ 
+        BEGIN 
             IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint
+                SELECT 1 FROM pg_constraint 
                 WHERE conname = 'fk_lotes_pago_tesoreria' AND conrelid = '{target_schema}.lotes_pago'::regclass
             ) THEN
-                ALTER TABLE {target_schema}.lotes_pago
+                ALTER TABLE {target_schema}.lotes_pago 
                 ADD CONSTRAINT fk_lotes_pago_tesoreria
                 FOREIGN KEY (cuenta_tesoreria_id) REFERENCES {target_schema}.cuentas_tesoreria(id) ON DELETE SET NULL;
             END IF;
@@ -45,7 +45,7 @@ def upgrade() -> None:
 
     # 3. BIG BANG: Extirpamos la columna Legacy en cascada para destruir sus llaves foráneas antiguas
     op.execute(f"""
-        ALTER TABLE {target_schema}.lotes_pago
+        ALTER TABLE {target_schema}.lotes_pago 
         DROP COLUMN IF EXISTS cuenta_bancaria_id CASCADE;
     """)
 
@@ -55,11 +55,11 @@ def downgrade() -> None:
 
     # Restauración Defensiva
     op.execute(f"""
-        ALTER TABLE {target_schema}.lotes_pago
+        ALTER TABLE {target_schema}.lotes_pago 
         ADD COLUMN IF NOT EXISTS cuenta_bancaria_id INTEGER;
     """)
 
     op.execute(f"""
-        ALTER TABLE {target_schema}.lotes_pago
+        ALTER TABLE {target_schema}.lotes_pago 
         DROP COLUMN IF EXISTS cuenta_tesoreria_id CASCADE;
     """)

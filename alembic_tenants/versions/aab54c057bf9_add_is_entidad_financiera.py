@@ -24,7 +24,7 @@ def upgrade() -> None:
 
     # Escudo de Idempotencia: ADD COLUMN IF NOT EXISTS
     op.execute(f"""
-        ALTER TABLE {target_schema}.contactos_comerciales
+        ALTER TABLE {target_schema}.contactos_comerciales 
         ADD COLUMN IF NOT EXISTS is_entidad_financiera BOOLEAN DEFAULT FALSE NOT NULL;
     """)
 
@@ -35,6 +35,6 @@ def downgrade() -> None:
 
     # Rollback Defensivo: DROP COLUMN IF EXISTS
     op.execute(f"""
-        ALTER TABLE {target_schema}.contactos_comerciales
+        ALTER TABLE {target_schema}.contactos_comerciales 
         DROP COLUMN IF EXISTS is_entidad_financiera;
     """)

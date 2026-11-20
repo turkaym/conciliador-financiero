@@ -12,18 +12,18 @@ TenantBase = declarative_base()
 # ==========================================
 class AuditableMixin:
     """
-    Centraliza las marcas de tiempo y auditoría.
+    Centraliza las marcas de tiempo y auditoría. 
     Prepara la base de datos para la inyección de trazas criptográficas (Fase 7).
     """
     created_at = Column(
-        DateTime(timezone=True),
+        DateTime(timezone=True), 
         default=func.now(),           # 🛡️ Defensa 1: SQLAlchemy lo inyecta en el INSERT
         server_default=func.now(),    # 🛡️ Defensa 2: PostgreSQL lo inyecta si se evade el ORM
         nullable=False                # 🛡️ Defensa 3: Sincronizado con el motor DB
     )
-
+    
     updated_at = Column(
-        DateTime(timezone=True),
+        DateTime(timezone=True), 
         default=func.now(),           # 🛡️ Defensa 1: SQLAlchemy lo inyecta al crear (INSERT)
         onupdate=func.now(),          # 🛡️ Defensa 2: SQLAlchemy lo actualiza al modificar (UPDATE)
         server_default=func.now(),    # 🛡️ Defensa 3: Fallback de PostgreSQL

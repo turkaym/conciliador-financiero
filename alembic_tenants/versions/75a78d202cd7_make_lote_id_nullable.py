@@ -25,7 +25,7 @@ def upgrade() -> None:
     # DDL Defensivo: Relajar la cardinalidad permitiendo que lote_id sea nulo.
     # PostgreSQL ignora el comando si la columna ya es nullable, haciéndolo seguro e idempotente.
     op.execute(f"""
-        ALTER TABLE {target_schema}.lote_pago_detalles
+        ALTER TABLE {target_schema}.lote_pago_detalles 
         ALTER COLUMN lote_id DROP NOT NULL;
     """)
 
@@ -35,6 +35,6 @@ def downgrade() -> None:
 
     # Rollback: Restablecer la restricción (solo funcionará si no hay nulos en la tabla en ese momento)
     op.execute(f"""
-        ALTER TABLE {target_schema}.lote_pago_detalles
+        ALTER TABLE {target_schema}.lote_pago_detalles 
         ALTER COLUMN lote_id SET NOT NULL;
     """)

@@ -28,21 +28,21 @@ class RoleChecker:
         current_user: CachedUser = Depends(get_current_user),
         db_master: Session = Depends(get_master_db)
     ) -> CachedUser:
-
+        
         # 🌟 FIX REAL: Normalizamos el rol del usuario para evitar falsos positivos ("ADMIN" vs "admin")
         user_role = str(current_user.role).lower() if current_user.role else ""
 
         if user_role not in self.allowed_roles:
             # 🛡️ INTERCEPCIÓN ACTIVA: Registro de Intrusión Silenciosa
             ip_address = get_audit_ip_address()
-
+            
             try:
                 changes_payload = {
                     "security_alert": "Intento de escalada de privilegios bloqueado.",
                     "required_roles": self.allowed_roles,
                     "user_role": current_user.role
                 }
-
+                
                 raw_data = f"{current_user.tenant.id}|{current_user.id}|UNAUTHORIZED_ACCESS|{request.url.path}|{request.method}|{ip_address}|{json.dumps(changes_payload, sort_keys=True)}"
                 firma = hashlib.sha256(raw_data.encode('utf-8')).hexdigest()
 
@@ -54,7 +54,7 @@ class RoleChecker:
                     entity_id=request.method,
                     ip_address=ip_address,
                     changes=changes_payload,
-                    hash_firma=firma
+                    hash_firma=firma  
                 )
                 db_master.add(audit_record)
                 db_master.commit()
@@ -67,5 +67,5 @@ class RoleChecker:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tienes los permisos de seguridad necesarios para realizar esta acción."
             )
-
+        
         return current_user

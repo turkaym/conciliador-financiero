@@ -10,7 +10,7 @@ sys.path.append(BASE_DIR)
 from core.database.base import Base as MasterBase
 import core.database.models_master
 import core.database.models.sistema
-from core.database.session import engine as app_engine
+from core.database.session import engine as app_engine 
 
 config = context.config
 if config.config_file_name is not None:
@@ -23,8 +23,8 @@ def run_migrations_online():
         # Abre transacción implícita
         connection.execute(text("SET search_path TO public"))
         # CORRECCIÓN CRÍTICA: Forzamos el commit para que Alembic recupere el control del ciclo de vida
-        connection.commit()
-
+        connection.commit() 
+        
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

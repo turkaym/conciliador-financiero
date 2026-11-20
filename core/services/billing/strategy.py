@@ -11,7 +11,7 @@ class PaymentGatewayError(Exception):
 
 class PaymentGateway(ABC):
     """💎 PATRÓN STRATEGY: Interfaz Base para adaptadores de facturación."""
-
+    
     @abstractmethod
     def create_checkout_session(self, tenant_id: int, plan_name: str, email: str, razon_social: str, cuit: str, customer_id: Optional[str] = None) -> str:
         pass
@@ -26,7 +26,7 @@ class StripeAdapter(PaymentGateway):
         if not settings.STRIPE_SECRET_KEY:
             logger.error("🛑 STRIPE_SECRET_KEY no está configurada.")
         stripe.api_key = settings.STRIPE_SECRET_KEY
-
+        
         # Mapeo dinámico de planes basado en variables de entorno
         self.price_map = {
             "starter": settings.STRIPE_PRICE_STARTER,

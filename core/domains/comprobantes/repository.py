@@ -11,7 +11,7 @@ class ComprobanteRepository:
     Repositorio de Datos del Dominio de Comprobantes.
     Encapsula la persistencia y protege la instanciación de relaciones complejas.
     """
-
+    
     def get_by_id(self, db: Session, id: int) -> Optional[Comprobante]:
         return db.query(Comprobante).filter(
             Comprobante.id == id,
@@ -27,21 +27,21 @@ class ComprobanteRepository:
         )
         if clase_documento:
             query = query.filter(Comprobante.clase_documento == clase_documento)
-
+        
         return query.order_by(desc(Comprobante.fecha_emision)).offset(skip).limit(limit).all()
 
     def create(self, db: Session, obj_in: Union[dict, Any]) -> Comprobante:
         obj_in_data = obj_in if isinstance(obj_in, dict) else obj_in.model_dump(exclude_unset=True)
-
+        
         # 🌟 SALVAGUARDA FISCAL: Si el comprobante nace sin saldo explícito, se asume el total.
         if 'importe_total' in obj_in_data and 'saldo_pendiente' not in obj_in_data:
             obj_in_data['saldo_pendiente'] = obj_in_data['importe_total']
-
+            
         # 🌟 FIX ORM: Extracción segura de arreglos relacionales (Evita crash de SQLAlchemy)
         asociados_data = obj_in_data.pop('comprobantes_asociados', [])
-
+            
         db_obj = Comprobante(**obj_in_data)
-
+        
         # Instanciación One-to-Many nativa de SQLAlchemy
         for asoc in asociados_data:
             db_obj.comprobantes_asociados.append(ComprobanteAsociado(**asoc))

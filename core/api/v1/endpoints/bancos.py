@@ -50,14 +50,14 @@ def list_cuentas(
 
 @router.post("/cuentas", response_model=CuentaBancariaResponse, status_code=status.HTTP_201_CREATED)
 def create_cuenta(
-    cuenta_in: CuentaBancariaRequest,
+    cuenta_in: CuentaBancariaRequest, 
     x_entity_id: int = Header(..., alias="X-Entity-ID"),
     db: Session = Depends(get_tenant_db_session),
     current_user: CachedUser = Depends(get_current_user)
 ):
     try:
         payload = cuenta_in.model_dump()
-
+        
         # 🌟 FIX: 'banco' ya es un string (texto libre), ya no usamos .value
         # Hacemos una extracción segura para los otros campos por si mantuviste los Enums ahí
         if hasattr(cuenta_in.tipo_cuenta, 'value'):
@@ -66,24 +66,24 @@ def create_cuenta(
             payload["moneda"] = cuenta_in.moneda.value
 
         cuenta_create = CuentaBancariaCreate(**payload, entidad_id=x_entity_id)
-
+        
         return banco_service.crear_cuenta(db, cuenta_create, user_id=current_user.id)
-
+    
     except HTTPException as http_exc:
         raise http_exc
-
+    
     except IntegrityError as e:
         db.rollback()
         logger.warning(f"⚠️ Conflicto de integridad en DB: {str(e.orig)}")
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_409_CONFLICT, 
             detail=f"Ya existe una cuenta con esos datos: {str(e.orig).split('Key ')[-1]}"
         )
-
+    
     except Exception as e:
         logger.error(f"Error crítico creando cuenta bancaria: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno al registrar la cuenta bancaria.")
-
+    
 
 @router.get("/proveedores-clearing", status_code=status.HTTP_200_OK)
 def listar_proveedores_clearing(
@@ -97,7 +97,7 @@ def listar_proveedores_clearing(
             ContactoComercial.is_active == True,
             ContactoComercial.is_entidad_financiera == True
         ).all()
-
+        
         return [
             {
                 "id": p.id,
@@ -133,26 +133,26 @@ def list_movimientos(
 
 @router.post("/movimientos", response_model=MovimientoBancarioResponse, status_code=status.HTTP_201_CREATED)
 def create_movimiento(
-    movimiento_in: MovimientoBancarioRequest,
+    movimiento_in: MovimientoBancarioRequest, 
     x_entity_id: int = Header(..., alias="X-Entity-ID"),
     db: Session = Depends(get_tenant_db_session),
     current_user: CachedUser = Depends(get_current_user)
 ):
     try:
         mov_create = MovimientoBancarioCreate(**movimiento_in.model_dump(), entidad_id=x_entity_id)
-
+        
         user_role = getattr(current_user, "role", "operador")
-
+        
         umbral_aprobacion = 0.0
         if hasattr(current_user, "tenant") and current_user.tenant and hasattr(current_user.tenant, "features") and isinstance(current_user.tenant.features, dict):
             umbral_aprobacion = float(current_user.tenant.features.get("umbral_aprobacion", 0.0))
-
+            
         if umbral_aprobacion == 0.0:
              umbral_aprobacion = 10000.00
 
         return banco_service.registrar_movimiento_con_saldo(
-            db=db,
-            mov_in=mov_create,
+            db=db, 
+            mov_in=mov_create, 
             entidad_id=x_entity_id,
             user_id=current_user.id,
             user_role=user_role,
@@ -181,20 +181,20 @@ class ResolucionAprobacionRequest(BaseModel):
 
 # 🌟 FIX FASE 2.2: Eliminación de {movimiento_id} en la URL. Endpoint genérico.
 @router.post(
-    "/movimientos/resolucion",
-    response_model=MovimientoBancarioResponse,
+    "/movimientos/resolucion", 
+    response_model=MovimientoBancarioResponse, 
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(EntityRoleChecker(["admin", "editor"]))]
 )
 def resolver_movimiento_pendiente(
     req: ResolucionAprobacionRequest,
     x_entity_id: int = Header(..., alias="X-Entity-ID"),
-    idempotency_key: str = Header(..., alias="Idempotency-Key", description="Llave única para prevenir resoluciones duplicadas"),
+    idempotency_key: str = Header(..., alias="Idempotency-Key", description="Llave única para prevenir resoluciones duplicadas"), 
     db: Session = Depends(get_tenant_db_session),
     current_user: CachedUser = Depends(get_current_user)
 ):
     lock_key = f"idempotency:bancos:{current_user.tenant.schema_name}:{idempotency_key}"
-
+    
     if redis_client:
         existing_val = redis_client.get(lock_key)
         if existing_val == "resolved":
@@ -202,9 +202,9 @@ def resolver_movimiento_pendiente(
 
         # 🌟 FIX FASE 2.2: Firma de idempotencia basada en la tupla estricta (tipo + id)
         payload_signature = hashlib.sha256(f"{req.tipo_registro}:{req.registro_id}:{req.accion.lower()}".encode()).hexdigest()
-
+        
         lock_adquirido = redis_client.set(lock_key, payload_signature, nx=True, ex=30)
-
+        
         if not lock_adquirido:
             logger.warning(f"🛡️ [IDEMPOTENCIA] Ráfaga HTTP interceptada. Llave en uso: {idempotency_key}")
             raise HTTPException(
@@ -215,29 +215,29 @@ def resolver_movimiento_pendiente(
     try:
         # 🌟 FIX FASE 2.2: Pasamos los campos de routing desacoplados al servicio
         resultado = banco_service.resolver_aprobacion_movimiento(
-            db=db,
+            db=db, 
             registro_id=req.registro_id,
             tipo_registro=req.tipo_registro,
-            entidad_id=x_entity_id,
+            entidad_id=x_entity_id, 
             accion=req.accion.lower(),
             admin_id=current_user.id,
             motivo_rechazo=req.motivo_rechazo
         )
-
+        
         if redis_client:
             redis_client.setex(lock_key, 86400, "resolved")
-
+            
         return resultado
 
     except PermissionError as e:
         if redis_client: redis_client.delete(lock_key)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-
+        
     except ValueError as e:
         db.rollback()
         if redis_client: redis_client.delete(lock_key)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
+        
     except Exception as e:
         db.rollback()
         if redis_client: redis_client.delete(lock_key)
@@ -256,10 +256,10 @@ async def analyze_unknown_bank_format(
 ):
     tenant_id = current_user.tenant.schema_name
     bucket_name = tenant_id.replace("_", "-")
-
+    
     _, original_extension = os.path.splitext(object_name)
     file_extension = original_extension.lower()
-
+    
     if file_extension not in ['.csv', '.txt', '.xls', '.xlsx']:
          raise HTTPException(status_code=400, detail="Formato no soportado para análisis heurístico.")
 
@@ -277,7 +277,7 @@ async def analyze_unknown_bank_format(
 
     try:
         analysis_result = await asyncio.to_thread(_blocking_io_and_cpu_task)
-
+        
         if analysis_result.get("status") == "error":
              raise ValueError(analysis_result.get("message"))
 
@@ -295,10 +295,10 @@ class ConfirmarIngestaRequest(BaseModel):
     column_mapping: Optional[Dict[str, int]] = None
 
 @router.post(
-    "/cuentas/{cuenta_id}/importar/confirm",
+    "/cuentas/{cuenta_id}/importar/confirm", 
     status_code=status.HTTP_202_ACCEPTED,
     dependencies=[Depends(RateLimiter("ingesta_bancaria", limit_seconds=10))]
-)
+) 
 def confirmar_importacion_bancaria(
     cuenta_id: int,
     req: ConfirmarIngestaRequest,
@@ -320,7 +320,7 @@ def confirmar_importacion_bancaria(
 
     tenant_id = current_user.tenant.schema_name
     task_id = str(uuid.uuid4())
-
+    
     cuenta.is_syncing = True
     cuenta.last_task_id = task_id
     db.commit()
@@ -355,18 +355,18 @@ def cancel_importacion_bancaria(
     current_user: CachedUser = Depends(get_current_user)
 ):
     from core.tasks.celery_config import app as celery_app
-
+    
     try:
         celery_app.control.revoke(task_id, terminate=True, signal='SIGTERM')
         logger.warning(f"🛑 [REVOKE] Tarea {task_id} abortada activamente por el usuario.")
-
+        
         # 🌟 FIX: Consultar la tabla de Tesorería, no el esquema legacy
         cuenta_zombie = db.query(CuentaTesoreria).filter(CuentaTesoreria.last_task_id == task_id).first()
         if cuenta_zombie:
             cuenta_zombie.is_syncing = False
             db.commit()
             logger.info(f"🔓 [UNLOCK] Candado relacional liberado preventivamente para cuenta {cuenta_zombie.id}.")
-
+        
         return {"status": "REVOKED", "message": "Proceso detenido y cuenta liberada con éxito."}
     except Exception as e:
         logger.error(f"Error cancelando tarea {task_id}: {e}")

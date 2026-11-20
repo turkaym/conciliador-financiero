@@ -24,7 +24,7 @@ def upgrade() -> None:
 
     # Escudo de Idempotencia (SQL Crudo) para alterar la tabla existente de forma segura
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_tesoreria
+        ALTER TABLE {target_schema}.cuentas_tesoreria 
         ADD COLUMN IF NOT EXISTS saldo_actual NUMERIC(15,2) DEFAULT 0.00 NOT NULL;
     """)
 
@@ -35,6 +35,6 @@ def downgrade() -> None:
 
     # Downgrade Defensivo (SQL Crudo)
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_tesoreria
+        ALTER TABLE {target_schema}.cuentas_tesoreria 
         DROP COLUMN IF EXISTS saldo_actual;
     """)

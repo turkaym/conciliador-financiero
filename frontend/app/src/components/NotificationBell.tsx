@@ -7,84 +7,56 @@ import { useNavigate } from "react-router-dom"
 interface AlertaFiscal {
   estado_salud: "OPTIMO" | "CRITICO"
   total_alertas: number
-  alertas_dlq: AlertaDlq[]
-  alertas_cae: AlertaCae[]
-}
-
-interface AlertaDlq {
-  id_registro: number
-  punto_venta: number
-  tipo_cbte_afip: number
-  numero: number
-  error: string
-  fecha_falla: string | null
-}
-
-interface AlertaCae {
-  id_comprobante: number
-  punto_venta: number
-  numero_interno: number
-  fecha_creacion: string | null
-  riesgo: string
+  alertas_dlq: any[]
+  alertas_cae: any[]
 }
 
 export default function NotificationBell() {
-  const entidadActivaId = useAuthStore((state) => state.entidadActiva?.id)
-
-  return <NotificationBellForEntity key={entidadActivaId ?? "no-entity"} entidadActivaId={entidadActivaId} />
-}
-
-function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: number }) {
   const [alerta, setAlerta] = useState<AlertaFiscal | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const isMountedRef = useRef(true)
   const navigate = useNavigate()
+  
+  const entidadActivaId = useAuthStore((state) => state.entidadActiva?.id)
 
   useEffect(() => {
-    isMountedRef.current = true
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      isMountedRef.current = false
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
+    return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
+  const fetchAlertas = async (currentEntidadId: number) => {
+    if (!currentEntidadId || document.hidden) return
+
+    try {
+      // ⏪ REGRESIÓN: Volvemos a usar el Header seguro Zero-Trust
+      const response = await api.get<AlertaFiscal>(`/v1/comprobantes/alertas`, {
+        headers: { 'X-Entity-ID': currentEntidadId.toString() }
+      })
+      setAlerta(response.data)
+    } catch (error) {
+      console.error("Fallo silencioso al consultar alertas fiscales:", error)
+    }
+  }
+
   useEffect(() => {
+    setAlerta(null) 
+    
     if (!entidadActivaId) return;
 
-    let isMounted = true
-    const fetchAlertas = async () => {
-      if (document.hidden) return
-
-      try {
-        // ⏪ REGRESIÓN: Volvemos a usar el Header seguro Zero-Trust
-        const response = await api.get<AlertaFiscal>(`/v1/comprobantes/alertas`, {
-          headers: { 'X-Entity-ID': entidadActivaId.toString() }
-        })
-        if (isMounted) setAlerta(response.data)
-      } catch (error) {
-        console.error("Fallo silencioso al consultar alertas fiscales:", error)
-      }
-    }
-
-    fetchAlertas()
-    const intervalId = setInterval(fetchAlertas, 180000)
-    return () => {
-      isMounted = false
-      clearInterval(intervalId)
-    }
+    fetchAlertas(entidadActivaId)
+    const intervalId = setInterval(() => fetchAlertas(entidadActivaId), 180000) 
+    return () => clearInterval(intervalId)
   }, [entidadActivaId])
 
   const handleResolverAlerta = async (alertaId: number) => {
     if (!entidadActivaId) return;
-    const estadoAnterior = alerta
-
+    const estadoAnterior = alerta 
+    
     setAlerta(prev => {
       if (!prev) return prev
       const nuevasDlq = prev.alertas_dlq.filter(a => a.id_registro !== alertaId)
@@ -101,7 +73,7 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
       })
     } catch (error) {
       console.error("Fallo de red al descartar alerta. Revirtiendo interfaz.", error)
-      if (isMountedRef.current) setAlerta(estadoAnterior)
+      setAlerta(estadoAnterior) 
     }
   }
 
@@ -111,7 +83,7 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
 
     setAlerta(prev => {
       if (!prev) return prev
-      const total = prev.alertas_cae.length
+      const total = prev.alertas_cae.length 
       return {
         ...prev, alertas_dlq: [], total_alertas: total, estado_salud: total > 0 ? "CRITICO" : "OPTIMO"
       }
@@ -124,7 +96,7 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
       })
     } catch (error) {
       console.error("Fallo masivo al descartar. Revirtiendo interfaz.", error)
-      if (isMountedRef.current) setAlerta(estadoAnterior)
+      setAlerta(estadoAnterior)
     }
   }
 
@@ -132,8 +104,8 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
 
   return (
     <div className="relative" ref={dropdownRef}>
-
-      <button
+      
+      <button 
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
       >
@@ -148,7 +120,7 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
 
       {isOpen && (
         <div className="absolute right-0 mt-3 w-[320px] sm:w-96 bg-white rounded-xl shadow-2xl ring-1 ring-slate-900/5 z-[100] origin-top-right overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-
+          
           <div className="bg-gradient-to-r from-slate-900 to-indigo-950 px-4 py-3.5 flex justify-between items-center shrink-0">
             <h3 className="text-sm font-medium tracking-tight text-white flex items-center gap-2">
               Centro de Monitoreo
@@ -159,7 +131,7 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
               )}
             </h3>
             {alerta?.alertas_dlq && alerta.alertas_dlq.length > 0 && (
-              <button
+              <button 
                 onClick={handleResolverTodas}
                 className="text-xs font-medium text-indigo-200 hover:text-white flex items-center gap-1.5 transition-colors focus:outline-none"
               >
@@ -167,7 +139,7 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
               </button>
             )}
           </div>
-
+          
           <div className="max-h-[50vh] sm:max-h-[22rem] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
             {!tieneAlertas ? (
               <div className="p-8 sm:p-10 text-center text-sm text-slate-400 flex flex-col items-center">
@@ -191,7 +163,7 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
                     </div>
                   </div>
                 ))}
-
+                
                 {alerta.alertas_dlq.map((dlq, idx) => (
                   <div key={`dlq-${idx}`} className="p-4 border-b border-slate-50 hover:bg-slate-50/80 transition-colors group">
                     <div className="flex items-start gap-3">
@@ -203,7 +175,7 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
                         <p className="text-xs text-slate-600 font-mono bg-slate-100/50 p-1.5 rounded border border-slate-100 mt-1.5 break-words">
                           {dlq.error}
                         </p>
-                        <button
+                        <button 
                           onClick={() => handleResolverAlerta(dlq.id_registro)}
                           className="mt-3 text-[13px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5"
                         >
@@ -218,10 +190,10 @@ function NotificationBellForEntity({ entidadActivaId }: { entidadActivaId?: numb
           </div>
 
           <div className="bg-slate-50/50 px-4 py-3 border-t border-slate-100 shrink-0">
-            <button
+            <button 
               onClick={() => {
                 setIsOpen(false);
-                navigate('/dashboard/reportes');
+                navigate('/dashboard/reportes'); 
               }}
               className="w-full text-center text-[13px] font-medium text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5 transition-colors"
             >

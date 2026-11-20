@@ -21,25 +21,25 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     # =========================================================
     # 1. SANEAMIENTO LEGACY: Formalizar el Big Bang de Lotes
     # (Para que los inquilinos nuevos nazcan con la estructura correcta)
     # =========================================================
     op.execute(f"""
-        ALTER TABLE {target_schema}.lotes_pago
+        ALTER TABLE {target_schema}.lotes_pago 
         ADD COLUMN IF NOT EXISTS cuenta_tesoreria_id INTEGER;
-
-        ALTER TABLE {target_schema}.lotes_pago
+        
+        ALTER TABLE {target_schema}.lotes_pago 
         DROP COLUMN IF EXISTS cuenta_bancaria_id CASCADE;
-
-        DO $$
-        BEGIN
+        
+        DO $$ 
+        BEGIN 
             IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint
+                SELECT 1 FROM pg_constraint 
                 WHERE conname = 'fk_lotes_tesoreria' AND conrelid = '{target_schema}.lotes_pago'::regclass
             ) THEN
-                ALTER TABLE {target_schema}.lotes_pago
+                ALTER TABLE {target_schema}.lotes_pago 
                 ADD CONSTRAINT fk_lotes_tesoreria
                 FOREIGN KEY (cuenta_tesoreria_id) REFERENCES {target_schema}.cuentas_tesoreria(id) ON DELETE SET NULL;
             END IF;
@@ -64,21 +64,21 @@ def upgrade() -> None:
             usuario_resolutor_id VARCHAR(50),
             motivo_rechazo TEXT,
             movimiento_definitivo_id INTEGER,
-
+            
             -- Mixin de Auditoría
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-
-            CONSTRAINT fk_sol_mov_cuenta
-                FOREIGN KEY (cuenta_id)
+            
+            CONSTRAINT fk_sol_mov_cuenta 
+                FOREIGN KEY (cuenta_id) 
                 REFERENCES {target_schema}.cuentas_tesoreria(id) ON DELETE CASCADE,
-
-            CONSTRAINT fk_sol_mov_definitivo
-                FOREIGN KEY (movimiento_definitivo_id)
+                
+            CONSTRAINT fk_sol_mov_definitivo 
+                FOREIGN KEY (movimiento_definitivo_id) 
                 REFERENCES {target_schema}.movimientos_tesoreria(id) ON DELETE SET NULL
         );
     """)
-
+    
     # Índices para la tabla de Staging
     op.execute(f"""
         CREATE INDEX IF NOT EXISTS ix_{target_schema}_sol_tesoreria_fecha ON {target_schema}.solicitudes_movimientos_tesoreria (fecha);
@@ -89,5 +89,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     op.execute(f"DROP TABLE IF EXISTS {target_schema}.solicitudes_movimientos_tesoreria CASCADE;")

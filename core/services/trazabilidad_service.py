@@ -8,8 +8,8 @@ from core.database.models_tenant import Comprobante, ComprobanteAsociado, Secuen
 logger = logging.getLogger("SRV_TRAZABILIDAD")
 
 class TrazabilidadService:
-    TIPOS_NOTA_CREDITO = {3, 8, 13, 53, 112}
-    TIPOS_NOTA_DEBITO = {2, 7, 12, 52, 111}
+    TIPOS_NOTA_CREDITO = {3, 8, 13, 53, 112}  
+    TIPOS_NOTA_DEBITO = {2, 7, 12, 52, 111}   
 
     def procesar_vinculos_y_saldos(self, db: Session, comprobante_hijo_id: int):
         hijo = db.query(Comprobante).filter(Comprobante.id == comprobante_hijo_id).first()
@@ -18,13 +18,13 @@ class TrazabilidadService:
 
         asociaciones_pendientes = db.query(ComprobanteAsociado).filter(
             ComprobanteAsociado.comprobante_id == hijo.id,
-            ComprobanteAsociado.comprobante_vinculado_id == None
+            ComprobanteAsociado.comprobante_vinculado_id == None 
         ).all()
 
         for asoc in asociaciones_pendientes:
             padre = db.query(Comprobante).filter(
                 Comprobante.entidad_id == hijo.entidad_id,
-                Comprobante.cuit_emisor == hijo.cuit_emisor,
+                Comprobante.cuit_emisor == hijo.cuit_emisor, 
                 Comprobante.tipo_cbte_afip == asoc.tipo_cbte_afip,
                 Comprobante.punto_venta == asoc.punto_venta,
                 Comprobante.numero == asoc.numero,
@@ -35,12 +35,12 @@ class TrazabilidadService:
             if not padre:
                 logger.error(f"Falla Crítica de Trazabilidad: Cbte Padre {asoc.punto_venta}-{asoc.numero} no encontrado o inactivo.")
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El comprobante asociado original no existe o fue eliminado.")
-
+                
             logger.info(f"🔗 Autodescubrimiento: Enlazando Cbte {hijo.id} con Padre {padre.id}")
             asoc.comprobante_vinculado_id = padre.id
 
             monto_hijo = Decimal(str(hijo.importe_total))
-
+            
             if hijo.tipo_cbte_afip in self.TIPOS_NOTA_CREDITO:
                 padre.saldo_pendiente -= monto_hijo
             elif hijo.tipo_cbte_afip in self.TIPOS_NOTA_DEBITO:
@@ -49,10 +49,10 @@ class TrazabilidadService:
             if padre.saldo_pendiente < Decimal('0.0'):
                 logger.warning(f"⚠️ Saldo negativo detectado en Cbte {padre.id} tras aplicación de NC. Ajustando a 0.00.")
                 padre.saldo_pendiente = Decimal('0.0')
-
+                
             db.add(padre)
             db.add(asoc)
-
+        
         db.flush()
 
     # 🌟 FASE 13.1: Generador Atómico de Trace ID E2E (Usando Motor Fiscal Base)
@@ -74,8 +74,8 @@ class TrazabilidadService:
             if not secuencia:
                 secuencia = SecuenciaFiscal(
                     entidad_id=tenant_id,
-                    punto_venta=punto_venta_virtual,
-                    tipo_cbte=tipo_cbte_interno,
+                    punto_venta=punto_venta_virtual, 
+                    tipo_cbte=tipo_cbte_interno, 
                     ultimo_numero=0
                 )
                 db.add(secuencia)
@@ -84,11 +84,11 @@ class TrazabilidadService:
             # 2. Incrementamos el contador (PostgreSQL asegura que nadie más pise este valor)
             secuencia.ultimo_numero += 1
             numero_correlativo = secuencia.ultimo_numero
-
+            
             # 3. Formateamos el ID final (Ej: MAN-0000-00000001)
             trace_id = f"{prefijo}-{punto_venta_virtual:04d}-{numero_correlativo:08d}"
-
-            db.flush()
+            
+            db.flush() 
             return trace_id
 
         except SQLAlchemyError as e:

@@ -3,8 +3,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link2, ShieldAlert } from "lucide-react";
-import api from "@/api/axios";
-import type { Comprobante, ComprobanteFormData } from "../types";
+import api from "@/api/axios"; 
+import type { Comprobante } from "../types";
 
 interface ContactoAgenda {
   id: number;
@@ -14,8 +14,8 @@ interface ContactoAgenda {
 }
 
 interface SeccionTerceroProps {
-  formData: ComprobanteFormData;
-  setFormData: React.Dispatch<React.SetStateAction<ComprobanteFormData>>;
+  formData: any;
+  setFormData: React.Dispatch<React.SetStateAction<any>>;
   cuitError: string | null;
   isVenta: boolean;
   isRemito: boolean;
@@ -40,13 +40,14 @@ export function SeccionTercero({
 }: SeccionTerceroProps) {
 
   const [agendaContactos, setAgendaContactos] = useState<ContactoAgenda[]>([]);
+  const [sugerencias, setSugerencias] = useState<ContactoAgenda[]>([]);
   const [campoActivo, setCampoActivo] = useState<"cuit" | "razon_social" | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     const fetchAgenda = async () => {
       try {
-        const res = await api.get<ContactoAgenda[]>('/v1/pagos/proveedores');
+        const res = await api.get('/v1/pagos/proveedores'); 
         if (isMounted) setAgendaContactos(res.data);
       } catch (error) {
         console.error("No se pudo cargar la base de contactos B2B", error);
@@ -56,24 +57,38 @@ export function SeccionTercero({
     return () => { isMounted = false; };
   }, []);
 
-  const cuitSeguro = formData.cuit_tercero || "";
-  const razonSocialSegura = formData.razon_social_receptor || "";
-  const sugerencias = campoActivo === "cuit" && cuitSeguro.length >= 5
-    ? agendaContactos.filter(c => (c.cuit || "").includes(cuitSeguro))
-    : campoActivo === "razon_social" && razonSocialSegura.length >= 3
-      ? agendaContactos.filter(c =>
-          (c.razon_social || "").toLowerCase().includes(razonSocialSegura.toLowerCase())
-        )
-      : [];
+  useEffect(() => {
+    if (!campoActivo) {
+      setSugerencias([]);
+      return;
+    }
+
+    const cuitSeguro = formData.cuit_tercero || "";
+    const razonSocialSegura = formData.razon_social_receptor || "";
+
+    if (campoActivo === "cuit" && cuitSeguro.length >= 5) {
+      const match = agendaContactos.filter(c => (c.cuit || "").includes(cuitSeguro));
+      setSugerencias(match);
+    } else if (campoActivo === "razon_social" && razonSocialSegura.length >= 3) {
+      const search = razonSocialSegura.toLowerCase();
+      const match = agendaContactos.filter(c => 
+        (c.razon_social || "").toLowerCase().includes(search)
+      );
+      setSugerencias(match);
+    } else {
+      setSugerencias([]);
+    }
+  }, [formData.cuit_tercero, formData.razon_social_receptor, campoActivo, agendaContactos]);
 
   const handleSeleccionarContacto = (contacto: ContactoAgenda) => {
-    setFormData((prev) => ({
+    setFormData((prev: any) => ({
       ...prev,
       cuit_tercero: contacto.cuit,
       razon_social_receptor: contacto.razon_social,
       condicion_fiscal_receptor: contacto.condicion_fiscal || "CONSUMIDOR_FINAL"
     }));
     setCampoActivo(null);
+    setSugerencias([]);
   };
 
   return (
@@ -81,29 +96,29 @@ export function SeccionTercero({
       <Label className="text-indigo-900 font-bold block mb-2">
         Datos del {isVenta ? "Cliente" : "Proveedor"} *
       </Label>
-
+      
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
+        
         {/* INPUT CUIT CON AUTOCOMPLETADO */}
         <div className="space-y-1.5 relative">
           <Label className="text-[11px] text-slate-500 uppercase">CUIT (Sin Guiones)</Label>
-          <Input
-            type="text"
-            required
+          <Input 
+            type="text" 
+            required 
             placeholder="Busca o ingresa nuevo..."
-            value={formData.cuit_tercero}
-            onChange={(e) => setFormData({...formData, cuit_tercero: e.target.value.replace(/\D/g, '')})}
+            value={formData.cuit_tercero} 
+            onChange={(e) => setFormData({...formData, cuit_tercero: e.target.value.replace(/\D/g, '')})} 
             onFocus={() => setCampoActivo("cuit")}
             onBlur={() => setCampoActivo(null)}
             className={`bg-white h-10 font-mono font-medium ${cuitError ? 'border-red-400 focus:ring-red-500' : 'border-indigo-200 focus:ring-indigo-500'}`}
           />
-
+          
           {/* Dropdown nativo CUIT */}
           {campoActivo === "cuit" && sugerencias.length > 0 && (
             <ul className="absolute z-50 w-full sm:w-[150%] bg-white border border-indigo-100 shadow-xl rounded-md mt-1 max-h-48 overflow-y-auto top-full left-0">
               {sugerencias.map(c => (
-                <li
-                  key={c.id}
+                <li 
+                  key={c.id} 
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleSeleccionarContacto(c);
@@ -127,14 +142,14 @@ export function SeccionTercero({
         {/* INPUT RAZÓN SOCIAL CON AUTOCOMPLETADO */}
         <div className="space-y-1.5 relative">
           <Label className="text-[11px] text-slate-500 uppercase">Razón Social / Nombre</Label>
-          <Input
-            type="text"
-            required
+          <Input 
+            type="text" 
+            required 
             placeholder="Busca o ingresa nuevo..."
-            value={formData.razon_social_receptor || ""}
+            value={formData.razon_social_receptor || ""} 
             onChange={(e) => setFormData({...formData, razon_social_receptor: e.target.value})}
             onFocus={() => setCampoActivo("razon_social")}
-            onBlur={() => setCampoActivo(null)}
+            onBlur={() => setCampoActivo(null)} 
             className="bg-white h-10 border-indigo-200 focus:ring-indigo-500"
           />
 
@@ -142,8 +157,8 @@ export function SeccionTercero({
           {campoActivo === "razon_social" && sugerencias.length > 0 && (
             <ul className="absolute z-50 w-full sm:w-[150%] bg-white border border-indigo-100 shadow-xl rounded-md mt-1 max-h-48 overflow-y-auto top-full left-0">
               {sugerencias.map(c => (
-                <li
-                  key={c.id}
+                <li 
+                  key={c.id} 
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleSeleccionarContacto(c);
@@ -157,12 +172,12 @@ export function SeccionTercero({
             </ul>
           )}
         </div>
-
+        
         <div className={`space-y-1.5 transition-opacity ${isRemito ? 'opacity-60 grayscale' : ''}`}>
           <Label className="text-[11px] text-slate-500 uppercase">Condición Fiscal</Label>
-          <Select
-            disabled={isRemito}
-            value={isRemito ? "NO_CATEGORIZADO" : formData.condicion_fiscal_receptor}
+          <Select 
+            disabled={isRemito} 
+            value={isRemito ? "NO_CATEGORIZADO" : formData.condicion_fiscal_receptor} 
             onValueChange={(val) => setFormData({...formData, condicion_fiscal_receptor: val})}
           >
             <SelectTrigger className={`bg-white h-10 ${isRemito ? 'opacity-50' : 'border-indigo-200'}`}>

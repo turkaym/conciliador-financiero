@@ -10,7 +10,7 @@ from core.database.session import SessionLocal, engine
 # Importamos Base (Maestro) y TenantBase (Clientes) correctamente separados
 from core.database.base import Base
 from core.database.models_master import SystemLog, Tenant
-from core.database.models_tenant import TenantBase
+from core.database.models_tenant import TenantBase 
 from core.services.tenant_manager import TenantManager
 
 # Asegurarnos de que las tablas maestras existan al arrancar el CLI
@@ -46,24 +46,24 @@ def upgrade_all_tenants():
             return
 
         click.secho(f"🚀 Iniciando migración masiva para {len(tenants)} esquemas...", fg="cyan", bold=True)
-
+        
         # Configuración base de Alembic
         alembic_cfg = AlembicConfig("alembic.ini")
 
         for tenant in tenants:
             schema = tenant.schema_name
             click.secho(f"  -> 🔄 Sincronizando estructura para: {schema}", fg="blue")
-
+            
             try:
                 # 1. Traducimos las tablas al esquema del tenant
                 tenant_engine = engine.execution_options(schema_translate_map={None: schema})
-
+                
                 # 2. 🌟 FIX CRÍTICO: Usamos TenantBase para imprimir las tablas de los clientes
                 TenantBase.metadata.create_all(bind=tenant_engine)
-
+                
                 # 3. Forzamos a Alembic a sellar la versión en head
                 alembic_command.stamp(alembic_cfg, "head")
-
+                
                 click.secho(f"  -> ✅ {schema} actualizado correctamente.", fg="green")
             except Exception as e:
                 click.secho(f"  -> ❌ Fallo al migrar {schema}: {str(e)}", fg="red", err=True)
@@ -117,7 +117,7 @@ def list_tenants_cmd():
         click.secho("\n📋 Listado de Tenants Activos:", fg="cyan", bold=True)
         click.secho(f"{'ID':<5} | {'ESQUEMA':<15} | {'CUIT':<15} | {'NOMBRE'}", fg="white", bold=True)
         click.secho("-" * 60, fg="white")
-
+        
         for t in tenants:
             estado = "✅" if t.is_active else "❌"
             click.echo(f"{t.id:<5} | {t.schema_name:<15} | {t.cuit:<15} | {estado} {t.name}")
@@ -138,12 +138,12 @@ def delete_tenant_cmd(schema_name: str, hard: bool):
             click.confirm(f"⚠️ Vas a desactivar el esquema '{schema_name}'. ¿Continuar?", abort=True)
 
         TenantManager.deprovision_tenant(db, schema_name, hard_delete=hard)
-
+        
         if hard:
             click.secho(f"\n💥 Tenant '{schema_name}' destruido.", fg="red")
         else:
             click.secho(f"\n✅ Tenant '{schema_name}' desactivado correctamente.", fg="green")
-
+            
     except ValueError as ve:
         click.secho(f"❌ Error: {str(ve)}", fg="red")
     except Exception as e:

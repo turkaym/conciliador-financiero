@@ -29,17 +29,17 @@ def upgrade() -> None:
                     type_=sa.Numeric(7, 4),
                     existing_type=sa.Numeric(5, 2),
                     schema=target_schema)
-
+                    
     op.alter_column('reglas_impuestos', 'alicuota_defecto',
                     type_=sa.Numeric(7, 4),
                     existing_type=sa.Numeric(5, 2),
                     schema=target_schema)
-
+                    
     op.alter_column('padrones_fiscales', 'alicuota_retencion',
                     type_=sa.Numeric(7, 4),
                     existing_type=sa.Numeric(5, 2),
                     schema=target_schema)
-
+                    
     op.alter_column('padrones_fiscales', 'alicuota_percepcion',
                     type_=sa.Numeric(7, 4),
                     existing_type=sa.Numeric(5, 2),
@@ -62,7 +62,7 @@ def upgrade() -> None:
     DO $$
     BEGIN
         IF NOT EXISTS (
-            SELECT 1 FROM pg_constraint
+            SELECT 1 FROM pg_constraint 
             WHERE conname = 'chk_importe_total_positivo'
             AND conrelid = '{target_schema}.comprobantes'::regclass
         ) THEN
@@ -83,7 +83,7 @@ def upgrade() -> None:
         'padrones_fiscales', 'historial_cotizaciones', 'webhook_subscriptions',
         'webhook_delivery_logs'
     ]
-
+    
     for tabla in tablas_auditables:
         # Agrega la columna updated_at si no existe, garantizando que el Mixin no rompa en tablas viejas
         op.execute(f"ALTER TABLE {target_schema}.{tabla} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE")
@@ -104,5 +104,5 @@ def downgrade() -> None:
 
     # Eliminación del Constraint idempotente
     op.execute(f"ALTER TABLE {target_schema}.comprobantes DROP CONSTRAINT IF EXISTS chk_importe_total_positivo;")
-
+    
     # Nota: No se hace un DROP automático de updated_at en el downgrade por seguridad de retención de trazas.

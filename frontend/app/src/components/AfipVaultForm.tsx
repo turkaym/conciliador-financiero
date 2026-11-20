@@ -4,11 +4,10 @@ import api from "@/api/axios";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-toastify";
-import { extractApiError, getApiErrorDetail } from "@/lib/utils";
 
 export default function AfipVaultForm() {
   const { entidadActiva, setEntidadActiva } = useAuthStore();
-
+  
   const [certFile, setCertFile] = useState<File | null>(null);
   const [keyFile, setKeyFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -18,7 +17,7 @@ export default function AfipVaultForm() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [showConfirmRevoke, setShowConfirmRevoke] = useState(false);
-
+  
   const [healthStatus, setHealthStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
   const [healthMsg, setHealthMsg] = useState("");
 
@@ -42,13 +41,10 @@ export default function AfipVaultForm() {
       await api.post(`/v1/afip-vault/${tenant_id}/entidad/${entidadActiva.id}/upload-credentials`, formData);
       setStatus({ type: 'success', message: "Credenciales aseguradas exitosamente." });
       setEntidadActiva({ ...entidadActiva, has_afip_credentials: true });
-    } catch (error: unknown) {
-      const detail = getApiErrorDetail(error);
+    } catch (error: any) {
+      const detail = error.response?.data?.detail;
       let errorMsg = "Fallo en la comunicación con el servidor.";
-      if (Array.isArray(detail) && detail.length > 0 && typeof detail[0] === "object" && detail[0] !== null &&
-        "loc" in detail[0] && Array.isArray(detail[0].loc) && "msg" in detail[0] && typeof detail[0].msg === "string") {
-        errorMsg = `Error de formato: ${detail[0].loc.join(' -> ')} - ${detail[0].msg}`;
-      }
+      if (Array.isArray(detail)) errorMsg = `Error de formato: ${detail[0].loc.join(' -> ')} - ${detail[0].msg}`;
       else if (typeof detail === 'string') errorMsg = detail;
       setStatus({ type: 'error', message: errorMsg });
     } finally {
@@ -64,9 +60,9 @@ export default function AfipVaultForm() {
       await api.get(`/v1/afip-vault/${tenant_id}/entidad/${entidadActiva.id}/test-connection`);
       setHealthStatus('ok');
       setHealthMsg("Conexión criptográfica establecida con éxito (WSAA OK).");
-    } catch (error: unknown) {
+    } catch (error: any) {
       setHealthStatus('fail');
-      setHealthMsg(extractApiError(error, "ARCA denegó el acceso o los servidores están caídos."));
+      setHealthMsg(error.response?.data?.detail || "ARCA denegó el acceso o los servidores están caídos.");
     } finally {
       setIsTesting(false);
     }
@@ -77,8 +73,8 @@ export default function AfipVaultForm() {
     try {
       await api.post('/v1/comprobantes/sync-afip', { punto_venta: 1, tipo_cbte: 1 });
       toast.success("Worker de Celery disparado en segundo plano. Los comprobantes aparecerán en breve.");
-    } catch (error: unknown) {
-      toast.error("Error al disparar el Worker: " + extractApiError(error, "Fallo de red"));
+    } catch (error: any) {
+      toast.error("Error al disparar el Worker: " + (error.response?.data?.detail || "Fallo de red"));
     } finally {
       setIsSyncing(false);
     }
@@ -86,7 +82,7 @@ export default function AfipVaultForm() {
 
   const handleRevoke = async () => {
     if (!tenant_id || !entidadActiva?.id) return;
-
+    
     setIsRevoking(true);
     try {
       await api.delete(`/v1/afip-vault/${tenant_id}/entidad/${entidadActiva.id}/credentials`);
@@ -95,8 +91,8 @@ export default function AfipVaultForm() {
       setKeyFile(null);
       setShowConfirmRevoke(false);
       toast.success("Credenciales revocadas y destruidas de la bóveda.");
-    } catch (error: unknown) {
-      toast.error("Error al revocar credenciales: " + extractApiError(error, "Fallo de servidor"));
+    } catch (error: any) {
+      toast.error("Error al revocar credenciales: " + (error.response?.data?.detail || "Fallo de servidor"));
     } finally {
       setIsRevoking(false);
     }
@@ -117,7 +113,7 @@ export default function AfipVaultForm() {
 
         <div className="p-4 sm:p-6 space-y-6">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 p-5 rounded-lg border bg-emerald-50/50 border-emerald-100">
-
+            
             <div className="flex items-start sm:items-center gap-3 w-full lg:w-auto flex-1">
               <CheckCircle className="w-8 h-8 text-emerald-600 shrink-0 mt-1 sm:mt-0" />
               <div className="flex-1 break-words space-y-1">
@@ -131,7 +127,7 @@ export default function AfipVaultForm() {
                 {/* 🌟 FIX TELEMETRÍA FASE E: Visualización de última sincronización */}
                 {entidadActiva.afip_last_sync_at ? (
                   <p className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-1 mt-1">
-                    <Clock className="w-3 h-3 shrink-0" />
+                    <Clock className="w-3 h-3 shrink-0" /> 
                     Sincronizado: {new Date(entidadActiva.afip_last_sync_at).toLocaleString()}
                   </p>
                 ) : (
@@ -141,7 +137,7 @@ export default function AfipVaultForm() {
                 )}
               </div>
             </div>
-
+            
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0 mt-2 lg:mt-0">
               <Button onClick={handleTestConnection} disabled={isTesting || isRevoking} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 w-full sm:w-auto">
                 {isTesting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Activity className="w-4 h-4 mr-2" />}
@@ -168,10 +164,10 @@ export default function AfipVaultForm() {
 
           <div className="pt-4 mt-6 border-t border-slate-100 flex flex-col justify-end gap-3 sm:flex-row">
             {!showConfirmRevoke ? (
-              <Button
-                onClick={() => setShowConfirmRevoke(true)}
-                disabled={isRevoking || isTesting || isSyncing}
-                variant="ghost"
+              <Button 
+                onClick={() => setShowConfirmRevoke(true)} 
+                disabled={isRevoking || isTesting || isSyncing} 
+                variant="ghost" 
                 className="text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -184,15 +180,15 @@ export default function AfipVaultForm() {
                   ¿Seguro? La sincronización con AFIP se detendrá.
                 </span>
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <Button
-                    onClick={() => setShowConfirmRevoke(false)}
-                    variant="outline"
+                  <Button 
+                    onClick={() => setShowConfirmRevoke(false)} 
+                    variant="outline" 
                     className="flex-1 sm:flex-none border-red-200 text-red-700 hover:bg-red-100"
                   >
                     Cancelar
                   </Button>
-                  <Button
-                    onClick={handleRevoke}
+                  <Button 
+                    onClick={handleRevoke} 
                     className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white"
                   >
                     {isRevoking ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : "Confirmar"}
@@ -243,7 +239,7 @@ export default function AfipVaultForm() {
         </div>
 
         {status.type === 'error' && <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm border border-red-100">{status.message}</div>}
-
+        
         <div className="pt-4 border-t border-slate-100 flex justify-end">
           <Button onClick={handleUpload} disabled={isUploading || !certFile || !keyFile} className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto">
             {isUploading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}

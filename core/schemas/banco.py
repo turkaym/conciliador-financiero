@@ -19,7 +19,7 @@ class CuentaBancariaBase(BaseModel):
 
     is_virtual_clearing: bool = Field(default=False, description="Habilita la auto-emisión fiscal de comisiones")
     proveedor_clearing_id: Optional[int] = Field(default=None, description="ID del proveedor de clearing en tabla de contactos")
-
+    
     # 🌟 FIX ARQUITECTURA: Permitir que el frontend envíe explícitamente la cuenta contable
     cuenta_contable_id: Optional[int] = Field(default=None, description="ID de la imputación contable para partida doble")
 
@@ -35,14 +35,14 @@ class MovimientoBancarioBase(BaseModel):
     cuenta_contable_id: Optional[int] = Field(default=None, description="ID de la imputación contable")
     fecha: date
     monto: Decimal = Field(..., max_digits=15, decimal_places=2)
-    moneda: MonedaEnum = MonedaEnum.ARS
-
+    moneda: MonedaEnum = MonedaEnum.ARS 
+    
     # 🌟 FIX FASE 3.1: Pydantic leerá 'referencia_externa' de la DB automáticamente
     referencia_banco: Optional[str] = Field(
         default=None,
         validation_alias=AliasChoices('referencia_banco', 'referencia_externa')
     )
-
+    
     usuario_resolutor_id: Optional[str] = None
     motivo_rechazo: Optional[str] = None
 
@@ -52,7 +52,7 @@ class MovimientoBancarioBase(BaseModel):
         if v == Decimal('0.00'):
             raise ValueError("[BUSINESS_LOGIC] Un movimiento bancario no puede ser de $0.00")
         return v
-
+        
     model_config = ConfigDict(use_enum_values=True)
 
 # ==========================================
@@ -70,10 +70,10 @@ class MovimientoBancarioRequest(MovimientoBancarioBase):
 # ESQUEMAS INTERNOS (API -> DB)
 # ==========================================
 class CuentaBancariaCreate(CuentaBancariaRequest):
-    entidad_id: int
+    entidad_id: int 
 
 class MovimientoBancarioCreate(MovimientoBancarioRequest):
-    entidad_id: int
+    entidad_id: int 
     saldo_resultante: Optional[Decimal] = None
     estado: str = "APROBADO"
 
@@ -93,21 +93,21 @@ class CuentaBancariaResponse(CuentaBancariaBase):
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
 class MovimientoBancarioResponse(MovimientoBancarioBase):
-    id: int
+    id: int 
     tipo_registro: Literal["MOVIMIENTO", "SOLICITUD"] = "MOVIMIENTO"
-
+    
     # 🌟 FIX FASE 3.1: Pydantic leerá 'concepto_crudo' de la DB automáticamente
     concepto_bancario_crudo: str = Field(
         validation_alias=AliasChoices('concepto_bancario_crudo', 'concepto_crudo')
     )
-
-    concepto_interno: Optional[str] = None
+    
+    concepto_interno: Optional[str] = None 
     saldo_resultante: Optional[Decimal] = None
     conciliado: bool = Field(
-        default=False,
+        default=False, 
         validation_alias=AliasChoices('conciliado', 'es_conciliado', 'is_conciliado')
     )
-    estado: str = "APROBADO"
+    estado: str = "APROBADO" 
     usuario_creador_id: Optional[str] = None
     usuario_resolutor_id: Optional[str] = None
     motivo_rechazo: Optional[str] = None
@@ -116,7 +116,7 @@ class MovimientoBancarioResponse(MovimientoBancarioBase):
 
     # populate_by_name=True es vital aquí para que los alias funcionen en ambas direcciones
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, use_enum_values=True)
-
+        
 class MovimientosPaginadosResponse(BaseModel):
     items: List[MovimientoBancarioResponse]
     total_count: int

@@ -34,7 +34,7 @@ def process_stripe_webhook_task(self, event_dict: dict, object_name: str = None)
         return {"status": "ignored", "reason": "already_processed"}
 
     logger.info(f"💳 [WEBHOOK] Iniciando procesamiento de evento: {event_type} | ID: {event_id}")
-
+    
     db = SessionLocal()
     tenant = None
 
@@ -74,12 +74,12 @@ def process_stripe_webhook_task(self, event_dict: dict, object_name: str = None)
             # Stripe envía estados como: active, past_due, unpaid, canceled
             new_status = data_object.get("status")
             tenant.subscription_status = new_status
-
+            
             # Actualizar fecha de corte (Unix Timestamp a DateTime UTC)
             period_end = data_object.get("current_period_end")
             if period_end:
                 tenant.current_period_end = datetime.fromtimestamp(period_end, tz=timezone.utc)
-
+                
             logger.info(f"🔄 [BILLING] Tenant {tenant.schema_name} actualizó estado a: {new_status}")
 
         elif event_type == "customer.subscription.deleted":
@@ -104,7 +104,7 @@ def process_stripe_webhook_task(self, event_dict: dict, object_name: str = None)
         # =======================================================
         # Guardamos la marca de éxito por 48 horas. Si Stripe reintenta el mismo ID, chocará con la validación inicial.
         redis_client.setex(idempotency_key, 172800, "PROCESSED")
-
+        
         return {"status": "success", "tenant": tenant.schema_name, "event": event_type}
 
     except Exception as e:
@@ -112,6 +112,6 @@ def process_stripe_webhook_task(self, event_dict: dict, object_name: str = None)
         logger.error(f"❌ [WEBHOOK] Fallo crítico procesando evento {event_id}: {e}", exc_info=True)
         # Al lanzar el retry, el candado de 30s se libera y Celery reintentará en el futuro
         raise self.retry(exc=e, countdown=15 * (2 ** self.request.retries))
-
+    
     finally:
         db.close()

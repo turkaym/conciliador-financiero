@@ -24,7 +24,7 @@ class StandardMovement(BaseModel):
     referencia_banco: str = Field(default="")
     saldo_resultante: Optional[Decimal] = None
     moneda: str = Field(default="ARS")
-    ocurrencia_diaria: int = 0
+    ocurrencia_diaria: int = 0 
     hash_transaccional: str = Field(default="")
 
     @field_validator('fecha', mode='before')

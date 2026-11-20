@@ -1,9 +1,7 @@
 import api from '@/api/axios';
 import { useAuthStore } from '@/store/useAuthStore';
 import { extractApiError } from '@/lib/utils';
-import type { CuentaBancaria } from '@/features/bancos/types';
-import type { Comprobante, ComprobanteCreateInput, ComprobanteCreatePayload } from '../types';
-import axios from 'axios';
+import type { Comprobante, ComprobanteCreatePayload } from '../types';
 import { useState, useCallback, useEffect } from 'react';
 
 const PAGE_SIZE = 50;
@@ -22,10 +20,10 @@ export const useComprobantes = () => {
 
   const [comprobantes, setComprobantes] = useState<Comprobante[]>([]);
   const [remitosPendientes, setRemitosPendientes] = useState<Comprobante[]>([]);
-
+  
   // 🌟 FIX TRAZABILIDAD: Nuevo estado para facturas asociables (Notas de Crédito/Débito)
   const [facturasAsociables, setFacturasAsociables] = useState<Comprobante[]>([]);
-
+  
   const [hasMore, setHasMore] = useState(true);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +31,7 @@ export const useComprobantes = () => {
   const [isSyncingAfip, setIsSyncingAfip] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const [cajasDisponibles, setCajasDisponibles] = useState<{id: number, nombre: string, moneda: string}[]>([]);
+  const [cajasDisponibles, setCajasDisponibles] = useState<{id: number, nombre: string}[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [globalMessage, setGlobalMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [syncFeedback, setSyncFeedback] = useState<{ active: boolean, text: string } | null>(null);
@@ -50,21 +48,21 @@ export const useComprobantes = () => {
 
   const fetchComprobantes = useCallback(async (page: number = 0, filters: ComprobanteFilters = {}) => {
     if (!entidadActiva) return;
-
+    
     setIsLoading(true);
-    setErrorMsg(null);
+    setErrorMsg(null); 
     try {
       const skip = page * PAGE_SIZE;
-
+      
       const activeFilters = Object.fromEntries(
         Object.entries(filters).filter(([_, v]) => v != null && v !== "" && v !== "ALL")
       );
 
       const response = await api.get<Comprobante[]>("/v1/comprobantes/", {
         headers: getSecureHeaders(),
-        params: { skip, limit: PAGE_SIZE, ...activeFilters }
+        params: { skip, limit: PAGE_SIZE, ...activeFilters } 
       });
-
+      
       setComprobantes(prev => page === 0 ? response.data : [...prev, ...response.data]);
       setHasMore(response.data.length === PAGE_SIZE);
     } catch (error) {
@@ -80,7 +78,7 @@ export const useComprobantes = () => {
         setRemitosPendientes([]);
         return;
     }
-
+    
     try {
       const response = await api.get<Comprobante[]>("/v1/comprobantes/", {
         headers: getSecureHeaders(),
@@ -99,13 +97,13 @@ export const useComprobantes = () => {
       setFacturasAsociables([]);
       return;
     }
-
+    
     try {
-      const params: { tipo_operacion: string; clase_documento: string; cuit_receptor?: string; cuit_emisor?: string } = {
+      const params: any = {
         tipo_operacion: tipoOperacion,
         clase_documento: "FACTURA"
       };
-
+      
       // Si es VENTA, el cliente es el receptor. Si es COMPRA, el proveedor es el emisor.
       if (tipoOperacion === "VENTA") {
         params.cuit_receptor = cuit;
@@ -117,7 +115,7 @@ export const useComprobantes = () => {
         headers: getSecureHeaders(),
         params
       });
-
+      
       // Ordenamiento cronológico inverso (más recientes primero)
       const facturas = response.data.sort((a, b) => new Date(b.fecha_emision).getTime() - new Date(a.fecha_emision).getTime());
       setFacturasAsociables(facturas);
@@ -129,15 +127,14 @@ export const useComprobantes = () => {
   const fetchCajasB2C = useCallback(async () => {
     if (!entidadActiva) return;
     try {
-      const response = await api.get<CuentaBancaria[]>('/v1/bancos/cuentas', { headers: getSecureHeaders() });
+      const response = await api.get<any[]>('/v1/bancos/cuentas', { headers: getSecureHeaders() });
       const cajasOperativas = response.data.filter(c => !c.is_virtual_clearing);
-
+      
       setCajasDisponibles(cajasOperativas.map(c => ({
         id: c.id,
-        nombre: c.banco || "Caja/Cuenta sin nombre",
-        moneda: c.moneda
+        nombre: c.banco || c.nombre || "Caja/Cuenta sin nombre"
       })));
-
+      
     } catch (error) {
       console.error("Error al cargar cajas operativas:", error);
     }
@@ -147,9 +144,9 @@ export const useComprobantes = () => {
     fetchCajasB2C();
   }, [fetchCajasB2C]);
 
-  const createComprobante = async (payload: ComprobanteCreateInput) => {
+  const createComprobante = async (payload: Omit<ComprobanteCreatePayload, 'entidad_id'> | any) => {
     if (!entidadActiva) return false;
-
+    
     setIsSaving(true);
     setErrorMsg(null);
     try {
@@ -157,20 +154,20 @@ export const useComprobantes = () => {
         ...payload,
         entidad_id: entidadActiva.id
       };
-
+      
       const idempotencyKey = crypto.randomUUID();
 
       await api.post("/v1/comprobantes/", finalPayload, {
         headers: {
           ...getSecureHeaders(),
-          'Idempotency-Key': idempotencyKey
+          'Idempotency-Key': idempotencyKey 
         }
       });
-
+      
       showGlobalMessage('success', "Comprobante emitido e ingresado al orquestador AFIP.");
       return true;
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.status === 409) {
+    } catch (error: any) {
+      if (error.response?.status === 409) {
         setErrorMsg("Este comprobante ya existe en la base de datos.");
       } else {
         setErrorMsg(extractApiError(error, "Error de validación matemática o de integridad."));
@@ -186,14 +183,14 @@ export const useComprobantes = () => {
     setDeletingId(id);
     const previousComprobantes = [...comprobantes];
     setComprobantes(prev => prev.filter(c => c.id !== id));
-
+    
     try {
       await api.delete(`/v1/comprobantes/${id}`, {
         headers: getSecureHeaders()
       });
       showGlobalMessage('success', "Comprobante anulado correctamente.");
       return true;
-    } catch (error: unknown) {
+    } catch (error: any) {
       setComprobantes(previousComprobantes);
       showGlobalMessage('error', extractApiError(error, "Fallo al anular el documento (Posible bloqueo por CAE activo)."));
       return false;
@@ -209,23 +206,23 @@ export const useComprobantes = () => {
     setSyncFeedback(null);
 
     try {
-      await api.post('/v1/comprobantes/sync-afip',
-        { punto_venta: puntoVenta, tipo_cbte: tipoCbte },
+      await api.post('/v1/comprobantes/sync-afip', 
+        { punto_venta: puntoVenta, tipo_cbte: tipoCbte }, 
         { headers: getSecureHeaders() }
       );
-
-      setSyncFeedback({
-        active: true,
-        text: "Sincronizando con AFIP en segundo plano. Buscando nuevas facturas..."
+      
+      setSyncFeedback({ 
+        active: true, 
+        text: "Sincronizando con AFIP en segundo plano. Buscando nuevas facturas..." 
       });
 
       setTimeout(() => { fetchComprobantes(0, activeFilters); }, 5000);
-      setTimeout(() => {
-        fetchComprobantes(0, activeFilters);
-        setSyncFeedback(null);
+      setTimeout(() => { 
+        fetchComprobantes(0, activeFilters); 
+        setSyncFeedback(null); 
       }, 12000);
-
-    } catch (error: unknown) {
+      
+    } catch (error: any) {
       const msg = extractApiError(error, "Fallo al iniciar sincronización con AFIP.");
       setErrorMsg(msg);
     } finally {
@@ -242,7 +239,7 @@ export const useComprobantes = () => {
   }, []);
 
   return {
-    comprobantes, remitosPendientes, facturasAsociables, isLoading, isSaving, cajasDisponibles, isSyncingAfip, deletingId, hasMore,
+    comprobantes, remitosPendientes, facturasAsociables, isLoading, isSaving, cajasDisponibles, isSyncingAfip, deletingId, hasMore, 
     errorMsg, setErrorMsg, globalMessage, syncFeedback,
     fetchComprobantes, fetchRemitosPendientes, fetchFacturasParaAsociar, createComprobante, deleteComprobante, syncAfip, clearData
   };

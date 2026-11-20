@@ -35,19 +35,19 @@ interface ApiError {
 
 export default function LogisticaTable() {
   const { ordenes, isLoading, paginacion, setPaginacion, fetchOrdenes, liquidarOrdenIndividual } = useEgresosStore();
-
+  
   // 🌟 FIX FASE 4.1: Recuperación de Type-Safety inyectando AuthState
   const entidadActiva = useAuthStore((state: AuthState) => state.entidadActiva);
   const hasPermission = useAuthStore((state: AuthState) => state.hasPermission);
-
+  
   const canLiquidar = hasPermission("liquidar_ordenes");
   const canAnular = hasPermission("anular_pagos_conciliados") || hasPermission("anular_ordenes");
 
   const [provMap, setProvMap] = useState<Record<number, string>>({});
   const [concMap, setConcMap] = useState<Record<number, string>>({});
-  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
+  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]); 
   const [isLoadingMaestros, setIsLoadingMaestros] = useState(true);
-
+  
   const [visorImagenUrl, setVisorImagenUrl] = useState<string | null>(null);
   const [isAnulando, setIsAnulando] = useState<number | null>(null);
 
@@ -72,10 +72,10 @@ export default function LogisticaTable() {
         if (isMounted) {
           const pMap: Record<number, string> = {};
           resProveedores.data.forEach((p: Proveedor) => pMap[p.id] = p.razon_social);
-
+          
           const cMap: Record<number, string> = {};
           resConceptos.data.forEach((c: Concepto) => cMap[c.id] = c.nombre_descriptivo);
-
+          
           setProvMap(pMap);
           setConcMap(cMap);
           setCuentasBancarias(resCuentas.data || []);
@@ -106,7 +106,6 @@ export default function LogisticaTable() {
   };
 
   const handleAnularOrden = async (id: number) => {
-    if (!entidadActiva) return;
     if (!window.confirm("¿Estás seguro de que deseas anular esta Orden de Pago?\n\nSi la orden ya fue pagada pero no conciliada, los fondos retornarán virtualmente a la caja y la deuda con el proveedor se reabrirá. Esta acción quedará registrada en la auditoría.")) {
       return;
     }
@@ -115,7 +114,7 @@ export default function LogisticaTable() {
     try {
       await api.post(`/v1/pagos/ordenes/${id}/anular`, {}, { headers: { 'x-entity-id': entidadActiva.id } });
       toast.success("Orden anulada correctamente. Saldos revertidos al centavo.");
-      fetchOrdenes();
+      fetchOrdenes(); 
     } catch (error: unknown) {
       const err = error as ApiError;
       console.error("Error en anulación:", err);
@@ -127,7 +126,7 @@ export default function LogisticaTable() {
 
   const handleLiquidarConfirm = async () => {
     if (!modalLiquidar.ordenId || !cuentaSeleccionadaId) return;
-
+    
     setIsSubmittingLiquidacion(true);
     try {
       await liquidarOrdenIndividual(modalLiquidar.ordenId, parseInt(cuentaSeleccionadaId));
@@ -169,7 +168,7 @@ export default function LogisticaTable() {
   return (
     <>
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden animate-in fade-in duration-300 flex flex-col">
-
+        
         {/* 🌟 VISTA MOBILE-FIRST: Tarjetas Apiladas (Ocultas en Desktop) */}
         <div className="block md:hidden divide-y divide-slate-100">
           {ordenes.map((orden) => {
@@ -187,7 +186,7 @@ export default function LogisticaTable() {
                     <div className="font-black text-slate-800 text-base">{formatCurrency(Number(orden.monto_estimado), orden.moneda)}</div>
                   </div>
                 </div>
-
+                
                 <div className="bg-slate-50 p-2.5 rounded border border-slate-100">
                   <div className="font-semibold text-slate-800 text-sm line-clamp-1">{provMap[orden.proveedor_id] || `Prov #${orden.proveedor_id}`}</div>
                   <div className="text-xs text-slate-500 line-clamp-1">{concMap[orden.concepto_id] || `Concepto #${orden.concepto_id}`}</div>
@@ -207,7 +206,7 @@ export default function LogisticaTable() {
                   ) : (
                     <span className="inline-flex items-center px-2 py-1 bg-red-50 text-red-800 border border-red-300 rounded-md text-[10px] font-bold uppercase"><AlertCircle className="w-3 h-3 mr-1" /> {orden.estado_orden}</span>
                   )}
-
+                  
                   {orden.comprobante_interno_url && (
                     <button onClick={() => setVisorImagenUrl(orden.comprobante_interno_url!)} className="text-indigo-600 bg-indigo-50 p-1.5 rounded border border-indigo-100 active:scale-95 transition-transform" title="Ver comprobante adjunto">
                       <Eye className="w-4 h-4" />
@@ -217,17 +216,17 @@ export default function LogisticaTable() {
 
                 <div className="flex gap-2 w-full mt-1">
                   {isLiquidable && (
-                    <button
-                      onClick={() => { setCuentaSeleccionadaId(""); setModalLiquidar({ isOpen: true, ordenId: orden.id }); }}
+                    <button 
+                      onClick={() => { setCuentaSeleccionadaId(""); setModalLiquidar({ isOpen: true, ordenId: orden.id }); }} 
                       className="flex-1 flex items-center justify-center px-2 py-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md text-[11px] font-bold uppercase transition-colors"
                     >
                       <Send className="w-3.5 h-3.5 mr-1" /> Liquidar
                     </button>
                   )}
                   {isAnulable && (
-                    <button
-                      onClick={() => handleAnularOrden(orden.id)}
-                      disabled={isAnulando === orden.id}
+                    <button 
+                      onClick={() => handleAnularOrden(orden.id)} 
+                      disabled={isAnulando === orden.id} 
                       className="flex-1 flex items-center justify-center px-2 py-2 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md text-[11px] font-bold uppercase disabled:opacity-50 transition-colors"
                     >
                       {isAnulando === orden.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <XCircle className="w-3.5 h-3.5 mr-1" />}
@@ -291,14 +290,14 @@ export default function LogisticaTable() {
                             <Eye className="w-4 h-4 mr-1 group-hover:scale-110 transition-transform" /><span className="text-xs font-bold">Ver Ticket</span>
                           </button>
                         ) : <span className="text-slate-400 text-[11px] font-medium py-1">- Sin Ticket Adjunto -</span>}
-
+                        
                         <div className="text-[10px] text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200 text-center w-full shadow-sm">
                           Autor: <span className="font-semibold text-slate-700">{orden.creado_por_id || "Anónimo"}</span>
                         </div>
 
                         {isLiquidable && (
-                          <button
-                            onClick={() => { setCuentaSeleccionadaId(""); setModalLiquidar({ isOpen: true, ordenId: orden.id }); }}
+                          <button 
+                            onClick={() => { setCuentaSeleccionadaId(""); setModalLiquidar({ isOpen: true, ordenId: orden.id }); }} 
                             className="mt-1 inline-flex items-center justify-center px-2 py-1.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md transition-colors text-[10px] font-bold uppercase w-full shadow-sm"
                             title="Descontar fondos de tesorería y marcar como pagada"
                           >
@@ -307,9 +306,9 @@ export default function LogisticaTable() {
                         )}
 
                         {isAnulable && (
-                          <button
-                            onClick={() => handleAnularOrden(orden.id)}
-                            disabled={isAnulando === orden.id}
+                          <button 
+                            onClick={() => handleAnularOrden(orden.id)} 
+                            disabled={isAnulando === orden.id} 
                             className="mt-1 inline-flex items-center justify-center px-2 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors text-[10px] font-bold uppercase w-full shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Revertir el pago y reabrir la deuda (Soft Delete)"
                           >
@@ -317,7 +316,7 @@ export default function LogisticaTable() {
                             {isAnulando === orden.id ? "Anulando..." : "Anular Orden"}
                           </button>
                         )}
-
+                        
                         {!isAnulable && orden.estado_orden === "CERRADA" && (
                            <div className="mt-1 inline-flex items-center justify-center px-2 py-1 text-slate-400 text-[9px] uppercase font-bold text-center w-full" title="No se puede anular porque ya fue cruzada en Conciliación Bancaria.">
                              <ShieldAlert className="w-3 h-3 mr-1" /> Conciliada
@@ -360,12 +359,12 @@ export default function LogisticaTable() {
 
       {/* 🌟 FASE 4.2: MODAL RESPONSIVE (Bottom Sheet en Mobile, Modal en Desktop) */}
       {modalLiquidar.isOpen && (
-        <div
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm sm:p-4 animate-in fade-in transition-all"
+        <div 
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm sm:p-4 animate-in fade-in transition-all" 
           onClick={() => !isSubmittingLiquidacion && setModalLiquidar({ isOpen: false, ordenId: null })}
         >
-          <div
-            className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300"
+          <div 
+            className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300" 
             onClick={e => e.stopPropagation()}
           >
             {/* Handle del Bottom Sheet (Mobile Only) */}
@@ -381,7 +380,7 @@ export default function LogisticaTable() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
+            
             <div className="p-5 sm:p-6 space-y-5 pb-8 sm:pb-6 overflow-y-auto max-h-[80vh]">
               <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-lg text-sm flex items-start space-x-2">
                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
@@ -393,7 +392,7 @@ export default function LogisticaTable() {
                   <Landmark className="w-4 h-4 mr-1 text-slate-500" /> Cuenta Bancaria de Origen
                 </label>
                 {/* Altura incrementada para áreas táctiles móviles */}
-                <select
+                <select 
                   className="w-full h-12 sm:h-11 rounded-lg border border-slate-300 bg-white px-3 text-base sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all shadow-sm"
                   value={cuentaSeleccionadaId}
                   onChange={(e) => setCuentaSeleccionadaId(e.target.value)}
@@ -409,14 +408,14 @@ export default function LogisticaTable() {
               </div>
 
               <div className="pt-2 flex flex-col-reverse sm:flex-row gap-3 sm:space-x-3 sm:gap-0">
-                <button
+                <button 
                   onClick={() => setModalLiquidar({ isOpen: false, ordenId: null })}
                   disabled={isSubmittingLiquidacion}
                   className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg font-bold text-sm transition-colors shadow-sm"
                 >
                   Cancelar
                 </button>
-                <button
+                <button 
                   onClick={handleLiquidarConfirm}
                   disabled={isSubmittingLiquidacion || !cuentaSeleccionadaId}
                   className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg font-bold text-sm transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
@@ -440,9 +439,9 @@ export default function LogisticaTable() {
                 Auditoría Fotográfica
               </div>
               <div className="flex items-center space-x-3">
-                <a
-                  href={visorImagenUrl}
-                  target="_blank"
+                <a 
+                  href={visorImagenUrl} 
+                  target="_blank" 
                   rel="noopener noreferrer"
                   className="inline-flex items-center px-4 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-md font-bold text-xs transition-colors shadow-sm"
                 >
@@ -455,11 +454,11 @@ export default function LogisticaTable() {
               </div>
             </div>
             <div className="p-6 bg-slate-200/50 flex flex-col items-center justify-center min-h-[60vh] relative">
-              <img
-                src={visorImagenUrl}
-                alt="Ticket Original"
+              <img 
+                src={visorImagenUrl} 
+                alt="Ticket Original" 
                 referrerPolicy="no-referrer"
-                className="max-h-[65vh] max-w-full object-contain rounded-md shadow-md bg-white border border-slate-300"
+                className="max-h-[65vh] max-w-full object-contain rounded-md shadow-md bg-white border border-slate-300" 
                 onError={(e) => {
                   (e.target as HTMLImageElement).onerror = null;
                   (e.target as HTMLImageElement).src = "https://placehold.co/800x400/f8fafc/64748b?text=Bloqueo+de+Seguridad+del+Navegador.%5Cn%5CnHaz+clic+en+%27Forzar+Extracci%C3%B3n%27+arriba.";

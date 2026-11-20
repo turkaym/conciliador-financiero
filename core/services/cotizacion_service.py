@@ -22,13 +22,13 @@ class CotizacionService:
             response = requests.get(self.api_url, timeout=self.timeout)
             response.raise_for_status()
             data = response.json()
-
+            
             compra = Decimal(str(data.get("compra", 0)))
             venta = Decimal(str(data.get("venta", 0)))
-
+            
             if venta <= Decimal('0.0'):
                 raise ValueError("La API externa devolvió una cotización cero o negativa.")
-
+                
             return {"compra": compra, "venta": venta}
         except Exception as e:
             logger.error(f"❌ [ORÁCULO] Fallo consultando API externa: {e}")
@@ -44,7 +44,7 @@ class CotizacionService:
         """
         if moneda == "ARS":
             return Decimal("1.0")
-
+            
         # 1. Caché L1: Base de Datos
         cotizacion_db = db.query(HistorialCotizacion).filter(
             HistorialCotizacion.moneda == moneda,
@@ -59,7 +59,7 @@ class CotizacionService:
         # 2. Caché Miss: Llama a la API Externa (Oráculo On-the-Fly)
         try:
             cotizacion_externa = self._fetch_external_fx_rate()
-
+            
             # 3. Persistir en la BD (Write-Through) usando UPSERT para evitar condiciones de carrera
             origen = "BNA_JIT" # Marcamos que se obtuvo Just-In-Time
             stmt = insert(HistorialCotizacion).values(
@@ -69,23 +69,23 @@ class CotizacionService:
                 cotizacion_venta=cotizacion_externa["venta"],
                 origen=origen
             )
-
+            
             stmt = stmt.on_conflict_do_update(
-                index_elements=['moneda', 'fecha', 'origen'],
+                index_elements=['moneda', 'fecha', 'origen'], 
                 set_={
                     'cotizacion_compra': stmt.excluded.cotizacion_compra,
                     'cotizacion_venta': stmt.excluded.cotizacion_venta
                 }
             )
-
+            
             db.execute(stmt)
-            # Hacemos flush para que la transacción actual la vea si es necesario,
+            # Hacemos flush para que la transacción actual la vea si es necesario, 
             # pero el commit final lo hace la función llamadora (ej. crear_orden_pago)
-            db.flush()
-
+            db.flush() 
+            
             logger.info(f"✅ [ORÁCULO] Cotización {moneda} guardada JIT en BD: {cotizacion_externa['venta']}")
             return cotizacion_externa["venta"]
-
+            
         except ValueError as ve:
             # 4. Fail-Closed: No hay datos locales y la API falló. Bloqueamos.
             logger.critical(f"🔥 [ORÁCULO] Imposible obtener cotización para {moneda}. Transacción rechazada.")

@@ -45,7 +45,7 @@ def get_reconciliation_status(
             resultados = []
             for item in hibrido_list:
                 tipo = getattr(item, 'tipo_registro', 'COMPROBANTE')
-
+                
                 try:
                     num_fmt = _format_cbte(item)
                 except Exception:
@@ -65,7 +65,7 @@ def get_reconciliation_status(
 
                 resultados.append({
                     "id": item_id,
-                    "numero_formateado": num_fmt,
+                    "numero_formateado": num_fmt, 
                     "fecha": fecha_str,
                     "razon_social": razon_social,
                     "monto": float(item.saldo_pendiente),
@@ -77,11 +77,11 @@ def get_reconciliation_status(
         def serialize_movs(movs_list):
             return [
                 {
-                    "id": m.id,
+                    "id": m.id, 
                     "fecha": m.fecha.strftime("%Y-%m-%d") if getattr(m, 'fecha', None) else None,
-                    "concepto": m.concepto_crudo,
+                    "concepto": m.concepto_crudo, 
                     "referencia": m.referencia_externa or "S/R",
-                    "monto": float(m.monto),
+                    "monto": float(m.monto), 
                     "moneda": str(getattr(m.cuenta.moneda, 'value', m.cuenta.moneda)) if getattr(m, 'cuenta', None) and getattr(m.cuenta, 'moneda', None) else "ARS"
                 } for m in movs_list
             ]
@@ -140,7 +140,7 @@ def trigger_matching(
             return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
                 content={
-                    "status": "processing_async",
+                    "status": "processing_async", 
                     "message": "Alto volumen. Background process iniciado.",
                     "task_id": tarea.id,
                     "estimated_pending": cantidad_pendientes
@@ -149,7 +149,7 @@ def trigger_matching(
 
         new_matches = run_advanced_matching(db, schema_name, entidad_id=entidad.id)
         return {"status": "success", "new_matches_found": new_matches}
-
+        
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Motor fail: {str(e)}")
@@ -190,14 +190,14 @@ def manual_match(
             movimientos_ids=request.movimientos_ids,
             usuario_id=current_user.sub,
             ajustes_fiscales=request.ajustes_fiscales,
-            op_ids=op_reales_ids
+            op_ids=op_reales_ids 
         )
 
         if not exito:
             raise HTTPException(status_code=400, detail="Match no concretado. Verifique saldos u operaciones concurrentes.")
 
         return {"status": "match_manual_registrado", "aprendizaje_disparado": True, "asiento_en_proceso": True}
-
+        
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

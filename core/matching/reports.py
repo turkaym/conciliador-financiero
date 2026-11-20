@@ -2,8 +2,8 @@ import logging
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, not_
 from core.database.models_tenant import (
-    Comprobante, CuentaTesoreria, MovimientoTesoreria,
-    ConciliacionMatch, AsientoContable,
+    Comprobante, CuentaTesoreria, MovimientoTesoreria, 
+    ConciliacionMatch, AsientoContable, 
     MatchDetalleComprobante, MatchDetalleMovimiento
 )
 from core.database.models.pagos import OrdenPago
@@ -42,7 +42,7 @@ def get_unreconciled_data(db: Session, entidad_id: int, limit: int = 100, offset
     🌟 ENTERPRISE REFACTOR: Extrae datos del Libro de Tesorería Unificado.
     Incorpora soporte polimórfico para Órdenes de Pago y aísla Extornos Internos.
     """
-
+    
     # 1. Base Query Facturación Pendiente (Comprobantes)
     base_cbtes_query = db.query(Comprobante).filter(
         Comprobante.entidad_id == entidad_id,
@@ -63,12 +63,12 @@ def get_unreconciled_data(db: Session, entidad_id: int, limit: int = 100, offset
 
     # 🌟 FIX ARQUITECTURA: Agregamos Base Query para Órdenes de Pago (Pasivos puros)
     from core.utils.enums import EstadoOrdenPago
-
+    
     # Tolerancia a posibles variantes del enum en la db
     estados_op_validos = []
     if hasattr(EstadoOrdenPago, 'AUTORIZADA'): estados_op_validos.append(EstadoOrdenPago.AUTORIZADA)
     if hasattr(EstadoOrdenPago, 'PENDIENTE_PAGO'): estados_op_validos.append(EstadoOrdenPago.PENDIENTE_PAGO)
-
+    
     # Si la lista queda vacía (por importación fallida del enum), forzamos un string por defecto
     if not estados_op_validos:
         estados_op_validos = ["AUTORIZADA", "PENDIENTE_PAGO"]
@@ -77,7 +77,7 @@ def get_unreconciled_data(db: Session, entidad_id: int, limit: int = 100, offset
         OrdenPago.entidad_id == entidad_id,
         OrdenPago.estado_orden.in_(estados_op_validos)
     ).order_by(OrdenPago.created_at.desc()).limit(limit).offset(offset).all()
-
+    
     # Uniformizamos la Orden de Pago para que el Frontend la entienda como Comprobante
     for op in ordenes_pago:
         # Hacemos duck-typing (override de atributos en tiempo de ejecución) para el serializer
@@ -119,7 +119,7 @@ def get_unreconciled_data(db: Session, entidad_id: int, limit: int = 100, offset
         Comprobante.entidad_id == entidad_id, Comprobante.saldo_pendiente > 0, Comprobante.is_active == True,
         Comprobante.estado.in_(["PENDIENTE", "EMITIDO", "PARCIALMENTE CONCILIADO"]), Comprobante.tipo_operacion == "COMPRA"
     ).scalar() or 0
-
+    
     total_ops = db.query(func.count(OrdenPago.id)).filter(
         OrdenPago.entidad_id == entidad_id,
         OrdenPago.estado_orden.in_(estados_op_validos)
@@ -131,7 +131,7 @@ def get_unreconciled_data(db: Session, entidad_id: int, limit: int = 100, offset
         not_(MovimientoTesoreria.concepto_crudo.ilike('[EXTORNO]%')), # 🌟 BARRERA DE AISLAMIENTO
         MovimientoTesoreria.tipo == TipoMovimientoTesoreria.INGRESO
     ).scalar() or 0
-
+    
     total_movs_egresos = db.query(func.count(MovimientoTesoreria.id)).join(CuentaTesoreria).filter(
         CuentaTesoreria.entidad_id == entidad_id, CuentaTesoreria.is_active == True,
         MovimientoTesoreria.anulado == False, MovimientoTesoreria.saldo_pendiente > 0,
@@ -144,7 +144,7 @@ def get_unreconciled_data(db: Session, entidad_id: int, limit: int = 100, offset
         "ar_cbtes_count": total_cbtes_emitidos,
         "ar_movs": movs_ingresos,
         "ar_movs_count": total_movs_ingresos,
-
+        
         # 🌟 Unificamos la suma para el reporte final del Dashboard
         "ap_cbtes": cbtes_recibidos_unificados,
         "ap_cbtes_count": total_cbtes_recibidos + total_ops,
@@ -154,7 +154,7 @@ def get_unreconciled_data(db: Session, entidad_id: int, limit: int = 100, offset
 
 def print_reconciliation_summary(db: Session, entidad_id: int):
     pass
-
+    
 def get_matched_history(db: Session, entidad_id: int, limit: int = 50, offset: int = 0):
     total_matches = db.query(func.count(ConciliacionMatch.id.distinct())).join(
         MatchDetalleComprobante
@@ -182,24 +182,24 @@ def get_matched_history(db: Session, entidad_id: int, limit: int = 50, offset: i
     for m in matches:
         cbtes = [{
             # Garantizamos polimorfismo en el historial
-            "id": f"CBT-{dc.comprobante_id}",
-            "numero": dc.comprobante.numero,
+            "id": f"CBT-{dc.comprobante_id}", 
+            "numero": dc.comprobante.numero, 
             "numero_formateado": _format_cbte(dc.comprobante),
-            "monto_total": float(dc.comprobante.importe_total),
+            "monto_total": float(dc.comprobante.importe_total), 
             "monto_aplicado": float(dc.monto_aplicado)
         } for dc in m.detalles_comprobantes if dc.comprobante]
-
+        
         movs = [{
-            "id": dm.movimiento_tesoreria_id,
-            "concepto": dm.movimiento_tesoreria.concepto_crudo if dm.movimiento_tesoreria else "S/D",
-            "monto_total": float(abs(dm.movimiento_tesoreria.monto)) if dm.movimiento_tesoreria else 0,
+            "id": dm.movimiento_tesoreria_id, 
+            "concepto": dm.movimiento_tesoreria.concepto_crudo if dm.movimiento_tesoreria else "S/D", 
+            "monto_total": float(abs(dm.movimiento_tesoreria.monto)) if dm.movimiento_tesoreria else 0, 
             "monto_aplicado": float(dm.monto_aplicado)
         } for dm in m.detalles_movimientos if dm.movimiento_tesoreria]
-
+        
         asiento_id = None
         if getattr(m, 'asientos', None) and len(m.asientos) > 0:
             asiento_id = m.asientos[0].id
-
+            
         resultados.append({
             "id": m.id,
             "asiento_id": asiento_id,
@@ -208,7 +208,7 @@ def get_matched_history(db: Session, entidad_id: int, limit: int = 50, offset: i
             "comprobantes": cbtes,
             "movimientos": movs
         })
-
+    
     return {
         "items": resultados,
         "total": total_matches,

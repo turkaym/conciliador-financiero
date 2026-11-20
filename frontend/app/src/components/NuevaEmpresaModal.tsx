@@ -3,7 +3,6 @@ import api from "@/api/axios";
 import { useAuthStore } from "@/store/useAuthStore";
 import { X, Loader2, Building2, AlertCircle } from "lucide-react";
 import { isValidCUIT } from "@/lib/utils";
-import { extractApiError } from "@/lib/utils";
 
 interface Props {
   isOpen: boolean;
@@ -13,11 +12,11 @@ interface Props {
 
 export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props) {
   const { tenant_id } = useAuthStore();
-
+  
   // 🌟 FIX FASE 11: Inyección de condicion_fiscal obligatoria
-  const [formData, setFormData] = useState({
-    cuit: "",
-    razon_social: "",
+  const [formData, setFormData] = useState({ 
+    cuit: "", 
+    razon_social: "", 
     nombre_fantasia: "",
     condicion_fiscal: "RESPONSABLE_INSCRIPTO"
   });
@@ -39,8 +38,8 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isCuitValid) return;
-
+    if (!isCuitValid) return; 
+    
     setError("");
     setLoading(true);
 
@@ -52,9 +51,9 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
         condicion_fiscal: formData.condicion_fiscal // 🌟 PAYLOAD E2E
       });
       onSuccess();
-      setFormData({ cuit: "", razon_social: "", nombre_fantasia: "", condicion_fiscal: "RESPONSABLE_INSCRIPTO" });
-    } catch (err: unknown) {
-      setError(extractApiError(err, "Fallo al crear la entidad. Verifique los datos."));
+      setFormData({ cuit: "", razon_social: "", nombre_fantasia: "", condicion_fiscal: "RESPONSABLE_INSCRIPTO" }); 
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Fallo al crear la entidad. Verifique los datos.");
     } finally {
       setLoading(false);
     }
@@ -63,7 +62,7 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-
+        
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
@@ -86,7 +85,7 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
 
           <div className="space-y-1">
             <label htmlFor="cuit" className="text-sm font-semibold text-slate-700">CUIT *</label>
-            <input
+            <input 
               id="cuit" required autoFocus type="text" inputMode="numeric"
               placeholder="Ej: 30123456789" value={formData.cuit}
               onChange={handleCuitChange} disabled={loading}
@@ -99,7 +98,7 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
 
           <div className="space-y-1">
             <label htmlFor="razon_social" className="text-sm font-semibold text-slate-700">Razón Social *</label>
-            <input
+            <input 
               id="razon_social" required type="text"
               placeholder="Ej: TechCorp S.A." value={formData.razon_social}
               onChange={(e) => setFormData({ ...formData, razon_social: e.target.value })}
@@ -107,10 +106,10 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
               className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
             />
           </div>
-
+          
           <div className="space-y-1">
             <label htmlFor="nombre_fantasia" className="text-sm font-semibold text-slate-700">Nombre de Fantasía (Opcional)</label>
-            <input
+            <input 
               id="nombre_fantasia" type="text"
               placeholder="Ej: TechCorp" value={formData.nombre_fantasia}
               onChange={(e) => setFormData({ ...formData, nombre_fantasia: e.target.value })}
@@ -122,7 +121,7 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
           {/* 🌟 FIX FASE 11: Selector de Condición Fiscal */}
           <div className="space-y-1">
             <label htmlFor="condicion_fiscal" className="text-sm font-semibold text-slate-700">Condición Fiscal AFIP *</label>
-            <select
+            <select 
               id="condicion_fiscal" required
               value={formData.condicion_fiscal}
               onChange={(e) => setFormData({ ...formData, condicion_fiscal: e.target.value })}
@@ -137,13 +136,13 @@ export default function NuevaEmpresaModal({ isOpen, onClose, onSuccess }: Props)
           </div>
 
           <div className="pt-4 flex gap-3">
-            <button
+            <button 
               type="button" onClick={onClose} disabled={loading}
               className="flex-1 px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               Cancelar
             </button>
-            <button
+            <button 
               type="submit"
               disabled={loading || !isCuitValid || !formData.razon_social.trim()}
               className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:bg-indigo-400"

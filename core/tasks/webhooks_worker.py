@@ -23,9 +23,9 @@ def dispatch_webhook(self, tenant_id: str, subscription_id: int, event_type: str
     Timeout estricto de 3.0s y registro legal irrefutable.
     """
     logger.info(f"🚀 [WEBHOOK] Iniciando despacho. Evento: {event_type} | Subs: {subscription_id}")
-
+    
     event_id = str(uuid.uuid4()) # Casuística 10: Idempotencia para el cliente
-
+    
     with tenant_session_ctx(tenant_id) as db:
         subs = db.query(WebhookSubscription).filter(
             WebhookSubscription.id == subscription_id,
@@ -38,7 +38,7 @@ def dispatch_webhook(self, tenant_id: str, subscription_id: int, event_type: str
 
         # 1. Preparar Payload y Firma Criptográfica (Casuística 9)
         payload_str = json.dumps(payload_data, separators=(',', ':'))
-
+        
         signature = hmac.new(
             key=subs.secret.encode('utf-8'),
             msg=payload_str.encode('utf-8'),
@@ -62,16 +62,16 @@ def dispatch_webhook(self, tenant_id: str, subscription_id: int, event_type: str
             attempt_number=self.request.retries + 1
         )
         db.add(log_entry)
-        db.flush()
+        db.flush() 
 
         # 3. Disparo de Red (Casuística 8: Timeout Asesino)
         try:
             # 🌟 FIX: Timeout estricto de 3 segundos. Si el ERP está caído, no congelamos el worker.
             response = requests.post(subs.url, data=payload_str, headers=headers, timeout=3.0)
-
+            
             log_entry.response_status = response.status_code
             log_entry.response_body = response.text[:1000] # Guardamos los primeros 1000 chars por seguridad
-
+            
             if 200 <= response.status_code < 300:
                 log_entry.is_successful = True
                 db.commit()
@@ -88,12 +88,12 @@ def dispatch_webhook(self, tenant_id: str, subscription_id: int, event_type: str
             log_entry.response_body = str(net_err)
             db.commit()
             logger.error(f"❌ [WEBHOOK] Fallo de red contactando a {subs.url}: {net_err}")
-
+            
             # 🌟 FIX RIESGO 7: Jitter (Aleatoriedad anti-estampida)
             base_delay = 10 * (2 ** self.request.retries)
             jitter = random.uniform(0, base_delay * 0.2) # Agrega hasta un 20% de dispersión temporal
             raise self.retry(exc=net_err, countdown=base_delay + jitter)
-
+            
         except ValueError as val_err:
             base_delay = 10 * (2 ** self.request.retries)
             jitter = random.uniform(0, base_delay * 0.2)

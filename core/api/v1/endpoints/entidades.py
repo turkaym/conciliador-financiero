@@ -20,7 +20,7 @@ class EntidadCreate(BaseModel):
     nombre_fantasia: str
     razon_social: str
     # 🌟 FIX FASE 11: Campo obligatorio al crear
-    condicion_fiscal: CondicionFiscalAFIP = CondicionFiscalAFIP.NO_CATEGORIZADO
+    condicion_fiscal: CondicionFiscalAFIP = CondicionFiscalAFIP.NO_CATEGORIZADO 
 
 class EntidadResponse(EntidadCreate):
     id: int
@@ -49,7 +49,7 @@ def get_mis_entidades(
         .filter(UsuarioEntidadRol.user_id == current_user.email)
         .all()
     )
-
+    
     resultado = []
     for e in entidades_db:
         e_dict = {
@@ -65,7 +65,7 @@ def get_mis_entidades(
             "afip_last_sync_at": e.afip_last_sync_at
         }
         resultado.append(e_dict)
-
+        
     return resultado
 
 @router.post("/{schema_name}", response_model=EntidadResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(RoleChecker(["admin", "dueño"]))])
@@ -80,12 +80,12 @@ def crear_entidad_lead(
         raise HTTPException(status_code=403, detail="Aislamiento de inquilino violado.")
 
     max_entidades = current_user.tenant.features.get("max_entidades", 1)
-
+    
     count_actual = db.query(RazonSocialPropia).filter(RazonSocialPropia.is_active == True).count()
-
+    
     if count_actual >= max_entidades:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_403_FORBIDDEN, 
             detail=f"Límite de Plan Alcanzado. Máximo permitido: {max_entidades} entidad(es)."
         )
 
@@ -96,17 +96,17 @@ def crear_entidad_lead(
     try:
         nueva_entidad = RazonSocialPropia(**entidad_in.model_dump(), is_active=True)
         db.add(nueva_entidad)
-        db.flush()
+        db.flush() 
 
         nuevo_rol = UsuarioEntidadRol(
-            user_id=current_user.email,
-            entidad_id=nueva_entidad.id,
+            user_id=current_user.email, 
+            entidad_id=nueva_entidad.id, 
             rol="DUEÑO"
         )
         db.add(nuevo_rol)
         db.commit()
         db.refresh(nueva_entidad)
-
+        
         return {
             **nueva_entidad.__dict__,
             "condicion_fiscal": nueva_entidad.condicion_fiscal, # 🌟 FIX FASE 11

@@ -43,7 +43,7 @@ def send_magic_link_email_task(self, email: str, magic_link_url: str, empresa_no
         return EmailService.enviar(to_email=email, subject=f"Invitación a colaborar en {empresa_nombre} - Conciliador ERP", html_content=html_content)
     except Exception as exc:
         raise self.retry(exc=exc, countdown=15 * (2 ** self.request.retries))
-
+    
 @app.task(name="core.tasks.notification_tasks.send_welcome_email_task", base=DLQTask, bind=True, max_retries=3)
 def send_welcome_email_task(self, email: str, empresa_nombre: str):
     logger.info(f"📧 [WORKER] Iniciando envío de Bienvenida para: {email}")

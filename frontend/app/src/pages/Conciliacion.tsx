@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useEffectEvent } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Loader2, Link2, AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react"
@@ -13,25 +13,21 @@ import { ColumnaExtracto } from "@/features/conciliacion/components/ColumnaExtra
 import { ColumnaComprobantes } from "@/features/conciliacion/components/ColumnaComprobantes"
 import { HistorialAuditoria } from "@/features/conciliacion/components/HistorialAuditoria"
 
-class CrashCatcher extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: unknown}> {
+class CrashCatcher extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
   constructor(props: {children: React.ReactNode}) {
     super(props)
     this.state = { hasError: false, error: null }
   }
-  static getDerivedStateFromError(error: unknown) {
+  static getDerivedStateFromError(error: any) {
     return { hasError: true, error }
   }
   render() {
     if (this.state.hasError) {
-      const errorDetails = this.state.error instanceof Error
-        ? `${this.state.error.toString()}\n${this.state.error.stack ?? ""}`
-        : String(this.state.error)
-
       return (
         <div className="p-8 bg-red-50 text-red-900 h-full overflow-auto rounded-xl border border-red-200 m-4">
           <h1 className="font-black text-2xl mb-4 flex items-center gap-2"><AlertTriangle/> Error Letal en Renderizado</h1>
           <p className="mb-4 text-sm font-medium">React abortó la carga de Conciliación por este motivo exacto:</p>
-          <pre className="text-xs bg-white p-4 rounded border border-red-200 whitespace-pre-wrap">{errorDetails}</pre>
+          <pre className="text-xs bg-white p-4 rounded border border-red-200 whitespace-pre-wrap">{this.state.error?.toString()}\n{this.state.error?.stack}</pre>
         </div>
       )
     }
@@ -41,14 +37,14 @@ class CrashCatcher extends React.Component<{children: React.ReactNode}, {hasErro
 
 function ConciliacionContenido() {
   const { entidadActiva } = useAuthStore()
-  const {
-    data, historyData, isLoading, isProcessing, error,
-    fetchStatus, fetchHistory, triggerAutoMatch, triggerManualMatch, triggerUnmatch
+  const { 
+    data, historyData, isLoading, isProcessing, error, 
+    fetchStatus, fetchHistory, triggerAutoMatch, triggerManualMatch, triggerUnmatch 
   } = useConciliacion()
 
   const [activeTab, setActiveTab] = useState<'PENDIENTES' | 'HISTORIAL'>('PENDIENTES')
-  const [flowTab, setFlowTab] = useState<'COBROS' | 'PAGOS'>('COBROS')
-  const [mobileStep, setMobileStep] = useState<1 | 2>(1)
+  const [flowTab, setFlowTab] = useState<'COBROS' | 'PAGOS'>('COBROS') 
+  const [mobileStep, setMobileStep] = useState<1 | 2>(1) 
 
   const [selectedMovs, setSelectedMovs] = useState<number[]>([])
   // 🌟 FIX POLIMORFISMO: Tipado estricto a string[] para alinear con el Backend (CBT-123, OP-45)
@@ -57,44 +53,30 @@ function ConciliacionContenido() {
   const [modalAjusteOpen, setModalAjusteOpen] = useState(false)
   const [diferenciaCalculada, setDiferenciaCalculada] = useState(0)
 
-  const clearSelection = useCallback(() => {
-    setSelectedMovs([])
-    setSelectedCbtes([])
-    setMobileStep(1)
-    setModalAjusteOpen(false)
-  }, [])
-
-  const clearSelectionForEntityChange = useEffectEvent(clearSelection)
-
-  const handleActiveTabChange = useCallback((nextTab: 'PENDIENTES' | 'HISTORIAL') => {
-    if (nextTab === activeTab) return
-    clearSelection()
-    setActiveTab(nextTab)
-  }, [activeTab, clearSelection])
-
-  const handleFlowTabChange = useCallback((nextFlow: 'COBROS' | 'PAGOS') => {
-    if (nextFlow === flowTab) return
-    clearSelection()
-    setFlowTab(nextFlow)
-  }, [flowTab, clearSelection])
-
   useEffect(() => {
     if (entidadActiva) {
       fetchStatus()
       fetchHistory()
-      clearSelectionForEntityChange()
+      clearSelection()
     }
   }, [entidadActiva, fetchStatus, fetchHistory])
 
-  const handleSelectMov = (id: number) => setSelectedMovs(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
+  useEffect(() => {
+    clearSelection()
+  }, [flowTab, activeTab])
 
+  const handleSelectMov = (id: number) => setSelectedMovs(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
+  
   // 🌟 FIX POLIMORFISMO: Exige string como argumento
   const handleSelectCbte = (id: string) => setSelectedCbtes(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
+  
+  const clearSelection = () => { setSelectedMovs([]); setSelectedCbtes([]); setMobileStep(1); setModalAjusteOpen(false) }
 
-  const currentFlowData = flowTab === 'COBROS' ? data?.pendings.ar : data?.pendings.ap
+  const pendingsNode = data?.pendings || {}
+  const currentFlowData = (flowTab === 'COBROS' ? pendingsNode.ar : pendingsNode.ap) || {}
 
-  const movimientosPendientes = currentFlowData?.bank_movements || []
-  const comprobantesPendientes = currentFlowData?.invoices || []
+  const movimientosPendientes = currentFlowData.bank_movements || []
+  const comprobantesPendientes = currentFlowData.invoices || []
   const historial = historyData?.items || []
 
   const preVincular = () => {
@@ -133,9 +115,8 @@ function ConciliacionContenido() {
 
   const handleDesconciliar = async (matchId: number) => {
     if (window.confirm("¿Estás seguro de deshacer esta conciliación? Los saldos volverán a las cuentas origen.")) {
-      return triggerUnmatch(matchId)
+      await triggerUnmatch(matchId)
     }
-    return false
   }
 
   if (!entidadActiva) {
@@ -150,16 +131,16 @@ function ConciliacionContenido() {
         </div>
       )}
 
-      <ConciliacionHeader
-        activeTab={activeTab} setActiveTab={handleActiveTabChange}
-        flowTab={flowTab} setFlowTab={handleFlowTabChange}
+      <ConciliacionHeader 
+        activeTab={activeTab} setActiveTab={setActiveTab}
+        flowTab={flowTab} setFlowTab={setFlowTab}
         triggerAutoMatch={triggerAutoMatch}
         isLoading={isLoading} isProcessing={isProcessing}
       />
 
       <DataGuard isLoading={isLoading && !isProcessing}>
         <TooltipProvider delayDuration={200}>
-
+          
           {activeTab === 'PENDIENTES' && (
             <div className="flex flex-col flex-1 min-h-0">
               {/* Selector UX Mobile Integrado con Telemetría - Modificado a md:hidden */}
@@ -168,7 +149,7 @@ function ConciliacionContenido() {
                   type="button" onClick={() => setMobileStep(1)}
                   className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-black tracking-wide rounded-lg transition-all ${mobileStep === 1 ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  🏦 Extracto
+                  🏦 Extracto 
                   {selectedMovs.length > 0 ? (
                     <span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none flex items-center h-4">{selectedMovs.length}</span>
                   ) : (
@@ -179,7 +160,7 @@ function ConciliacionContenido() {
                   type="button" onClick={() => setMobileStep(2)}
                   className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-black tracking-wide rounded-lg transition-all ${mobileStep === 2 ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  📄 Cbtes
+                  📄 Cbtes 
                   {selectedCbtes.length > 0 ? (
                     <span className="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full leading-none flex items-center h-4">{selectedCbtes.length}</span>
                   ) : (
@@ -190,15 +171,15 @@ function ConciliacionContenido() {
 
               {/* Ajuste de Breakpoint a md:grid-cols-2 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
-                <ColumnaExtracto
+                <ColumnaExtracto 
                   movimientosPendientes={movimientosPendientes}
                   selectedMovs={selectedMovs}
                   handleSelectMov={handleSelectMov}
                   flowTab={flowTab}
                   mobileStep={mobileStep}
                 />
-
-                <ColumnaComprobantes
+                
+                <ColumnaComprobantes 
                   comprobantesPendientes={comprobantesPendientes}
                   selectedCbtes={selectedCbtes}
                   handleSelectCbte={handleSelectCbte}
@@ -221,12 +202,12 @@ function ConciliacionContenido() {
                     <Button onClick={clearSelection} variant="ghost" size="sm" className="text-slate-500 rounded-full">
                       Cancelar
                     </Button>
-                    <Button
+                    <Button 
                       onClick={preVincular}
                       disabled={selectedMovs.length === 0 || selectedCbtes.length === 0 || isProcessing}
                       className="bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-full px-6 shadow-md transition-transform active:scale-95 text-xs uppercase tracking-wider"
                     >
-                      {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Link2 className="w-4 h-4 mr-2" />}
+                      {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Link2 className="w-4 h-4 mr-2" />} 
                       Vincular Lote
                     </Button>
                   </div>
@@ -241,8 +222,8 @@ function ConciliacionContenido() {
         </TooltipProvider>
       </DataGuard>
 
-      <AjusteFiscalModal
-        isOpen={modalAjusteOpen} onClose={() => setModalAjusteOpen(false)}
+      <AjusteFiscalModal 
+        isOpen={modalAjusteOpen} onClose={() => setModalAjusteOpen(false)} 
         diferencia={diferenciaCalculada} isProcessing={isProcessing}
         onSubmit={(ajuste) => ejecutarVinculacion(ajuste)}
       />

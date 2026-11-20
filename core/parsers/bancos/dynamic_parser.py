@@ -34,13 +34,13 @@ class DynamicParser(BaseParser):
     def __init__(self, column_mapping: dict = None, file_extension: str = ".csv", **kwargs):
         if not column_mapping:
             raise ValueError("[BUSINESS_LOGIC] El parser dinámico requiere un mapa de coordenadas validado por el usuario.")
-
+        
         self.mapping = column_mapping
         self.extension = file_extension.lower()
 
     def validate_format(self, file_stream: Any):
         """Omite validación estricta ya que la matriz fue auditada en Pre-Vuelo."""
-        pass
+        pass 
 
     def parse_generator(self, file_stream: Any) -> Generator[DynamicMovementDTO, None, None]:
         if self.extension in ['.csv', '.txt']:
@@ -64,7 +64,7 @@ class DynamicParser(BaseParser):
                 raise
 
         text_stream = safe_line_iterator()
-
+        
         # 1. Buffering de Muestreo (Lectura parcial)
         head_lines = []
         for _ in range(50):
@@ -100,11 +100,11 @@ class DynamicParser(BaseParser):
         # Los archivos Excel comprimidos requieren carga en RAM por diseño de la librería
         wb = openpyxl.load_workbook(io.BytesIO(file_stream.read()), read_only=True, data_only=True)
         sheet = wb.active
-
+        
         lineas = []
         for row in sheet.iter_rows(values_only=True):
             lineas.append([str(cell) if cell is not None else "" for cell in row])
-
+            
         wb.close()
         yield from self._extract_data(lineas)
 
@@ -113,7 +113,7 @@ class DynamicParser(BaseParser):
         idx_monto = self.mapping.get("monto")
         idx_concepto = self.mapping.get("concepto")
         idx_ref = self.mapping.get("referencia")
-
+        
         # Filtramos índices nulos para calcular el ancho mínimo requerido
         indices_requeridos = [i for i in [idx_fecha, idx_monto, idx_concepto, idx_ref] if i is not None]
         ancho_minimo = max(indices_requeridos) if indices_requeridos else 0
@@ -126,7 +126,7 @@ class DynamicParser(BaseParser):
             try:
                 raw_fecha = str(row[idx_fecha]).strip()
                 raw_monto = str(row[idx_monto]).strip()
-
+                
                 # Concepto y Referencia son opcionales
                 raw_concepto = str(row[idx_concepto]).strip() if idx_concepto is not None else "Movimiento Genérico"
                 raw_ref = str(row[idx_ref]).strip() if idx_ref is not None else ""
@@ -138,18 +138,18 @@ class DynamicParser(BaseParser):
                     else:
                         dt_fecha = datetime.strptime(raw_fecha, "%d/%m/%Y").date()
                 except ValueError:
-                    continue
+                    continue 
 
                 # Normalización Financiera Robusta
                 raw_monto = raw_monto.replace("$", "").strip()
                 if "." in raw_monto and "," in raw_monto:
                     if raw_monto.rfind(",") > raw_monto.rfind("."):
-                        raw_monto = raw_monto.replace(".", "").replace(",", ".")
+                        raw_monto = raw_monto.replace(".", "").replace(",", ".") 
                     else:
-                        raw_monto = raw_monto.replace(",", "")
+                        raw_monto = raw_monto.replace(",", "") 
                 elif "," in raw_monto and len(raw_monto.split(",")[-1]) <= 2:
-                    raw_monto = raw_monto.replace(",", ".")
-
+                    raw_monto = raw_monto.replace(",", ".") 
+                    
                 val_monto = Decimal(raw_monto)
 
                 yield DynamicMovementDTO(

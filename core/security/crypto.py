@@ -21,7 +21,7 @@ def _get_fernet_instance() -> Fernet:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=b"afip_vault_salt_conciliador",
+        salt=b"afip_vault_salt_conciliador", 
         iterations=480000,
     )
     key = base64.urlsafe_b64encode(kdf.derive(secret_seed.encode()))

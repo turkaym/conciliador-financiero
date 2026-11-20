@@ -13,13 +13,13 @@ def task_notificar_anulacion(self, entidad_id: int, orden_id: int, user_id: str,
     """
     try:
         logger.info(f"[Tenant: {tenant_id}] Iniciando side-effects asíncronos para OP {orden_id} (Entidad: {entidad_id})")
-
+        
         # Aquí se inyectará la lógica de negocio futura (ej. enviar email)
         # proveedor_service.notificar_pago_anulado(orden_id)
-
+        
         logger.info(f"Side-effects completados con éxito para OP {orden_id}.")
         return {"status": "success", "orden_id": orden_id}
-
+        
     except Exception as e:
         logger.error(f"Fallo en procesamiento asíncrono de anulación OP {orden_id}: {e}")
         # Disparamos reintento automático si hay un fallo de red temporal

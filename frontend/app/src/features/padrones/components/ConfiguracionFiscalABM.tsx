@@ -40,10 +40,10 @@ export default function ConfiguracionFiscalABM() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = isEditing
+    const success = isEditing 
       ? await updateRegla(editingId!, formData)
       : await createRegla(formData);
-
+    
     if (success) resetForm();
   };
 
@@ -53,14 +53,14 @@ export default function ConfiguracionFiscalABM() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
+      
       {/* PANEL IZQUIERDO: FORMULARIO */}
       <Card className="p-4 shadow-sm border-slate-200">
         <h3 className="font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center">
-          <ShieldAlert className="w-4 h-4 mr-2 text-indigo-600" />
+          <ShieldAlert className="w-4 h-4 mr-2 text-indigo-600" /> 
           {isEditing ? "Editar Regla Matriz" : "Nueva Regla de Retención"}
         </h3>
-
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -129,7 +129,7 @@ export default function ConfiguracionFiscalABM() {
         <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
           <h3 className="font-bold text-slate-800 text-sm">Matriz de Retenciones Vigentes</h3>
         </div>
-
+        
         <div className="flex-1 overflow-x-auto">
           {isLoading ? (
              <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>

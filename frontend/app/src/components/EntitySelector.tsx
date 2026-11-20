@@ -1,54 +1,52 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import api from "@/api/axios"
 import { useAuthStore } from "@/store/useAuthStore"
-import type { Entidad } from "@/store/useAuthStore"
+import type { Entidad } from "@/store/useAuthStore" 
 import { Building2, ChevronDown, Check, Loader2, AlertCircle, Plus, Lock } from "lucide-react"
 import NuevaEmpresaModal from "./NuevaEmpresaModal"
-import axios from "axios"
 
 export default function EntitySelector() {
   // 🌟 FIX: Agregamos isDataLocked para escuchar el estado del Paywall
-  const { tenant_id, entidadActiva, setEntidadActiva, features, user, openPaywall, isDataLocked } = useAuthStore()
-
+  const { tenant_id, entidadActiva, setEntidadActiva, features, user, openPaywall, isDataLocked } = useAuthStore() 
+  
   const [entidades, setEntidades] = useState<Entidad[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false) 
   const [error, setError] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
-
+  
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
-  const fetchEntidades = useCallback(async (id: string) => {
+  useEffect(() => {
+    if (tenant_id) {
+      fetchEntidades(tenant_id)
+    }
+  }, [tenant_id])
+
+  const fetchEntidades = async (id: string) => {
     setLoading(true)
     setError(false)
     try {
-      const { data } = await api.get<Entidad[]>(`/v1/entidades/${id}`)
+      const { data } = await api.get(`/v1/entidades/${id}`)
       setEntidades(data)
-      const activeEntity = useAuthStore.getState().entidadActiva
-
-      if (data.length > 0 && !activeEntity) {
+      
+      if (data.length > 0 && !entidadActiva) {
         setEntidadActiva(data[0])
       }
-
-      if (activeEntity && data.length > 0) {
-        const stillExists = data.find((e: Entidad) => e.id === activeEntity.id)
+      
+      if (entidadActiva && data.length > 0) {
+        const stillExists = data.find((e: Entidad) => e.id === entidadActiva.id)
         if (!stillExists) setEntidadActiva(data[0])
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       // 🌟 FIX UX: Ignoramos el error 402 porque el interceptor ya activó isDataLocked.
-      if (!axios.isAxiosError(err) || err.response?.status !== 402) {
+      if (err.response?.status !== 402) {
         console.error("Error cargando entidades:", err)
         setError(true)
       }
     } finally {
-      setLoading(false)
+      setLoading(false) 
     }
-  }, [setEntidadActiva])
-
-  useEffect(() => {
-    if (tenant_id) {
-      void fetchEntidades(tenant_id)
-    }
-  }, [fetchEntidades, tenant_id])
+  }
 
   const handleSelect = (entidad: Entidad) => {
     setEntidadActiva(entidad)
@@ -58,7 +56,7 @@ export default function EntitySelector() {
   const handleAddCompanyClick = () => {
     setIsOpen(false);
     const maxEntidades = features?.max_entidades || 1;
-
+    
     if (entidades.length >= maxEntidades) {
       openPaywall();
     } else {
@@ -86,7 +84,7 @@ export default function EntitySelector() {
   return (
     <>
       <div className="relative">
-        <button
+        <button 
           onClick={() => setIsOpen(!isOpen)}
           className="w-full flex items-center justify-between gap-3 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-md border border-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
@@ -108,7 +106,7 @@ export default function EntitySelector() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
             <div className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-200">
-
+              
               <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100 mb-1 flex justify-between items-center bg-slate-50">
                 <span>Mis Empresas</span>
                 <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">
@@ -149,12 +147,12 @@ export default function EntitySelector() {
         )}
       </div>
 
-      <NuevaEmpresaModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+      <NuevaEmpresaModal 
+        isOpen={isCreateModalOpen} 
+        onClose={() => setIsCreateModalOpen(false)} 
         onSuccess={() => {
           setIsCreateModalOpen(false);
-          if (tenant_id) fetchEntidades(tenant_id);
+          if (tenant_id) fetchEntidades(tenant_id); 
         }}
       />
     </>

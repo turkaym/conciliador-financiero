@@ -16,10 +16,10 @@ export default function ExportadorFiscal() {
       toast.warning("Seleccione un período fiscal válido.");
       return;
     }
-
+    
     // Formatear YYYY-MM a YYYYMM (Ej: 2026-06 -> 202606)
-    const formattedPeriodo = periodo.replace("-", "");
-
+    const formattedPeriodo = periodo.replace("-", ""); 
+    
     setIsExporting(true);
     try {
       // Consumo de tu endpoint en fiscal.py
@@ -31,7 +31,7 @@ export default function ExportadorFiscal() {
         },
         responseType: 'blob' // Clave para manejar archivos binarios/texto
       });
-
+      
       // Zero-Disk Download en Frontend
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -41,9 +41,9 @@ export default function ExportadorFiscal() {
       link.click();
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
-
+      
       toast.success("Declaración Jurada exportada con éxito. Lista para subir a ARCA.");
-    } catch {
+    } catch (error: any) {
       toast.error("Error al generar el archivo. Verifique que existan retenciones en el período seleccionado.");
     } finally {
       setIsExporting(false);
@@ -70,8 +70,8 @@ export default function ExportadorFiscal() {
             <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-slate-400" /> Período Fiscal
             </label>
-            <input
-              type="month"
+            <input 
+              type="month" 
               className="w-full h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={periodo}
               onChange={(e) => setPeriodo(e.target.value)}
@@ -82,7 +82,7 @@ export default function ExportadorFiscal() {
             <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-slate-400" /> Jurisdicción
             </label>
-            <select
+            <select 
               className="w-full h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={jurisdiccion}
               onChange={(e) => setJurisdiccion(e.target.value)}
@@ -97,7 +97,7 @@ export default function ExportadorFiscal() {
             <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
               <FileText className="w-4 h-4 text-slate-400" /> Tipo de Padrón
             </label>
-            <select
+            <select 
               className="w-full h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={claseTributo}
               onChange={(e) => setClaseTributo(e.target.value)}
@@ -109,8 +109,8 @@ export default function ExportadorFiscal() {
         </div>
 
         <div className="pt-6 border-t border-slate-100 flex justify-end">
-          <button
-            onClick={handleExport}
+          <button 
+            onClick={handleExport} 
             disabled={isExporting || !periodo}
             className="w-full sm:w-auto px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 border border-transparent rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
           >

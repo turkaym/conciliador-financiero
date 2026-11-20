@@ -12,7 +12,7 @@ from config.config import settings
 # --- MOTOR DE SEGURIDAD SUPERIOR ---
 # Implementación pura de Argon2id (Ganador de la Password Hashing Competition)
 pwd_context = CryptContext(
-    schemes=["argon2"],
+    schemes=["argon2"], 
     deprecated="auto"
 )
 
@@ -32,16 +32,16 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Emite un JWT firmado criptográficamente con los claims de identidad y UUID."""
     to_encode = data.copy()
-
+    
     # 🌟 Usamos el tiempo de expiración de nuestra config global
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-
+    
     # Inyectamos el JTI para la Denylist de Redis y la fecha en UTC puro
     to_encode.update({
         "exp": expire,
-        "jti": str(uuid.uuid4())
+        "jti": str(uuid.uuid4()) 
     })
-
+    
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

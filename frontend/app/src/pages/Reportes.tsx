@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useState } from "react"
-import api from "@/api/axios"
+import { useEffect, useState } from "react"
+import api from "@/api/axios" 
 import { useAuthStore } from "@/store/useAuthStore"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Loader2, Calculator, ArrowRightLeft, BookOpen, AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react"
-import { extractApiError } from "@/lib/utils"
 
 // --- INTERFACES ---
 interface CuentaBalance {
@@ -19,7 +18,6 @@ interface CuentaBalance {
 
 interface BalanceResponse {
   tenant: string
-  fecha_corte: string
   cuentas_activas: number
   totales: { sumas_debe: number; sumas_haber: number; balance_cuadrado: boolean }
   balance: CuentaBalance[]
@@ -35,62 +33,60 @@ interface MovimientoMayor {
 }
 
 interface MayorResponse {
-  tenant: string
   cuenta: { codigo: string; nombre: string; tipo: string; naturaleza: string }
   saldo_inicial_periodo: number
-  total_movimientos: number
   saldo_actual: number
   movimientos: MovimientoMayor[]
 }
 
 export default function ReportesPage() {
   const { user, entidadActiva } = useAuthStore()
-
+  
   // 🌟 FIX RBAC: Determinamos si el usuario tiene autoridad financiera
   const isAdmin = ["admin", "dueño", "editor"].includes(user?.role?.toLowerCase() || "");
 
   // --- ESTADOS ---
   const [balanceData, setBalanceData] = useState<BalanceResponse | null>(null)
-  const [loadingBalance, setLoadingBalance] = useState(false)
+  const [loadingBalance, setLoadingBalance] = useState(false) 
   const [error, setError] = useState<string | null>(null)
 
   const [isLedgerOpen, setIsLedgerOpen] = useState(false)
   const [ledgerData, setLedgerData] = useState<MayorResponse | null>(null)
   const [loadingLedger, setLoadingLedger] = useState(false)
 
-  // --- PETICIONES API ---
-  const fetchTrialBalance = useCallback(async () => {
-    setLoadingBalance(true)
-    setError(null)
-    try {
-      const schema = user?.tenant_id || "tenant_001"
-      const { data } = await api.get<BalanceResponse>(`/v1/reports/trial-balance/${schema}`)
-      setBalanceData(data)
-    } catch (err: unknown) {
-      console.error("Error cargando balance:", err)
-      setError(extractApiError(err, "No se pudo conectar con el servicio de reportes contables."))
-    } finally {
-      setLoadingBalance(false)
-    }
-  }, [user?.tenant_id])
-
   // --- EFECTOS ---
   useEffect(() => {
     // 🌟 FIX FAIL-FAST & RBAC: Solo disparamos si es Admin y la entidad ya cargó
     if (isAdmin && user?.tenant_id && entidadActiva?.id) {
-      void fetchTrialBalance()
+      fetchTrialBalance()
     }
-  }, [entidadActiva?.id, fetchTrialBalance, isAdmin, user?.tenant_id])
+  }, [isAdmin, user?.tenant_id, entidadActiva?.id])
+
+  // --- PETICIONES API ---
+  const fetchTrialBalance = async () => {
+    setLoadingBalance(true)
+    setError(null)
+    try {
+      const schema = user?.tenant_id || "tenant_001" 
+      const { data } = await api.get(`/v1/reports/trial-balance/${schema}`)
+      setBalanceData(data)
+    } catch (err: any) {
+      console.error("Error cargando balance:", err)
+      setError(err.response?.data?.detail || "No se pudo conectar con el servicio de reportes contables.")
+    } finally {
+      setLoadingBalance(false)
+    }
+  }
 
   const fetchLedger = async (codigoCuenta: string) => {
     setIsLedgerOpen(true)
     setLoadingLedger(true)
     setLedgerData(null)
     try {
-      const schema = user?.tenant_id || "tenant_001"
-      const { data } = await api.get<MayorResponse>(`/v1/reports/ledger/${schema}?cuenta_codigo=${codigoCuenta}`)
+      const schema = user?.tenant_id || "tenant_001" 
+      const { data } = await api.get(`/v1/reports/ledger/${schema}?cuenta_codigo=${codigoCuenta}`)
       setLedgerData(data)
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error("Error cargando libro mayor:", err)
     } finally {
       setLoadingLedger(false)
@@ -159,7 +155,7 @@ export default function ReportesPage() {
               </div>
             </CardContent>
           </Card>
-
+          
           <Card className="shadow-sm border-slate-200">
             <CardContent className="p-5">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Sumas Totales (Debe)</p>

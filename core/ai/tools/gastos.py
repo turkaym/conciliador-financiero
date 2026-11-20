@@ -48,7 +48,7 @@ def tool_registrar_gasto_tesoreria(
     configurable = config.get("configurable", {})
     tenant_schema = configurable.get("tenant_schema")
     entidad_id = configurable.get("entidad_id")
-
+    
     if not tenant_schema or not entidad_id:
         return "ERROR INTERNO: No se pudo inyectar el contexto de seguridad Multi-Tenant."
 
@@ -77,11 +77,11 @@ def tool_registrar_gasto_tesoreria(
         return "ERROR DE INFRAESTRUCTURA: No se pudo verificar la seguridad de la transacción. Intente nuevamente."
 
     logger.info(f"💸 [TOOL] IA registrando GASTO de ${monto_total} ({moneda_enum.value}) al CUIT {cuit_proveedor} | Tenant: {tenant_schema}")
-
+    
     try:
         with tenant_session_ctx(tenant_schema) as db_write:
             from core.database.models_tenant import PlanCuentas, RazonSocialPropia
-
+            
             emisor = db_write.query(RazonSocialPropia).filter(RazonSocialPropia.id == entidad_id).first()
             if not emisor:
                 r_sync.delete(lock_key)
@@ -105,14 +105,14 @@ def tool_registrar_gasto_tesoreria(
                 except ValueError as ve:
                     r_sync.delete(lock_key)
                     return f"ERROR CAMBIARIO: {str(ve)}"
-
+            
             comprobante_in = ComprobanteCreate(
                 entidad_id=entidad_id,
-                punto_venta=punto_venta,
-                numero=numero_comprobante,
-                clase_documento=clase_enum,
+                punto_venta=punto_venta, 
+                numero=numero_comprobante, 
+                clase_documento=clase_enum, 
                 tipo_operacion="COMPRA",  # 🌟 CRÍTICO: Indica que recibimos la factura
-                fecha_emision=datetime.utcnow().strftime("%Y-%m-%d"),
+                fecha_emision=datetime.utcnow().strftime("%Y-%m-%d"), 
                 cuit_emisor=cuit_proveedor.replace("-", ""), # El proveedor emite
                 cuit_receptor=emisor.cuit, # Nosotros recibimos
                 razon_social_receptor=razon_social, # Se inyecta al CRM
@@ -129,12 +129,12 @@ def tool_registrar_gasto_tesoreria(
             # Para compras, NO instanciamos afip_client
             resultado = comprobante_service.emitir_y_guardar_comprobante(
                 db=db_write,
-                afip_client=None,
+                afip_client=None, 
                 comprobante_in=comprobante_in,
                 tenant_id=entidad_id
             )
             comprobante_id = resultado.id
-
+        
         return f"¡Éxito! El gasto fue registrado correctamente y los fondos se descontaron de la caja/banco. ID de Operación: {comprobante_id}."
 
     except ValueError as ve:

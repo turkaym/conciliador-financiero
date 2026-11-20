@@ -21,9 +21,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     op.execute(f"""
-        ALTER TABLE {target_schema}.razones_sociales_propias
+        ALTER TABLE {target_schema}.razones_sociales_propias 
         ADD COLUMN IF NOT EXISTS afip_certificate TEXT,
         ADD COLUMN IF NOT EXISTS afip_private_key_encrypted TEXT,
         ADD COLUMN IF NOT EXISTS afip_cert_expiration TIMESTAMP WITH TIME ZONE;
@@ -32,9 +32,9 @@ def upgrade() -> None:
 def downgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     op.execute(f"""
-        ALTER TABLE {target_schema}.razones_sociales_propias
+        ALTER TABLE {target_schema}.razones_sociales_propias 
         DROP COLUMN IF EXISTS afip_certificate,
         DROP COLUMN IF EXISTS afip_private_key_encrypted,
         DROP COLUMN IF EXISTS afip_cert_expiration;

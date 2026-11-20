@@ -23,7 +23,7 @@ def _fetch_cotizacion_bna_dolar() -> dict:
         response = requests.get("https://dolarapi.com/v1/dolares/oficial", timeout=10.0)
         response.raise_for_status()
         data = response.json()
-
+        
         return {
             "compra": Decimal(str(data.get("compra", 0))),
             "venta": Decimal(str(data.get("venta", 0)))
@@ -47,7 +47,7 @@ def sincronizar_cotizacion_diaria(self, tenant_id: str, moneda: str = "USD", ori
     try:
         # 1. Fetch de datos (I/O intensivo, fuera de la transacción de base de datos)
         cotizacion = _fetch_cotizacion_bna_dolar()
-
+        
         if cotizacion["venta"] <= Decimal('0.0'):
             raise ValueError("La cotización de venta no puede ser cero o negativa.")
 
@@ -61,18 +61,18 @@ def sincronizar_cotizacion_diaria(self, tenant_id: str, moneda: str = "USD", ori
                 cotizacion_venta=cotizacion["venta"],
                 origen=origen
             )
-
+            
             stmt = stmt.on_conflict_do_update(
-                index_elements=['moneda', 'fecha', 'origen'],
+                index_elements=['moneda', 'fecha', 'origen'], 
                 set_={
                     'cotizacion_compra': stmt.excluded.cotizacion_compra,
                     'cotizacion_venta': stmt.excluded.cotizacion_venta
                 }
             )
-
+            
             db.execute(stmt)
             db.commit()
-
+            
             logger.info(f"✅ Sincronización exitosa: {moneda} Venta -> {cotizacion['venta']}")
             return {"status": "success", "moneda": moneda, "venta": str(cotizacion["venta"]), "origen": origen}
 
@@ -81,11 +81,11 @@ def sincronizar_cotizacion_diaria(self, tenant_id: str, moneda: str = "USD", ori
             # 🌟 RESILIENCIA: Backoff exponencial real (2s, 4s, 8s, 16s...)
             logger.warning(f"⚠️ Fallo temporal contactando al proveedor. Encolando reintento {self.request.retries + 1}/{self.max_retries}")
             raise self.retry(exc=e, countdown=2 ** self.request.retries)
-
+            
         except MaxRetriesExceededError:
             # 🌟 CIRCUIT BREAKER & FALLBACK: Se agotaron los reintentos. Salvar el negocio.
             logger.critical(f"🔥 Proveedor de moneda caído permanentemente. Activando protocolo de contingencia para {moneda}.")
-
+            
             with tenant_session_ctx(tenant_id) as db:
                 # Buscar la última cotización conocida (oficial o estimada previa)
                 ultima_cot_conocida = db.query(HistorialCotizacion).filter(
@@ -106,7 +106,7 @@ def sincronizar_cotizacion_diaria(self, tenant_id: str, moneda: str = "USD", ori
                     cotizacion_venta=ultima_cot_conocida.cotizacion_venta,
                     origen=origen_estimado
                 )
-
+                
                 stmt_fallback = stmt_fallback.on_conflict_do_update(
                     index_elements=['moneda', 'fecha', 'origen'],
                     set_={
@@ -116,6 +116,6 @@ def sincronizar_cotizacion_diaria(self, tenant_id: str, moneda: str = "USD", ori
                 )
                 db.execute(stmt_fallback)
                 db.commit()
-
+                
                 logger.info(f"🛡️ Contingencia activada: Se arrastró cotización de {ultima_cot_conocida.fecha} para facturar hoy.")
                 return {"status": "fallback", "moneda": moneda, "venta": str(ultima_cot_conocida.cotizacion_venta), "origen": origen_estimado}

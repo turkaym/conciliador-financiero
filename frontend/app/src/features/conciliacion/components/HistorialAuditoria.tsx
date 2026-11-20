@@ -1,14 +1,13 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, CheckCircle2, Undo2 } from "lucide-react"
+import { Loader2, CheckCircle2, Undo2, AlertTriangle } from "lucide-react"
 
 // Import apuntando a utils
 import { formatearMonedaSegura } from "../utils/formatters"
-import type { HistoryMatch } from "../hooks/useConciliacion"
 
 interface HistorialAuditoriaProps {
-  historial: HistoryMatch[]
+  historial: any[]
   handleDesconciliar: (matchId: number) => Promise<boolean> | void
 }
 
@@ -42,11 +41,11 @@ export function HistorialAuditoria({ historial, handleDesconciliar }: HistorialA
           <div className="divide-y divide-slate-100">
             {historial.map((match) => {
               if (!match) return null
-
+              
               const metodoTxt = typeof match.metodo === 'string' ? match.metodo.replace(/_/g, ' ') : "MANUAL"
-              const hasAsiento = match.asiento_id !== null
-              const movs = match.movimientos
-              const cbtes = match.comprobantes
+              const hasAsiento = Boolean(match && (match as any).asiento_id)
+              const movs = Array.isArray(match.movimientos) ? match.movimientos : []
+              const cbtes = Array.isArray(match.comprobantes) ? match.comprobantes : []
               const isProcessing = isRevertingId === match.id;
 
               return (
@@ -55,7 +54,7 @@ export function HistorialAuditoria({ historial, handleDesconciliar }: HistorialA
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black bg-slate-200 text-slate-600 px-2 py-0.5 rounded tracking-wider">MATCH ID: {match.id}</span>
                       <span className="text-xs text-slate-500 font-medium">Método: {metodoTxt}</span>
-
+                      
                       {!hasAsiento ? (
                         <span className="flex items-center text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200 animate-pulse">
                           <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Asentando...
@@ -70,34 +69,34 @@ export function HistorialAuditoria({ historial, handleDesconciliar }: HistorialA
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div className="bg-indigo-50/40 p-3 rounded-xl border border-indigo-100 space-y-1.5">
                         <span className="font-bold text-indigo-950 block mb-1">Caja/Tesorería ({movs.length})</span>
-                        {movs.map((m) => (
+                        {movs.map((m: any) => (
                           <div key={m.id} className="flex justify-between text-slate-600 font-medium">
                             <span className="truncate max-w-[180px] font-bold" title={m.concepto}>{m.concepto}</span>
                             <div className="flex gap-4 items-center">
-                              <span className="text-[10px] text-slate-400 line-through">{formatearMonedaSegura(m.monto_total)}</span>
-                              <span className="font-mono font-black text-indigo-600">{formatearMonedaSegura(m.monto_aplicado)}</span>
+                              <span className="text-[10px] text-slate-400 line-through">{formatearMonedaSegura(m.monto_total, m.moneda)}</span>
+                              <span className="font-mono font-black text-indigo-600">{formatearMonedaSegura(m.monto_applied || m.monto_aplicado, m.moneda)}</span>
                             </div>
                           </div>
                         ))}
                       </div>
                       <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100 space-y-1.5">
                         <span className="font-bold text-emerald-950 block mb-1">Comprobantes ({cbtes.length})</span>
-                        {cbtes.map((c) => (
+                        {cbtes.map((c: any) => (
                           <div key={c.id} className="flex justify-between text-slate-600 font-medium">
                             <span className="font-bold text-slate-700">{c.numero_formateado || c.numero}</span>
                             <div className="flex gap-4 items-center">
-                              <span className="text-[10px] text-slate-400 line-through">{formatearMonedaSegura(c.monto_total)}</span>
-                              <span className="font-mono font-black text-emerald-600">{formatearMonedaSegura(c.monto_aplicado)}</span>
+                              <span className="text-[10px] text-slate-400 line-through">{formatearMonedaSegura(c.monto_total, c.moneda)}</span>
+                              <span className="font-mono font-black text-emerald-600">{formatearMonedaSegura(c.monto_applied || c.monto_aplicado, c.moneda)}</span>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   </div>
-                  <Button
+                  <Button 
                     onClick={() => confirmAndRevert(match.id)}
                     disabled={isProcessing}
-                    variant="outline"
+                    variant="outline" 
                     className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto flex-shrink-0 rounded-full font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isProcessing ? (

@@ -21,15 +21,15 @@ def upgrade() -> None:
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
 
     op.execute(f"""
-        ALTER TABLE {target_schema}.ordenes_pago
+        ALTER TABLE {target_schema}.ordenes_pago 
+        ADD COLUMN IF NOT EXISTS creado_por_id VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS actualizado_por_id VARCHAR(50);
+        
+        ALTER TABLE {target_schema}.lotes_pago 
         ADD COLUMN IF NOT EXISTS creado_por_id VARCHAR(50),
         ADD COLUMN IF NOT EXISTS actualizado_por_id VARCHAR(50);
 
-        ALTER TABLE {target_schema}.lotes_pago
-        ADD COLUMN IF NOT EXISTS creado_por_id VARCHAR(50),
-        ADD COLUMN IF NOT EXISTS actualizado_por_id VARCHAR(50);
-
-        ALTER TABLE {target_schema}.lote_pago_detalles
+        ALTER TABLE {target_schema}.lote_pago_detalles 
         ADD COLUMN IF NOT EXISTS creado_por_id VARCHAR(50),
         ADD COLUMN IF NOT EXISTS actualizado_por_id VARCHAR(50);
     """)

@@ -13,7 +13,7 @@ logger = logging.getLogger("SEEDER")
 PLAN_DE_CUENTAS_ARGENTINO = [
     {"codigo": "1", "nombre": "ACTIVO", "tipo": "ACTIVO", "imputable": False, "parent": None},
     {"codigo": "1.1", "nombre": "ACTIVO CORRIENTE", "tipo": "ACTIVO", "imputable": False, "parent": "1"},
-
+    
     # Disponibilidades (Ancladas al sistema)
     {"codigo": "1.1.1", "nombre": "CAJA Y BANCOS", "tipo": "ACTIVO", "imputable": False, "parent": "1.1"},
     {"codigo": "1.1.1.01", "nombre": "Caja Fija", "tipo": "ACTIVO", "imputable": True, "parent": "1.1.1", "codigo_sistema": "CAJA_FIJA"},
@@ -31,7 +31,7 @@ PLAN_DE_CUENTAS_ARGENTINO = [
 
     {"codigo": "2", "nombre": "PASIVO", "tipo": "PASIVO", "imputable": False, "parent": None},
     {"codigo": "2.1", "nombre": "PASIVO CORRIENTE", "tipo": "PASIVO", "imputable": False, "parent": "2"},
-
+    
     # Deudas
     {"codigo": "2.1.1", "nombre": "DEUDAS COMERCIALES", "tipo": "PASIVO", "imputable": False, "parent": "2.1"},
     {"codigo": "2.1.1.01", "nombre": "Proveedores", "tipo": "PASIVO", "imputable": True, "parent": "2.1.1", "codigo_sistema": "PROVEEDORES"},
@@ -84,16 +84,16 @@ class DataSeeder:
         Implementa lógica de protección para no duplicar jerarquías.
         """
         logger.info("🌱 Sincronizando Plan de Cuentas Argentino...")
-
+        
         # Mapa para reconstruir la jerarquía de IDs en tiempo real
         codigo_to_id = {}
 
         for item in PLAN_DE_CUENTAS_ARGENTINO:
             cuenta = db.query(PlanCuentas).filter_by(codigo=item["codigo"]).first()
-
+            
             # 🌟 LOGICA NUEVA: Si tiene código de sistema, es inborrable
             es_cuenta_sistema = True if item.get("codigo_sistema") else False
-
+            
             if cuenta:
                 if item.get("codigo_sistema"):
                     cuenta.codigo_sistema = item["codigo_sistema"]
@@ -102,7 +102,7 @@ class DataSeeder:
                 cuenta.is_system = es_cuenta_sistema # Aseguramos el candado en cuentas viejas
             else:
                 parent_id = codigo_to_id.get(item["parent"]) if item["parent"] else None
-
+                
                 cuenta = PlanCuentas(
                     codigo=item["codigo"],
                     nombre=item["nombre"],
@@ -114,11 +114,11 @@ class DataSeeder:
                 )
                 db.add(cuenta)
                 db.flush()
-
+            
             codigo_to_id[item["codigo"]] = cuenta.id
 
         logger.info(f"📊 Plan de Cuentas: {len(PLAN_DE_CUENTAS_ARGENTINO)} cuentas procesadas.")
-
+        
     @staticmethod
     def _seed_tesoreria_inicial(db: Session, entidad_id: int):
         """
@@ -126,18 +126,18 @@ class DataSeeder:
         Operación Idempotente.
         """
         logger.info("🏦 Aprovisionando Ecosistema de Tesorería...")
-
+        
         caja_existente = db.query(CuentaTesoreria).filter(
             CuentaTesoreria.entidad_id == entidad_id,
             CuentaTesoreria.is_default_cash == True
         ).first()
-
+        
         if not caja_existente:
             ahora = datetime.utcnow() - timedelta(hours=3)
-
+            
             # Buscamos la cuenta contable ancla para Caja Fija
             cuenta_contable = db.query(PlanCuentas).filter_by(codigo_sistema="CAJA_FIJA").first()
-
+            
             caja_principal = CuentaTesoreria(
                 entidad_id=entidad_id,
                 cuenta_contable_id=cuenta_contable.id if cuenta_contable else None,

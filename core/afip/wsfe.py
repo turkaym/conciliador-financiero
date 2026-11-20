@@ -5,7 +5,7 @@ import redis
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from zeep import Client, Settings
-from zeep.cache import SqliteCache, InMemoryCache
+from zeep.cache import SqliteCache, InMemoryCache 
 from zeep.transports import Transport
 from requests import Session
 from .auth import AfipAuthManager
@@ -16,8 +16,8 @@ logger = logging.getLogger("AFIP_WSFE")
 
 # 🌟 CONEXIÓN GLOBAL A REDIS (Candado Distribuido)
 redis_client = redis.Redis(
-    host=os.environ.get("REDIS_HOST", "redis"),
-    port=6379,
+    host=os.environ.get("REDIS_HOST", "redis"), 
+    port=6379, 
     decode_responses=True
 )
 
@@ -35,20 +35,20 @@ class AfipWSFEClient(BaseFiscalProvider):
         self.auth = auth_manager
         self.cuit = cuit
         self.environment = auth_manager.environment
-
+        
         self.wsdl = (
-            "https://servicios1.afip.gov.ar/wsfev1/service.asmx?WSDL"
-            if self.environment == "prod"
+            "https://servicios1.afip.gov.ar/wsfev1/service.asmx?WSDL" 
+            if self.environment == "prod" 
             else "https://wswhomo.afip.gov.ar/wsfev1/service.asmx?WSDL"
         )
 
         self.http_session = Session()
-
-        # 🌟 FIX DEFINITIVO I/O: Usamos memoria RAM para el WSDL.
+        
+        # 🌟 FIX DEFINITIVO I/O: Usamos memoria RAM para el WSDL. 
         # Cero problemas de permisos, cero I/O de disco.
         transport = Transport(
             cache=InMemoryCache(timeout=86400), # Caché en RAM por 24hs
-            session=self.http_session,
+            session=self.http_session, 
             timeout=30
         )
         settings = Settings(strict=False, xml_huge_tree=True)
@@ -79,18 +79,18 @@ class AfipWSFEClient(BaseFiscalProvider):
     def _get_auth_payload(self, force_refresh: bool = False):
         """
         Negocia el token WSAA aplicando un candado distribuido (Redis).
-        Previene bloqueos del fisco por saturación (DDoS involuntario)
+        Previene bloqueos del fisco por saturación (DDoS involuntario) 
         cuando múltiples workers de Celery procesan el mismo CUIT en paralelo.
         """
         lock_key = f"afip_wsaa_lock_{self.cuit}"
-
+        
         # Intentamos adquirir el candado por 15 segundos
         acquired = redis_client.set(lock_key, "locked", nx=True, ex=15)
-
+        
         if not acquired and force_refresh:
             logger.warning(f"⏳ [AFIP] Otro worker está negociando el token para el CUIT {self.cuit}. Esperando...")
             time.sleep(3) # Backoff preventivo
-
+            
         try:
             credentials = self.auth.get_token(self.cuit, force_refresh=force_refresh)
         except TypeError:
@@ -101,7 +101,7 @@ class AfipWSFEClient(BaseFiscalProvider):
             # Liberamos el candado SI y SOLO SI fuimos nosotros quienes lo tomamos
             if acquired:
                 redis_client.delete(lock_key)
-
+            
         return {
             "Token": credentials.token,
             "Sign": credentials.sign,
@@ -137,7 +137,7 @@ class AfipWSFEClient(BaseFiscalProvider):
             self._check_errors(response)
             return response.CbteNro
         except ValueError:
-            raise
+            raise 
         except Exception as e:
             logger.error(f"💥 Error en FECompUltimoAutorizado: {e}")
             raise RuntimeError(f"Fallo de comunicación WSFE: {str(e)}")
@@ -145,12 +145,12 @@ class AfipWSFEClient(BaseFiscalProvider):
     def _do_get_voucher_details(self, force_refresh: bool, nro: int, punto_venta: int, tipo_cbte: int):
         auth_payload = self._get_auth_payload(force_refresh)
         request_data = {"CbteTipo": tipo_cbte, "CbteNro": nro, "PtoVta": punto_venta}
-
+        
         try:
             response = self.client.service.FECompConsultar(Auth=auth_payload, FeCompConsReq=request_data)
             self._check_errors(response)
             data = response.ResultGet
-
+            
             # Desglose de arrays
             importe_iva = Decimal('0.0')
             detalles_iva = []
@@ -199,16 +199,16 @@ class AfipWSFEClient(BaseFiscalProvider):
             importe_exento = self._safe_decimal(getattr(data, 'ImpOpEx', '0.0'))
             importe_total = self._safe_decimal(getattr(data, 'ImpTotal', '0.0'))
             cotizacion = self._safe_decimal(getattr(data, 'MonCotiz', '1.0'))
-
+            
             clase_doc = TipoComprobanteAFIP.get_clase(tipo_cbte).value
-
+            
             return {
-                "tipo_cbte_afip": tipo_cbte,
+                "tipo_cbte_afip": tipo_cbte, 
                 "clase_documento": clase_doc,
                 "punto_venta": punto_venta,
                 "numero": nro,
                 "fecha_emision": self._format_afip_date(data.CbteFch),
-                "cuit_emisor": self.cuit,
+                "cuit_emisor": self.cuit, 
                 "cuit_receptor": data.DocNro,
                 "importe_neto": importe_neto,
                 "importe_iva": importe_iva,
@@ -225,7 +225,7 @@ class AfipWSFEClient(BaseFiscalProvider):
             }
 
         except ValueError:
-            raise
+            raise 
         except Exception as e:
             logger.error(f"💥 Error al consultar comprobante detallado {nro}: {e}")
             raise RuntimeError(f"Fallo en FECompConsultar: {str(e)}")
@@ -236,7 +236,7 @@ class AfipWSFEClient(BaseFiscalProvider):
             error_msg = f"Cod {err.Code}: {err.Msg}"
             logger.error(f"❌ ARCA Error Estructural: {error_msg}")
             raise ValueError(f"Rechazo de Negocio ARCA ({err.Code}): {err.Msg}")
-
+        
         if hasattr(response, 'ResultGet') and hasattr(response.ResultGet, 'Observaciones'):
             if response.ResultGet.Observaciones:
                 obs = response.ResultGet.Observaciones.Obs[0]

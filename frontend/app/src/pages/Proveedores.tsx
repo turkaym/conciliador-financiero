@@ -1,91 +1,63 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import api from "@/api/axios";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Users, Search, Building2, Landmark, AlertTriangle, ShieldCheck, Edit, Plus, Loader2, X } from "lucide-react";
 import { toast } from "react-toastify";
-import { extractApiError } from "@/lib/utils";
-
-type CondicionFiscal = 'RESPONSABLE_INSCRIPTO' | 'MONOTRIBUTO' | 'EXENTO' | 'CONSUMIDOR_FINAL' | 'NO_CATEGORIZADO';
-
-interface Proveedor {
-  id: number;
-  razon_social: string;
-  cuit: string;
-  cbu: string | null;
-  is_proveedor: boolean;
-  is_cliente: boolean;
-  is_entidad_financiera: boolean;
-  condicion_fiscal: CondicionFiscal;
-  is_active: boolean;
-}
-
-interface ProveedorForm {
-  cuit: string;
-  razon_social: string;
-  cbu: string;
-  condicion_fiscal: CondicionFiscal;
-  is_entidad_financiera: boolean;
-}
-
-function isCondicionFiscal(value: string): value is CondicionFiscal {
-  return value === 'RESPONSABLE_INSCRIPTO' || value === 'MONOTRIBUTO' || value === 'EXENTO' ||
-    value === 'CONSUMIDOR_FINAL' || value === 'NO_CATEGORIZADO';
-}
 
 export default function ProveedoresPage() {
-  const entidadActiva = useAuthStore((state) => state.entidadActiva);
-
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const entidadActiva = useAuthStore((state: any) => state.entidadActiva);
+  
+  const [proveedores, setProveedores] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-
+  
   // Estados para el Modal ABM
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-
+  
   // 🌟 FIX: Se agregó is_entidad_financiera al estado inicial
-  const [formData, setFormData] = useState<ProveedorForm>({
-    cuit: "",
-    razon_social: "",
-    cbu: "",
+  const [formData, setFormData] = useState({ 
+    cuit: "", 
+    razon_social: "", 
+    cbu: "", 
     condicion_fiscal: "RESPONSABLE_INSCRIPTO",
-    is_entidad_financiera: false
+    is_entidad_financiera: false 
   });
 
-  const fetchProveedores = useCallback(async () => {
+  const fetchProveedores = async () => {
     if (!entidadActiva?.id) return;
     setIsLoading(true);
     try {
-      const { data } = await api.get<Proveedor[]>('/v1/pagos/proveedores', { headers: { 'x-entity-id': entidadActiva.id }});
+      const { data } = await api.get('/v1/pagos/proveedores', { headers: { 'x-entity-id': entidadActiva.id }});
       setProveedores(data);
-    } catch {
+    } catch (error) {
       toast.error("Error al cargar el directorio de proveedores.");
     } finally {
       setIsLoading(false);
     }
-  }, [entidadActiva?.id]);
+  };
 
   useEffect(() => {
-    void fetchProveedores();
-  }, [fetchProveedores]);
+    fetchProveedores();
+  }, [entidadActiva?.id]);
 
-  const handleOpenModal = (prov: Proveedor | null = null) => {
+  const handleOpenModal = (prov: any = null) => {
     if (prov) {
       setEditingId(prov.id);
-      setFormData({
-        cuit: prov.cuit,
-        razon_social: prov.razon_social,
-        cbu: prov.cbu || "",
+      setFormData({ 
+        cuit: prov.cuit, 
+        razon_social: prov.razon_social, 
+        cbu: prov.cbu || "", 
         condicion_fiscal: prov.condicion_fiscal || "RESPONSABLE_INSCRIPTO",
         is_entidad_financiera: prov.is_entidad_financiera || false
       });
     } else {
       setEditingId(null);
-      setFormData({
-        cuit: "",
-        razon_social: "",
-        cbu: "",
+      setFormData({ 
+        cuit: "", 
+        razon_social: "", 
+        cbu: "", 
         condicion_fiscal: "RESPONSABLE_INSCRIPTO",
         is_entidad_financiera: false
       });
@@ -93,16 +65,10 @@ export default function ProveedoresPage() {
     setIsModalOpen(true);
   };
 
-  const handleCondicionFiscalChange = (value: string) => {
-    if (isCondicionFiscal(value)) {
-      setFormData({ ...formData, condicion_fiscal: value });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!entidadActiva?.id) return;
-
+    
     if (formData.cbu && formData.cbu.length !== 22) {
       return toast.warning("El CBU debe contener exactamente 22 dígitos numéricos.");
     }
@@ -110,7 +76,7 @@ export default function ProveedoresPage() {
     setIsSubmitting(true);
     try {
       const headers = { 'x-entity-id': entidadActiva.id };
-
+      
       if (editingId) {
         // ACTUALIZAR (PATCH) - 🌟 FIX: Enviamos el nuevo flag
         await api.patch(`/v1/pagos/proveedores/${editingId}`, {
@@ -130,11 +96,11 @@ export default function ProveedoresPage() {
         }, { headers });
         toast.success("Proveedor dado de alta en el sistema.");
       }
-
+      
       setIsModalOpen(false);
       fetchProveedores();
-    } catch (error: unknown) {
-      toast.error(extractApiError(error, "Fallo al guardar el proveedor."));
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || "Fallo al guardar el proveedor.");
     } finally {
       setIsSubmitting(false);
     }
@@ -145,7 +111,7 @@ export default function ProveedoresPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 p-4 md:p-8">
-
+      
       {/* HEADER & METRICS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
@@ -256,7 +222,7 @@ export default function ProveedoresPage() {
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-indigo-100 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-
+            
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5 col-span-2 sm:col-span-1">
@@ -265,7 +231,7 @@ export default function ProveedoresPage() {
                 </div>
                 <div className="space-y-1.5 col-span-2 sm:col-span-1">
                   <label className="text-xs font-bold text-slate-500 uppercase">Condición Fiscal *</label>
-                  <select required className="w-full h-10 px-3 rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" value={formData.condicion_fiscal} onChange={e => handleCondicionFiscalChange(e.target.value)}>
+                  <select required className="w-full h-10 px-3 rounded-md border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" value={formData.condicion_fiscal} onChange={e => setFormData({...formData, condicion_fiscal: e.target.value})}>
                     <option value="RESPONSABLE_INSCRIPTO">Responsable Inscripto</option>
                     <option value="MONOTRIBUTO">Monotributo</option>
                     <option value="EXENTO">Exento</option>
@@ -290,9 +256,9 @@ export default function ProveedoresPage() {
                     <label className="text-sm font-bold text-slate-700 cursor-pointer" htmlFor="toggle-financiera">Entidad Financiera (Pasarela)</label>
                     <p className="text-[11px] text-slate-500 mt-0.5">Activá esto si el proveedor es un procesador de pagos (ej: Mercado Pago).</p>
                   </div>
-                  <input
+                  <input 
                     id="toggle-financiera"
-                    type="checkbox"
+                    type="checkbox" 
                     className="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
                     checked={formData.is_entidad_financiera}
                     onChange={e => setFormData({...formData, is_entidad_financiera: e.target.checked})}

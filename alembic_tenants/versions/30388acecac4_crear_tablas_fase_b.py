@@ -21,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     if not target_schema:
         raise ValueError("No se pudo determinar el schema objetivo para la migración.")
 
@@ -82,7 +82,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     if not target_schema:
         raise ValueError("No se pudo determinar el schema objetivo para la reversión.")
 

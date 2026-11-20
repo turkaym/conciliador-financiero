@@ -25,7 +25,7 @@ def get_general_ledger(
 
     db_gen = get_tenant_db(schema_name)
     db = next(db_gen)
-
+    
     try:
         cuenta = db.query(PlanCuentas).filter(PlanCuentas.codigo == cuenta_codigo).first()
         if not cuenta:
@@ -73,11 +73,11 @@ def get_general_ledger(
         # Acumular saldo real
         movimientos = []
         saldo_acumulado = saldo_inicial
-
+        
         for row in resultados:
             flujo_renglon = float((row.debe - row.haber) * multiplicador)
             saldo_acumulado += flujo_renglon
-
+            
             movimientos.append({
                 "fecha": row.fecha,
                 "asiento_id": row.asiento_id,
@@ -119,10 +119,10 @@ def get_trial_balance(
 
     db_gen = get_tenant_db(schema_name)
     db = next(db_gen)
-
+    
     try:
         join_conditions = [LineaAsiento.cuenta_id == PlanCuentas.id]
-
+        
         query = db.query(
             PlanCuentas.codigo,
             PlanCuentas.nombre,
@@ -151,11 +151,11 @@ def get_trial_balance(
         for row in resultados:
             debe = float(row.total_debe)
             haber = float(row.total_haber)
-
+            
             if debe > 0 or haber > 0:
                 suma_debe_total += debe
                 suma_haber_total += haber
-
+                
                 balance.append({
                     "codigo": row.codigo,
                     "nombre": row.nombre,

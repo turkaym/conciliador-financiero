@@ -6,16 +6,16 @@ from enum import Enum
 class TipoCanalEnum(str, Enum):
     BANCO = "BANCO"
     PASARELA = "PASARELA"
-
+    
 class TipoCuentaEnum(str, Enum):
-    CC_ARS = "CC_ARS"
-    CA_ARS = "CA_ARS"
-    CC_USD = "CC_USD"
+    CC_ARS = "CC_ARS" 
+    CA_ARS = "CA_ARS" 
+    CC_USD = "CC_USD" 
     CA_USD = "CA_USD"
     EFECTIVO = "EFECTIVO"
     BANCO = "BANCO"
     BILLETERA_VIRTUAL = "BILLETERA_VIRTUAL"
-    CLEARING_VIRTUAL = "CLEARING_VIRTUAL"
+    CLEARING_VIRTUAL = "CLEARING_VIRTUAL" 
 
 class MonedaEnum(str, Enum):
     ARS = "ARS"
@@ -49,14 +49,14 @@ class ClaseDocumento(str, Enum):
     NOTA_DEBITO = "NOTA_DEBITO"
     RECIBO = "RECIBO"
     REMITO = "REMITO"
-
+    
 class EstadoComprobante(str, Enum):
-    BORRADOR = "BORRADOR"
-    EMITIDO = "EMITIDO"
-    PARCIAL = "PARCIAL"
-    EN_PAGO = "EN_PAGO"
-    PAGADA = "PAGADA"
-    ANULADA = "ANULADA"
+    BORRADOR = "BORRADOR"     
+    EMITIDO = "EMITIDO"       
+    PARCIAL = "PARCIAL"       
+    EN_PAGO = "EN_PAGO"       
+    PAGADA = "PAGADA"         
+    ANULADA = "ANULADA"       
 
 class TipoComprobanteAFIP(int, Enum):
     FACTURA_A = 1
@@ -74,7 +74,7 @@ class TipoComprobanteAFIP(int, Enum):
     FACTURA_E = 19
     NOTA_DEBITO_E = 20
     NOTA_CREDITO_E = 21
-
+    
     FCE_A = 201
     ND_FCE_A = 202
     NC_FCE_A = 203
@@ -93,7 +93,7 @@ class TipoComprobanteAFIP(int, Enum):
             return ClaseDocumento.NOTA_CREDITO
         if tipo in [2, 7, 12, 20, 52, 202, 207, 212]:
             return ClaseDocumento.NOTA_DEBITO
-        return ClaseDocumento.FACTURA
+        return ClaseDocumento.FACTURA 
 
 class AlicuotaIvaAFIP(int, Enum):
     CERO = 3
@@ -105,7 +105,7 @@ class AlicuotaIvaAFIP(int, Enum):
 
 class TipoTributoAFIP(int, Enum):
     IMPUESTOS_NACIONALES = 1
-    IMPUESTOS_PROVINCIALES = 2
+    IMPUESTOS_PROVINCIALES = 2 
     IMPUESTOS_MUNICIPALES = 3
     IMPUESTOS_INTERNOS = 4
     OTRO = 99
@@ -127,21 +127,21 @@ class EstadoLotePago(str, Enum):
     ESPERANDO_REINTENTO = "ESPERANDO_REINTENTO"
     PAID = "PAID"
     VOIDED = "VOIDED"
-
+    
 class TipoCuentaTesoreria(str, Enum):
     EFECTIVO = "EFECTIVO"
     BANCO = "BANCO"
     BILLETERA_VIRTUAL = "BILLETERA_VIRTUAL"
-    CLEARING_VIRTUAL = "CLEARING_VIRTUAL"
+    CLEARING_VIRTUAL = "CLEARING_VIRTUAL"  
 
 class TipoMovimientoTesoreria(str, Enum):
     INGRESO = "INGRESO"
     EGRESO = "EGRESO"
-
+    
 class TipoComprobanteInterno(int, Enum):
     MOVIMIENTO_MANUAL = 9001
     GASTO_MENOR = 9002
-    LOTE_PAGO = 9003
+    LOTE_PAGO = 9003  
 
 class NomenclaturaFiscal:
     @classmethod
@@ -152,7 +152,7 @@ class NomenclaturaFiscal:
             11: "FC-C", 12: "ND-C", 13: "NC-C", 17: "REC-C",
             51: "FC-M", 52: "ND-M", 53: "NC-M", 54: "REC-M"
         }
-
+        
         prefix = "CB"
         if tipo_cbte_afip and tipo_cbte_afip in afip_mapping:
             prefix = afip_mapping[tipo_cbte_afip]

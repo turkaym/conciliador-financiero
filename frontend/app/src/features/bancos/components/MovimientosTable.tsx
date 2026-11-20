@@ -1,24 +1,24 @@
 import { useEffect, useRef } from "react"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import {
+import { 
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  Loader2,
-  ChevronLeft,
+import { 
+  ArrowDownRight, 
+  ArrowUpRight, 
+  Loader2, 
+  ChevronLeft, 
   ChevronRight,
   Info,
   ShieldAlert
@@ -29,7 +29,7 @@ import type { MovimientoBancario } from "../types"
 interface MovimientosTableProps {
   movimientos: MovimientoBancario[];
   isLoading: boolean;
-  isPolling: boolean;
+  isPolling: boolean; 
   selectedCuentaId: string;
   page: number;
   hasMore: boolean;
@@ -46,7 +46,7 @@ export function MovimientosTable({
   hasMore,
   onPageChange
 }: MovimientosTableProps) {
-
+  
   const wasPollingRef = useRef(isPolling);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function MovimientosTable({
 
   return (
     <div className="space-y-0 relative">
-
+      
       {isPolling && (
         <div className="absolute inset-0 z-10 bg-white/50 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-md border border-indigo-100/50 transition-all">
           <div className="bg-white p-6 rounded-xl shadow-xl border border-indigo-100 flex flex-col items-center animate-in fade-in zoom-in duration-300">
@@ -104,21 +104,19 @@ export function MovimientosTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                movimientos.map((mov) => {
-                  const amount = Number(mov.monto);
-                  return (
+                movimientos.map((mov) => (
                   /* 🌟 FIX FASE 2.2: Clave compuesta para prevenir colisiones entre SOLICITUD y MOVIMIENTO */
                   <TableRow key={`${mov.tipo_registro}-${mov.id}`} className="hover:bg-slate-50/80 transition-colors group">
                     <TableCell className="text-center hidden sm:table-cell">
-                      {amount >= 0 ?
-                        <ArrowDownRight className="h-5 w-5 text-emerald-500 mx-auto group-hover:scale-110 transition-transform" /> :
+                      {mov.monto >= 0 ? 
+                        <ArrowDownRight className="h-5 w-5 text-emerald-500 mx-auto group-hover:scale-110 transition-transform" /> : 
                         <ArrowUpRight className="h-5 w-5 text-red-500 mx-auto group-hover:scale-110 transition-transform" />}
                     </TableCell>
-
+                    
                     <TableCell className="text-slate-600 whitespace-nowrap text-xs sm:text-sm">
                       {mov.fecha}
                     </TableCell>
-
+                    
                     <TableCell className="max-w-[160px] sm:max-w-[250px] text-xs sm:text-sm align-middle">
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -144,7 +142,7 @@ export function MovimientosTable({
                         </Tooltip>
                       </div>
                     </TableCell>
-
+                    
                     <TableCell className="hidden sm:table-cell max-w-[140px] lg:max-w-[180px] align-middle">
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -157,11 +155,11 @@ export function MovimientosTable({
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>
-
-                    <TableCell className={`text-right font-bold whitespace-nowrap text-xs sm:text-sm ${amount >= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {formatCurrency(amount, mov.moneda)}
+                    
+                    <TableCell className={`text-right font-bold whitespace-nowrap text-xs sm:text-sm ${mov.monto >= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                      {formatCurrency(mov.monto, mov.moneda)}
                     </TableCell>
-
+                    
                     <TableCell className="text-center pr-2 sm:pr-4">
                       {mov.estado === 'PENDING_APPROVAL' ? (
                         <span className="px-2 sm:px-3 py-1 rounded-full text-[9px] sm:text-[10px] font-bold tracking-wider bg-amber-100 text-amber-800 uppercase shadow-sm border border-amber-200">CUARENTENA</span>
@@ -189,31 +187,30 @@ export function MovimientosTable({
                       )}
                     </TableCell>
                   </TableRow>
-                  );
-                })
+                ))
               )}
             </TableBody>
           </Table>
         </TooltipProvider>
       </div>
-
+      
       <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-t border-slate-100 bg-slate-50/50">
         <span className="text-xs sm:text-sm font-medium text-slate-500">Página {page + 1}</span>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+          <Button 
+            variant="outline" 
+            size="sm" 
             className="bg-white h-8 sm:h-9"
-            onClick={() => onPageChange(Math.max(0, page - 1))}
+            onClick={() => onPageChange(Math.max(0, page - 1))} 
             disabled={page === 0 || isLoading || !selectedCuentaId || isPolling}
           >
             <ChevronLeft className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Anterior</span>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          <Button 
+            variant="outline" 
+            size="sm" 
             className="bg-white h-8 sm:h-9"
-            onClick={() => onPageChange(page + 1)}
+            onClick={() => onPageChange(page + 1)} 
             disabled={!hasMore || isLoading || !selectedCuentaId || isPolling}
           >
             <span className="hidden sm:inline">Siguiente</span> <ChevronRight className="h-4 w-4 sm:ml-1" />

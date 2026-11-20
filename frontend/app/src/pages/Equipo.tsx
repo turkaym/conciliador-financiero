@@ -20,44 +20,33 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { UserPlus, Trash2, Loader2, ShieldAlert, Copy, CheckCircle2, AlertCircle } from "lucide-react";
-import { extractApiError } from "@/lib/utils";
-import type { Miembro } from "@/hooks/useEquipo";
-
-type TeamRole = 'visor' | 'operador' | 'editor' | 'admin';
-type MemberUpdate = { rol?: string; is_active?: boolean };
-
-interface InvitationResponse {
-  message: string;
-  magic_link_token: string;
-  expires_in_hours: number;
-}
 
 // ==========================================
 // 🛡️ COMPONENTE INTERNO: SELECTOR DE ROL REACTIVO
 // ==========================================
-function SelectorDeRol({
-  usuario,
-  isAdmin,
-  actualizarMiembro,
-  showFeedback
-}: {
-  usuario: Miembro;
-  isAdmin: boolean;
-  actualizarMiembro: (email: string, payload: MemberUpdate) => Promise<void>;
+function SelectorDeRol({ 
+  usuario, 
+  isAdmin, 
+  actualizarMiembro, 
+  showFeedback 
+}: { 
+  usuario: any; 
+  isAdmin: boolean; 
+  actualizarMiembro: (email: string, payload: any) => Promise<void>;
   showFeedback: (type: 'success' | 'error', msg: string) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [rolActual, setRolActual] = useState(usuario.rol.toLowerCase());
 
-  const handleRoleChange = async (nuevoRol: TeamRole) => {
+  const handleRoleChange = async (nuevoRol: string) => {
     setLoading(true);
     try {
       await actualizarMiembro(usuario.user_id, { rol: nuevoRol });
       setRolActual(nuevoRol);
       showFeedback('success', `Rol de ${usuario.user_id} actualizado a ${nuevoRol.toUpperCase()}`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       // 🌟 PRUEBA E2E: Aquí atrapamos el HTTP 400 del "Seguro Anti-Lockout"
-      const mensaje = extractApiError(error, "Fallo al cambiar el rol.");
+      const mensaje = error.response?.data?.detail || error.message || "Fallo al cambiar el rol.";
       showFeedback('error', mensaje);
     } finally {
       setLoading(false);
@@ -67,11 +56,11 @@ function SelectorDeRol({
   // Si no es admin, o si el usuario es el Dueño principal (intocable), mostramos el Badge estático.
   if (!isAdmin || rolActual === 'dueño' || rolActual === 'owner') {
     return (
-      <Badge
-        variant="outline"
+      <Badge 
+        variant="outline" 
         className={`uppercase text-[11px] font-bold tracking-wider border-transparent ${
-          rolActual === 'dueño' || rolActual === 'owner'
-            ? 'bg-slate-900 text-white'
+          rolActual === 'dueño' || rolActual === 'owner' 
+            ? 'bg-slate-900 text-white' 
             : 'bg-indigo-50 text-indigo-700 border-indigo-100'
         }`}
       >
@@ -101,19 +90,19 @@ function SelectorDeRol({
 
 export default function EquipoPage() {
   const { miembros, entidades, loading, fetchEquipo, fetchEntidades, invitarMiembro, actualizarMiembro, eliminarMiembro } = useEquipo();
-
+  
   // 🌟 Estados del Formulario
   const [nuevoEmail, setNuevoEmail] = useState("");
   const [nuevoRol, setNuevoRol] = useState("OPERADOR"); // 🌟 FIX: Rol dinámico
   const [entidadSeleccionada, setEntidadSeleccionada] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
   // 🌟 Estados de Feedback Visual
   const [errorUi, setErrorUi] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
+  
   const user = useAuthStore((state) => state.user);
   const isAdmin = ['admin', 'owner', 'dueño', 'propietario'].includes(String(user?.role || '').toLowerCase());
 
@@ -138,21 +127,21 @@ export default function EquipoPage() {
       setErrorUi("Debes ingresar un email y seleccionar una empresa.");
       return;
     }
-
+    
     setIsSubmitting(true);
     try {
       // 🌟 FIX: Pasamos el 'nuevoRol' en lugar del string hardcodeado "OPERADOR"
-      const response: InvitationResponse = await invitarMiembro(nuevoEmail, nuevoRol, parseInt(entidadSeleccionada));
-
+      const response = await invitarMiembro(nuevoEmail, nuevoRol, parseInt(entidadSeleccionada));
+      
       const baseUrl = window.location.origin;
       const magicLink = `${baseUrl}/join?token=${response.magic_link_token}`;
       setGeneratedLink(magicLink);
-
+      
       setNuevoEmail("");
       setNuevoRol("OPERADOR");
       setEntidadSeleccionada("");
-    } catch (err: unknown) {
-      setErrorUi(extractApiError(err, "Error al invitar al usuario. Intente nuevamente."));
+    } catch (err: any) {
+      setErrorUi(err.response?.data?.detail || "Error al invitar al usuario. Intente nuevamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -170,8 +159,8 @@ export default function EquipoPage() {
     try {
       await actualizarMiembro(email, { is_active: checked });
       showFeedback('success', `El acceso de ${email} ha sido ${checked ? 'activado' : 'suspendido'}.`);
-    } catch (error: unknown) {
-      const msg = extractApiError(error, `Fallo al actualizar el estado de ${email}.`);
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || `Fallo al actualizar el estado de ${email}.`;
       showFeedback('error', msg);
     }
   };
@@ -180,8 +169,8 @@ export default function EquipoPage() {
     try {
       await eliminarMiembro(email);
       showFeedback('success', `Usuario ${email} eliminado permanentemente.`);
-    } catch (error: unknown) {
-      const msg = extractApiError(error, `Fallo al eliminar al usuario ${email}.`);
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || `Fallo al eliminar al usuario ${email}.`;
       showFeedback('error', msg);
     }
   };
@@ -214,7 +203,7 @@ export default function EquipoPage() {
             <CardDescription>Genera un enlace de invitación seguro para nuevos colaboradores.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 pt-6">
-
+            
             {errorUi && (
               <div className="p-3 bg-red-50 border border-red-100 rounded-md flex items-center gap-2 text-sm text-red-800 animate-in shake">
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
@@ -233,13 +222,13 @@ export default function EquipoPage() {
                     </div>
                   </div>
                   <div className="flex w-full sm:w-auto items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
+                    <input 
+                      type="text" 
+                      readOnly 
                       value={generatedLink}
                       className="hidden sm:block w-48 text-xs rounded border border-emerald-200 bg-white px-2 py-2 text-emerald-800 outline-none"
                     />
-                    <Button
+                    <Button 
                       type="button"
                       onClick={handleCopyLink}
                       className={`w-full sm:w-auto transition-all ${copied ? 'bg-emerald-600 hover:bg-emerald-700 shadow-md' : 'bg-slate-900 hover:bg-slate-800 shadow-sm'} text-white shrink-0`}
@@ -255,11 +244,11 @@ export default function EquipoPage() {
             <form onSubmit={handleInvitar} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
               <div className="md:col-span-4 space-y-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Correo Electrónico</label>
-                <Input
-                  placeholder="colaborador@empresa.com"
+                <Input 
+                  placeholder="colaborador@empresa.com" 
                   type="email"
                   required
-                  value={nuevoEmail}
+                  value={nuevoEmail} 
                   onChange={(e) => setNuevoEmail(e.target.value)}
                   disabled={isSubmitting}
                   className="bg-white border-slate-200 h-10"
@@ -280,7 +269,7 @@ export default function EquipoPage() {
                   </SelectContent>
                 </Select>
               </div>
-
+              
               <div className="md:col-span-3 space-y-1.5">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Empresa Destino</label>
                 <Select value={entidadSeleccionada} onValueChange={setEntidadSeleccionada} disabled={isSubmitting || entidades.length === 0}>
@@ -329,20 +318,20 @@ export default function EquipoPage() {
                         {m.user_id}
                         {m.user_id === user?.email && <span className="ml-2 text-[10px] uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full font-bold">Tú</span>}
                     </TableCell>
-
+                    
                     <TableCell>
-                        <SelectorDeRol
-                          usuario={m}
-                          isAdmin={isAdmin}
-                          actualizarMiembro={actualizarMiembro}
-                          showFeedback={showFeedback}
+                        <SelectorDeRol 
+                          usuario={m} 
+                          isAdmin={isAdmin} 
+                          actualizarMiembro={actualizarMiembro} 
+                          showFeedback={showFeedback} 
                         />
                     </TableCell>
 
                     <TableCell>
                         <div className="flex items-center gap-2">
-                        <Switch
-                            checked={!!m.is_active}
+                        <Switch 
+                            checked={!!m.is_active} 
                             disabled={!isAdmin || m.user_id === user?.email}
                             onCheckedChange={(checked) => handleToggleEstado(m.user_id, checked)}
                             className="data-[state=checked]:bg-emerald-500"
@@ -352,7 +341,7 @@ export default function EquipoPage() {
                         </span>
                         </div>
                     </TableCell>
-
+                    
                     {isAdmin && (
                         <TableCell className="text-right">
                         {m.rol !== 'DUEÑO' && m.user_id !== user?.email && (
@@ -374,7 +363,7 @@ export default function EquipoPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter className="mt-4">
                                 <AlertDialogCancel className="border-slate-200">Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
+                                <AlertDialogAction 
                                     onClick={() => handleEliminar(m.user_id)}
                                     className="bg-red-600 hover:bg-red-700 text-white shadow-sm"
                                 >

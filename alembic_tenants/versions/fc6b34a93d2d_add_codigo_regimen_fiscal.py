@@ -24,7 +24,7 @@ def upgrade() -> None:
 
     # Inyección idempotente del código de régimen AFIP para el Sifón Fiscal
     op.execute(f"""
-        ALTER TABLE {target_schema}.reglas_impuestos
+        ALTER TABLE {target_schema}.reglas_impuestos 
         ADD COLUMN IF NOT EXISTS codigo_regimen_afip INTEGER DEFAULT 217 NOT NULL;
     """)
 
@@ -35,6 +35,6 @@ def downgrade() -> None:
 
     # Reversión segura
     op.execute(f"""
-        ALTER TABLE {target_schema}.reglas_impuestos
+        ALTER TABLE {target_schema}.reglas_impuestos 
         DROP COLUMN IF EXISTS codigo_regimen_afip;
     """)

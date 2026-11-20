@@ -7,7 +7,7 @@ class PeriodoBase(BaseModel):
     mes: int = Field(..., ge=1, le=12, description="Mes del 1 al 12")
 
 class PeriodoCierreRequest(PeriodoBase):
-    pass
+    pass 
 
 class PeriodoResponse(PeriodoBase):
     id: int

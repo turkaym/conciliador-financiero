@@ -18,12 +18,12 @@ class MercadoPagoCSVParser(BaseParser[StandardMovement]):
         for chunk in pd.read_csv(file_path, sep=None, engine='python', skip_blank_lines=True, chunksize=1000):
             for _, row in chunk.iterrows():
                 if pd.isna(row.get('Fecha de creación')): continue
-
+                
                 # MP detalla "Neto recibido" (post comisiones) y "Monto" (bruto)
                 monto_str = row.get('Neto recibido') if pd.notna(row.get('Neto recibido')) else row.get('Monto')
                 monto = parse_monto_seguro(monto_str)
                 if monto == Decimal('0.00'): continue
-
+                
                 yield StandardMovement(
                     fecha=row['Fecha de creación'],
                     concepto=str(row.get('Descripción', 'Sin detalle')),

@@ -15,11 +15,11 @@ from core.schemas.banco import MovimientoBancarioCreate
 
 # 🌟 FIX PEP 8: Centralización de Enums (Eliminación de Lazy Imports)
 from core.utils.enums import (
-    EstadoOrdenPago,
-    EstadoLotePago,
-    TipoComprobanteInterno,
-    CondicionFiscalAFIP,
-    ClaseDocumento,
+    EstadoOrdenPago, 
+    EstadoLotePago, 
+    TipoComprobanteInterno, 
+    CondicionFiscalAFIP, 
+    ClaseDocumento, 
     EstadoComprobante
 )
 
@@ -29,7 +29,7 @@ from core.services.tax_engine_service import tax_engine_service
 from core.services.banco_service import banco_service
 
 class EgresosService:
-
+    
     def __init__(self, db: Session, entidad_id: int):
         self.db = db
         self.entidad_id = entidad_id
@@ -53,41 +53,41 @@ class EgresosService:
         if params.q:
             query = query.join(ContactoComercial, OrdenPago.proveedor_id == ContactoComercial.id)
             query = query.filter(
-                (ContactoComercial.razon_social.ilike(f"%{params.q}%")) |
+                (ContactoComercial.razon_social.ilike(f"%{params.q}%")) | 
                 (ContactoComercial.cuit.ilike(f"%{params.q}%"))
             )
 
         query = query.order_by(OrdenPago.created_at.desc())
         query = query.offset(params.offset).limit(params.limit)
         return query.all()
-
+    
     def crear_orden_pago(
-        self,
-        data: OrdenPagoCreate,
-        user_id: str = "SYSTEM",
-        user_role: str = "operador",
+        self, 
+        data: OrdenPagoCreate, 
+        user_id: str = "SYSTEM", 
+        user_role: str = "operador", 
         umbral_aprobacion: float = 0.0
     ) -> OrdenPago:
         now_utc = datetime.now(timezone.utc)
         today_local = now_utc.astimezone(timezone(timedelta(hours=-3))).date()
-
+        
         proveedor_id_final = data.proveedor_id
         if not proveedor_id_final:
             prov_caja_chica = self.db.query(ContactoComercial).filter(
-                ContactoComercial.entidad_id == self.entidad_id,
+                ContactoComercial.entidad_id == self.entidad_id, 
                 ContactoComercial.cuit == "33693450239"
             ).first()
-
+            
             if not prov_caja_chica:
                 prov_caja_chica = ContactoComercial(
-                    entidad_id=self.entidad_id, cuit="33693450239",
-                    razon_social="Caja Chica / Gastos Menores", is_proveedor=True,
+                    entidad_id=self.entidad_id, cuit="33693450239", 
+                    razon_social="Caja Chica / Gastos Menores", is_proveedor=True, 
                     condicion_fiscal=CondicionFiscalAFIP.CONSUMIDOR_FINAL
                 )
                 self.db.add(prov_caja_chica)
                 self.db.flush()
             proveedor_id_final = prov_caja_chica.id
-
+        
         codigo_op = trazabilidad_service.generar_trace_id(
             db=self.db,
             tenant_id=self.entidad_id,
@@ -97,7 +97,7 @@ class EgresosService:
 
         excluir_fiscal = not data.requiere_comprobante_fiscal
         is_fast_track = getattr(data, 'fast_track_cuenta_id', None) is not None
-
+        
         cuenta_origen = None
         if is_fast_track:
             cuenta_origen = self.db.query(CuentaTesoreria).filter(
@@ -112,13 +112,13 @@ class EgresosService:
             saldo_disponible = Decimal(str(cuenta_origen.saldo_actual)) - Decimal(str(getattr(cuenta_origen, 'saldo_retenido', 0.0)))
             monto_requerido = Decimal(str(data.monto_estimado))
             moneda_cuenta = cuenta_origen.moneda.value if hasattr(cuenta_origen.moneda, 'value') else str(cuenta_origen.moneda)
-
+            
             if monto_requerido > saldo_disponible:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                    status_code=status.HTTP_400_BAD_REQUEST, 
                     detail=f"Saldo insuficiente para Vía Rápida. Requerido: {monto_requerido} {moneda_cuenta}. Disponible: {saldo_disponible}."
                 )
-
+                
             estado_inicial = getattr(EstadoOrdenPago, 'AUTORIZADA', getattr(EstadoOrdenPago, 'FACTURA_ASIGNADA', list(EstadoOrdenPago)[-1]))
         else:
             estado_inicial = getattr(EstadoOrdenPago, 'BORRADOR', list(EstadoOrdenPago)[0])
@@ -144,13 +144,13 @@ class EgresosService:
             self.db.flush()
 
             comprobante_id = None
-
+            
             if hasattr(data, 'factura_id') and data.factura_id:
                  comprobante_existente = self.db.query(Comprobante).filter(
                      Comprobante.id == data.factura_id,
                      Comprobante.entidad_id == self.entidad_id
                  ).with_for_update().first()
-
+                 
                  if comprobante_existente:
                      comprobante_id = comprobante_existente.id
                      if is_fast_track:
@@ -160,7 +160,7 @@ class EgresosService:
             elif excluir_fiscal and data.comprobante_interno_url and getattr(data, 'numero_ticket', None):
                 proveedor = self.db.query(ContactoComercial).filter(ContactoComercial.id == proveedor_id_final).first()
                 cuit_prov = proveedor.cuit if proveedor else "00000000000"
-
+                
                 num_limpio = ''.join(filter(str.isdigit, data.numero_ticket))
                 if num_limpio:
                     numero_cbte = int(num_limpio[-8:])
@@ -172,9 +172,9 @@ class EgresosService:
                     cuenta_contable_id=data.cuenta_contable_id,
                     clase_documento=ClaseDocumento.FACTURA.name if hasattr(ClaseDocumento.FACTURA, 'name') else "FACTURA",
                     tipo_operacion="COMPRA",
-                    estado="EMITIDO",
-                    fecha_emision=today_local,
-                    punto_venta=1,
+                    estado="EMITIDO", 
+                    fecha_emision=today_local,  
+                    punto_venta=1,     
                     numero=numero_cbte,
                     cuit_emisor=cuit_prov,
                     cuit_receptor="00000000000",
@@ -190,7 +190,7 @@ class EgresosService:
                 self.db.add(nuevo_comprobante)
                 self.db.flush()
                 comprobante_id = nuevo_comprobante.id
-
+                
                 if is_fast_track:
                     nuevo_comprobante.estado = "PAGADA"
                     nuevo_comprobante.saldo_pendiente = Decimal("0.0")
@@ -203,7 +203,7 @@ class EgresosService:
                     prefijo="ML"
                 )
                 estado_lote_inicial = getattr(EstadoLotePago, 'AUTHORIZED_FOR_PAYMENT', list(EstadoLotePago)[-1])
-
+                
                 micro_lote = LotePago(
                     entidad_id=self.entidad_id,
                     codigo_lote=codigo_ml,
@@ -212,7 +212,7 @@ class EgresosService:
                     estado_lote=estado_lote_inicial,
                     cuenta_tesoreria_id=cuenta_origen.id,
                     aprobado_por_id=user_id,
-                    fecha_autorizacion=now_utc,
+                    fecha_autorizacion=now_utc,  
                     creado_por_id=user_id,
                     actualizado_por_id=user_id
                 )
@@ -248,17 +248,17 @@ class EgresosService:
                         db=self.db,
                         mov_in=mov_in,
                         entidad_id=self.entidad_id,
-                        user_id=user_id,
-                        user_role=user_role,
-                        umbral_aprobacion=umbral_aprobacion
+                        user_id=user_id, 
+                        user_role=user_role, 
+                        umbral_aprobacion=umbral_aprobacion 
                     )
                 except Exception as trans_err:
                     raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
+                        status_code=status.HTTP_400_BAD_REQUEST, 
                         detail=f"Fallo en motor transaccional de tesorería: {str(trans_err)}"
                     )
 
-            self.db.commit()
+            self.db.commit() 
             self.db.refresh(nueva_orden)
             return nueva_orden
 
@@ -270,10 +270,10 @@ class EgresosService:
         except Exception as e:
             self.db.rollback()
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error transaccional: {str(e)}")
-
+        
     def crear_lote_draft(self, data: LotePagoCreate, user_id: str = "SYSTEM") -> LotePago:
         ordenes_ids = [det.orden_pago_id for det in data.detalles if det.orden_pago_id]
-
+        
         if ordenes_ids:
             try:
                 ordenes_db = self.db.query(OrdenPago).filter(
@@ -315,9 +315,9 @@ class EgresosService:
         codigo_lote = trazabilidad_service.generar_trace_id(
             db=self.db, tenant_id=self.entidad_id, tipo_cbte_interno=TipoComprobanteInterno.LOTE_PAGO, prefijo="LOT"
         )
-
+        
         estado_lote_draft = getattr(EstadoLotePago, 'DRAFT', list(EstadoLotePago)[0])
-
+        
         nuevo_lote = LotePago(
             entidad_id=self.entidad_id,
             codigo_lote=codigo_lote,
@@ -328,7 +328,7 @@ class EgresosService:
             actualizado_por_id=user_id
         )
         self.db.add(nuevo_lote)
-        self.db.flush()
+        self.db.flush() 
 
         suma_detalles_ars = Decimal("0.0")
         for det in data.detalles:
@@ -348,7 +348,7 @@ class EgresosService:
         if suma_detalles_ars != data.monto_total_lote:
             self.db.rollback()
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_400_BAD_REQUEST, 
                 detail=f"Descuadre de liquidez en ensamblaje."
             )
 
@@ -378,7 +378,7 @@ class EgresosService:
 
         lote.estado_lote = estado_lote_pending
         lote.actualizado_por_id = user_id
-
+        
         self.db.commit()
         self.db.refresh(lote)
         return lote
@@ -435,24 +435,24 @@ class EgresosService:
         self.db.commit()
         self.db.refresh(lote)
         return lote
-
+    
     def crear_orden_pago_multiple(
-        self,
-        data: OrdenPagoMultipleCreate,
-        user_id: str = "SYSTEM",
-        user_role: str = "operador",
+        self, 
+        data: OrdenPagoMultipleCreate, 
+        user_id: str = "SYSTEM", 
+        user_role: str = "operador", 
         umbral_aprobacion: float = 0.0
     ):
         now_utc = datetime.now(timezone.utc)
         today_local = now_utc.astimezone(timezone(timedelta(hours=-3))).date()
-
+        
         es_admin = user_role.lower() in ["admin", "dueño", "editor"]
         is_fast_track = getattr(data, 'cuenta_origen_id', None) is not None and data.cuenta_origen_id > 0
-
+        
         if is_fast_track and not es_admin:
             self.db.rollback()
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
+                status_code=status.HTTP_403_FORBIDDEN, 
                 detail="Violación de Seguridad: Los operadores solo pueden Encolar órdenes."
             )
 
@@ -480,7 +480,7 @@ class EgresosService:
 
         if is_fast_track:
             cuenta_origen = self.db.query(CuentaTesoreria).filter(
-                CuentaTesoreria.id == data.cuenta_origen_id,
+                CuentaTesoreria.id == data.cuenta_origen_id, 
                 CuentaTesoreria.entidad_id == self.entidad_id
             ).with_for_update().first()
             if not cuenta_origen:
@@ -490,7 +490,7 @@ class EgresosService:
             saldo_disponible = Decimal(str(cuenta_origen.saldo_actual)) - Decimal(str(getattr(cuenta_origen, 'saldo_retenido', 0.0)))
         else:
             moneda_cuenta = "ARS"
-            saldo_disponible = Decimal("9999999999.0")
+            saldo_disponible = Decimal("9999999999.0") 
 
         if moneda_cuenta == "ARS":
             bruto_convertido = data.monto_bruto_abonar * Decimal(str(data.tipo_cambio))
@@ -523,31 +523,31 @@ class EgresosService:
 
         for f in facturas_ordenadas:
             if monto_restante_bruto <= Decimal("0.0"): break
-
+            
             pago_bruto_asignado = min(monto_restante_bruto, f.saldo_pendiente)
             pago_neto_asignado = round(pago_bruto_asignado * ratio_neto, 2)
-
+            
             codigo_op = trazabilidad_service.generar_trace_id(db=self.db, tenant_id=self.entidad_id, tipo_cbte_interno=TipoComprobanteInterno.GASTO_MENOR, prefijo="OPM")
-
+            
             nueva_orden = OrdenPago(
                 entidad_id=self.entidad_id, codigo_trazabilidad=codigo_op, concepto_id=concepto.id,
-                proveedor_id=data.proveedor_id, monto_estimado=pago_neto_asignado, moneda=moneda_cuenta,
+                proveedor_id=data.proveedor_id, monto_estimado=pago_neto_asignado, moneda=moneda_cuenta, 
                 estado_orden=estado_op, requiere_comprobante_fiscal=False, excluir_reportes_fiscales=True,
                 creado_por_id=user_id, actualizado_por_id=user_id
             )
             self.db.add(nueva_orden)
             self.db.flush()
-
+            
             ordenes_creadas.append((nueva_orden, f.id, pago_bruto_asignado, pago_neto_asignado))
-
+            
             f.saldo_pendiente -= pago_bruto_asignado
-
+            
             # 🌟 FIX CÓDIGO BASURA: Eliminado el try/except ImportError crudo.
-            if f.saldo_pendiente == Decimal("0.0"):
+            if f.saldo_pendiente == Decimal("0.0"): 
                 f.estado = EstadoComprobante.PAGADA.value if is_fast_track else EstadoComprobante.EN_PAGO.value
             else:
                 f.estado = EstadoComprobante.PARCIAL.value
-
+                
             monto_restante_bruto -= pago_bruto_asignado
 
         proveedor = self.db.query(ContactoComercial).filter(ContactoComercial.id == data.proveedor_id).first()
@@ -561,11 +561,11 @@ class EgresosService:
         if is_fast_track:
             codigo_lote = trazabilidad_service.generar_trace_id(db=self.db, tenant_id=self.entidad_id, tipo_cbte_interno=TipoComprobanteInterno.LOTE_PAGO, prefijo="LOT")
             estado_lote_final = getattr(EstadoLotePago, 'AUTHORIZED_FOR_PAYMENT', list(EstadoLotePago)[2])
-
+            
             nuevo_lote = LotePago(
-                entidad_id=self.entidad_id, codigo_lote=codigo_lote, moneda_pago=moneda_cuenta,
+                entidad_id=self.entidad_id, codigo_lote=codigo_lote, moneda_pago=moneda_cuenta, 
                 monto_total_lote=neto_a_transferir_moneda_cuenta, estado_lote=estado_lote_final,
-                cuenta_tesoreria_id=cuenta_origen.id, aprobado_por_id=user_id,
+                cuenta_tesoreria_id=cuenta_origen.id, aprobado_por_id=user_id, 
                 fecha_autorizacion=now_utc, creado_por_id=user_id, actualizado_por_id=user_id
             )
             self.db.add(nuevo_lote)
@@ -573,22 +573,22 @@ class EgresosService:
 
         for orden, f_id, pago_bruto, pago_neto in ordenes_creadas:
             detalle = LotePagoDetalle(
-                lote_id=nuevo_lote.id if nuevo_lote else None,
+                lote_id=nuevo_lote.id if nuevo_lote else None, 
                 orden_pago_id=orden.id, comprobante_id=f_id,
                 monto_asignado_moneda_origen=pago_bruto, monto_asignado_ars=pago_bruto * Decimal(str(data.tipo_cambio)),
                 tipo_cambio_aplicado=Decimal(str(data.tipo_cambio)), creado_por_id=user_id, actualizado_por_id=user_id
             )
             self.db.add(detalle)
-
+        
         if is_fast_track:
             mov_in = MovimientoBancarioCreate(
-                entidad_id=self.entidad_id, cuenta_id=cuenta_origen.id, cuenta_contable_id=concepto.id,
-                fecha=today_local, monto=-abs(neto_a_transferir_moneda_cuenta), moneda=moneda_cuenta,
-                concepto_bancario_crudo=f"Pago Directo Prov. - Lote {codigo_lote}",
+                entidad_id=self.entidad_id, cuenta_id=cuenta_origen.id, cuenta_contable_id=concepto.id, 
+                fecha=today_local, monto=-abs(neto_a_transferir_moneda_cuenta), moneda=moneda_cuenta, 
+                concepto_bancario_crudo=f"Pago Directo Prov. - Lote {codigo_lote}", 
                 concepto_interno="Liquidación Vía Rápida", referencia_banco=codigo_lote
             )
             banco_service.registrar_movimiento_con_saldo(db=self.db, mov_in=mov_in, entidad_id=self.entidad_id, user_id=user_id, user_role=user_role, umbral_aprobacion=umbral_aprobacion)
 
         self.db.commit()
-
+        
         return nuevo_lote if nuevo_lote else {"id": 0, "codigo_lote": "ENCOLADO", "monto_total_lote": data.monto_bruto_abonar, "estado_lote": "DRAFT", "detalles": []}

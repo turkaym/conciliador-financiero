@@ -25,17 +25,17 @@ export function ConciliacionHeader({
       <div className="space-y-2 w-full sm:w-auto">
         <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">Conciliación Bancaria</h1>
         <div className="flex gap-2">
-          <Button
-            variant={activeTab === 'PENDIENTES' ? 'default' : 'outline'}
-            size="sm"
+          <Button 
+            variant={activeTab === 'PENDIENTES' ? 'default' : 'outline'} 
+            size="sm" 
             onClick={() => setActiveTab('PENDIENTES')}
             className={activeTab === 'PENDIENTES' ? 'bg-slate-800' : ''}
           >
             Pendientes
           </Button>
-          <Button
-            variant={activeTab === 'HISTORIAL' ? 'default' : 'outline'}
-            size="sm"
+          <Button 
+            variant={activeTab === 'HISTORIAL' ? 'default' : 'outline'} 
+            size="sm" 
             onClick={() => setActiveTab('HISTORIAL')}
             className={activeTab === 'HISTORIAL' ? 'bg-indigo-600 hover:bg-indigo-700' : ''}
           >
@@ -63,9 +63,9 @@ export function ConciliacionHeader({
             </button>
           </div>
 
-          <Button
-            onClick={() => triggerAutoMatch()}
-            disabled={isLoading || isProcessing}
+          <Button 
+            onClick={() => triggerAutoMatch()} 
+            disabled={isLoading || isProcessing} 
             className="bg-indigo-600 hover:bg-indigo-700 shadow-sm w-full sm:w-auto"
           >
             {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRightLeft className="w-4 h-4 mr-2" />}

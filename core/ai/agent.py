@@ -41,10 +41,10 @@ def summarize_conversation_node(state: AgentState, config: RunnableConfig):
     """
     messages = state["messages"]
     summary = state.get("summary", "")
-
+    
     # Dejamos los últimos 4 mensajes intactos (contexto inmediato)
     messages_to_summarize = messages[:-4]
-
+    
     if not messages_to_summarize:
         return {}
 
@@ -56,14 +56,14 @@ def summarize_conversation_node(state: AgentState, config: RunnableConfig):
         )
     else:
         summary_prompt = "Creá un resumen conciso de los siguientes mensajes, reteniendo solo datos duros (nombres, CUITs, montos, intenciones):"
-
+    
     summary_messages = [SystemMessage(content=summary_prompt)] + messages_to_summarize
     response = summary_llm.invoke(summary_messages, config)
-
+    
     delete_messages = [RemoveMessage(id=m.id) for m in messages_to_summarize if m.id]
-
+    
     logger.info(f"🧹 [MEMORIA] Historial comprimido. Mensajes purgados: {len(delete_messages)}")
-
+    
     return {
         "summary": response.content,
         "messages": delete_messages
@@ -81,11 +81,11 @@ def router_node_decision(state: AgentState):
     # 1. Si el último mensaje es una invocación a un tool, ruteamos a las herramientas
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         return "tools"
-
+    
     # 2. Si no hay tools que ejecutar, verificamos la presión de memoria
     if len(messages) > 6:
         return "summarize"
-
+    
     # 3. Finalizamos el flujo si no hay acciones pendientes
     return END
 
@@ -116,10 +116,10 @@ def compile_financial_copilot(checkpointer=None):
             END: END
         }
     )
-
+    
     # Después de resumir, el flujo termina
     graph_builder.add_edge("summarize", END)
-
+    
     graph_builder.add_edge(START, "chatbot")
 
     return graph_builder.compile(checkpointer=checkpointer)

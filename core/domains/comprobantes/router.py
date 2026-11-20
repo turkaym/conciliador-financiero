@@ -41,11 +41,11 @@ def list_comprobantes(
     limit: int = Query(100, ge=1, le=1000)
 ):
     hasta = fecha_hasta or datetime.now(timezone.utc)
-    desde = fecha_desde or (hasta - timedelta(days=30))
-
+    desde = fecha_desde or (hasta - timedelta(days=30)) 
+    
     if (hasta - desde).days > 180:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_400_BAD_REQUEST, 
             detail="El rango de búsqueda no puede superar los 180 días por políticas de rendimiento OLAP."
         )
 
@@ -55,7 +55,7 @@ def list_comprobantes(
         Comprobante.is_active == True,
         Comprobante.fecha_emision >= desde.date(),
         Comprobante.fecha_emision <= hasta.date(),
-        Comprobante.tipo_operacion != "ORDEN_PAGO_MIRROR"
+        Comprobante.tipo_operacion != "ORDEN_PAGO_MIRROR" 
     )
 
     if clase_documento:
@@ -70,7 +70,7 @@ def list_comprobantes(
         query = query.filter(Comprobante.estado == estado)
 
     comprobantes = query.order_by(desc(Comprobante.fecha_emision)).offset(skip).limit(limit).all()
-
+    
     return comprobantes
 
 @router.get("/pendientes-proveedor/{proveedor_id}", response_model=List[ComprobanteResponse], dependencies=[Depends(EntityRoleChecker(["admin", "dueño", "editor", "operador"]))])
@@ -94,9 +94,9 @@ def crear_comprobante_manual(
 ):
     usuario_id_str = str(getattr(current_user, 'id', getattr(current_user, 'email', 'unknown')))
     return comprobante_service.crear_comprobante_con_vinculo(
-        db=db,
-        comprobante_in=comprobante_in,
-        tenant_id=entidad_id,
+        db=db, 
+        comprobante_in=comprobante_in, 
+        tenant_id=entidad_id, 
         usuario_id=usuario_id_str
     )
 
@@ -105,13 +105,13 @@ def emitir_comprobante_electronico_afip(
     comprobante_in: ComprobanteCreate,
     entidad_id: int = Header(..., alias="X-Entity-ID"),
     db: Session = Depends(get_tenant_db_session),
-    afip_client: Any = Depends(get_afip_client)
+    afip_client: Any = Depends(get_afip_client) 
 ):
-    comprobante_in.entidad_id = entidad_id
+    comprobante_in.entidad_id = entidad_id 
     return comprobante_service.emitir_y_guardar_comprobante(
-        db=db,
-        afip_client=afip_client,
-        comprobante_in=comprobante_in,
+        db=db, 
+        afip_client=afip_client, 
+        comprobante_in=comprobante_in, 
         tenant_id=entidad_id
     )
 
@@ -126,7 +126,7 @@ def anular_comprobante(
 
 @router.post("/sync-afip", response_model=SyncTaskResponse, status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(EntityRoleChecker(["admin", "dueño", "editor"]))])
 def trigger_sync(
-    payload: SyncAfipPayload,
+    payload: SyncAfipPayload, 
     request: Request,
     entidad_id: int = Header(..., alias="X-Entity-ID"),
     db: Session = Depends(get_tenant_db_session),
@@ -141,25 +141,25 @@ def trigger_sync(
 
     if not entidad:
         raise HTTPException(status_code=404, detail="Entidad activa no encontrada o bloqueada por operación concurrente.")
-
+    
     if not entidad.afip_certificate or not entidad.afip_private_key_encrypted:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_400_BAD_REQUEST, 
             detail="La entidad no tiene credenciales AFIP configuradas en la bóveda fiscal."
         )
 
     try:
         task = sync_arca_comprobantes.apply_async(
             kwargs={
-                "tenant_id": schema_name,
-                "entidad_id": entidad_id,
-                "punto_venta": payload.punto_venta,
+                "tenant_id": schema_name, 
+                "entidad_id": entidad_id, 
+                "punto_venta": payload.punto_venta, 
                 "tipo_cbte": payload.tipo_cbte
                 # 🌟 FIX ARQUITECTURA: Se eliminó el 'correlation_id' fantasma
             },
             queue='accounting_queue',
-            retry=False,
-            expires=60
+            retry=False, 
+            expires=60 
         )
         return {
             "task_id": task.id,
@@ -169,7 +169,7 @@ def trigger_sync(
     except Exception as e:
         logger.error(f"❌ Fallo al encolar tarea AFIP: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
             detail="No se pudo conectar con el broker de tareas."
         )
 
@@ -230,17 +230,17 @@ def resolver_alerta_dlq(
     alerta = db.query(ColaMensajesMuertos).filter(
         ColaMensajesMuertos.id == alerta_id,
         ColaMensajesMuertos.entidad_id == entidad_id
-    ).with_for_update().first()
+    ).with_for_update().first() 
 
     if not alerta:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alerta no encontrada o sin privilegios.")
 
     usuario_id_str = str(getattr(current_user, 'id', getattr(current_user, 'email', 'unknown')))
-
+    
     alerta.resuelto = True
     alerta.resolved_by_id = usuario_id_str
     alerta.resolved_at = func.now()
-
+    
     db.commit()
     return {"status": "success", "message": "Alerta marcada como resuelta."}
 
@@ -251,12 +251,12 @@ def resolver_todas_alertas_dlq(
     current_user: CachedUser = Depends(get_current_user)
 ):
     usuario_id_str = str(getattr(current_user, 'id', getattr(current_user, 'email', 'unknown')))
-
+    
     alertas_a_resolver = db.query(ColaMensajesMuertos.id).filter(
         ColaMensajesMuertos.entidad_id == entidad_id,
         ColaMensajesMuertos.resuelto == False
     ).limit(500).all()
-
+    
     if alertas_a_resolver:
         ids_lista = [a.id for a in alertas_a_resolver]
         db.query(ColaMensajesMuertos).filter(ColaMensajesMuertos.id.in_(ids_lista)).update({
@@ -265,5 +265,5 @@ def resolver_todas_alertas_dlq(
             "resolved_at": func.now()
         }, synchronize_session=False)
         db.commit()
-
+    
     return {"status": "success", "message": "Lote de alertas marcado como resuelto exitosamente."}

@@ -2,16 +2,11 @@ import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { ShieldCheck, Loader2, AlertCircle } from "lucide-react"
 import api from "../api/axios"
-import { extractApiError } from "@/lib/utils"
-
-interface AcceptInviteResponse {
-  message: string
-}
 
 export default function JoinPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-
+  
   const [token, setToken] = useState<string | null>(null)
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -46,16 +41,16 @@ export default function JoinPage() {
     setIsLoading(true)
     try {
       // 2. Consumo del endpoint receptor que construimos en auth.py
-      await api.post<AcceptInviteResponse>("/v1/auth/accept-invite", {
+      await api.post("/v1/auth/accept-invite", {
         token: token,
         password: password
       })
-
+      
       setSuccess(true)
       // 3. Redirección táctica tras el éxito
       setTimeout(() => navigate("/login"), 3000)
-    } catch (err: unknown) {
-      setError(extractApiError(err, "Fallo al procesar la invitación. El enlace puede haber expirado."))
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Fallo al procesar la invitación. El enlace puede haber expirado.")
     } finally {
       setIsLoading(false)
     }

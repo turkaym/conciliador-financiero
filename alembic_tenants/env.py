@@ -33,7 +33,7 @@ def include_object(object, name, type_, reflected, compare_to):
 def run_migrations_online():
     logger.info("🟢 [ALEMBIC ENV] Iniciando entorno de migraciones...")
     is_revision_mode = any(arg in sys.argv for arg in ['revision', 'autogenerate'])
-
+    
     x_args = context.get_x_argument(as_dictionary=True)
     specific_tenant = config.attributes.get('tenant_schema') or x_args.get('tenant_schema')
     injected_connection = config.attributes.get('connection')
@@ -53,9 +53,9 @@ def run_migrations_online():
 
             connection.execute(text(f'SET search_path TO "{target_schema}", public'))
             connection.commit()
-
+            
             connection.dialect.default_schema_name = target_schema
-
+            
             context.configure(
                 connection=connection,
                 target_metadata=target_metadata,
@@ -66,9 +66,9 @@ def run_migrations_online():
             )
             with context.begin_transaction():
                 context.run_migrations()
-
+            
             connection.commit()
-
+        
         elif specific_tenant:
             # En la versión inyectada, el context.connect() ya tiene el schema pre-configurado
             context.configure(
@@ -80,7 +80,7 @@ def run_migrations_online():
             )
             with context.begin_transaction():
                 context.run_migrations()
-
+            
             logger.info("🏁 [ALEMBIC ENV] Migraciones finalizadas con éxito.")
         else:
             logger.error("[ERROR DE ARQUITECTURA] No se especificó el esquema de destino.")

@@ -17,7 +17,7 @@ class GaliciaExcelParser(BaseParser[StandardMovement]):
     def parse_generator(self, file_path: str) -> Iterator[StandardMovement]:
         wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
         ws = wb.active
-
+        
         headers = {str(val).strip(): idx for idx, val in enumerate(next(ws.iter_rows(min_row=2, max_row=2, values_only=True))) if val}
         if 'Fecha' not in headers or 'Importe' not in headers:
             wb.close()
@@ -28,7 +28,7 @@ class GaliciaExcelParser(BaseParser[StandardMovement]):
 
         for row in ws.iter_rows(min_row=3, values_only=True):
             if not row[idx_fecha]: continue
-
+            
             monto = parse_monto_seguro(row[idx_importe])
             if monto == Decimal('0.00'): continue
 

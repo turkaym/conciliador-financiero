@@ -24,17 +24,17 @@ def upgrade() -> None:
 
     # Escudo Idempotente: Agregar cuenta_contable_id a cajas de tesorería
     op.execute(f"""
-        ALTER TABLE {target_schema}.cuentas_tesoreria
+        ALTER TABLE {target_schema}.cuentas_tesoreria 
         ADD COLUMN IF NOT EXISTS cuenta_contable_id INTEGER,
-        ADD CONSTRAINT fk_cuentas_tesoreria_cuenta_contable
+        ADD CONSTRAINT fk_cuentas_tesoreria_cuenta_contable 
         FOREIGN KEY (cuenta_contable_id) REFERENCES {target_schema}.plan_cuentas(id) ON DELETE SET NULL;
     """)
 
     # Escudo Idempotente: Agregar asiento_id a movimientos
     op.execute(f"""
-        ALTER TABLE {target_schema}.movimientos_tesoreria
+        ALTER TABLE {target_schema}.movimientos_tesoreria 
         ADD COLUMN IF NOT EXISTS asiento_id INTEGER,
-        ADD CONSTRAINT fk_mov_tesoreria_asiento
+        ADD CONSTRAINT fk_mov_tesoreria_asiento 
         FOREIGN KEY (asiento_id) REFERENCES {target_schema}.asientos_contables(id) ON DELETE SET NULL;
     """)
 
@@ -46,7 +46,7 @@ def downgrade() -> None:
     op.execute(f"""
         ALTER TABLE {target_schema}.movimientos_tesoreria DROP CONSTRAINT IF EXISTS fk_mov_tesoreria_asiento;
         ALTER TABLE {target_schema}.movimientos_tesoreria DROP COLUMN IF EXISTS asiento_id;
-
+        
         ALTER TABLE {target_schema}.cuentas_tesoreria DROP CONSTRAINT IF EXISTS fk_cuentas_tesoreria_cuenta_contable;
         ALTER TABLE {target_schema}.cuentas_tesoreria DROP COLUMN IF EXISTS cuenta_contable_id;
     """)

@@ -3,13 +3,13 @@ import api from "@/api/axios"
 import { useAuthStore } from "@/store/useAuthStore"
 import { Button } from "@/components/ui/button"
 import { FeatureGuard } from "@/components/FeatureGuard"
-import EntitySelector from "@/components/EntitySelector"
+import EntitySelector from "@/components/EntitySelector" 
 import NotificationBell from "@/components/NotificationBell"
 
 // 🌟 FIX UX: Agregamos el ícono Building2 para el Directorio
-import { LogOut, LayoutDashboard, FileText, Landmark, Lock, Calculator, Loader2, Users, Menu, X, ClipboardList, AlertCircle, CreditCard, Wallet, Building2, BrainCircuit } from "lucide-react"
+import { LogOut, LayoutDashboard, FileText, Landmark, BrainCircuit, Lock, Calculator, Loader2, Users, Menu, X, ClipboardList, AlertCircle, CreditCard, Wallet, Building2 } from "lucide-react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
-import { AxiosError } from "axios"
+import { AxiosError } from "axios" 
 
 interface EntidadBackend {
   id: number;
@@ -17,21 +17,20 @@ interface EntidadBackend {
 }
 
 export default function DashboardPage() {
-  const { logout, tenant_id, isDataLocked, subscription_status, user } = useAuthStore()
+  const { logout, tenant_id, isDataLocked, subscription_status, user } = useAuthStore() 
   const navigate = useNavigate()
   const location = useLocation()
 
   const [isVerifying, setIsVerifying] = useState(true)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
-  const [isRedirectingToBilling, setIsRedirectingToBilling] = useState(false)
-
+  const [isRedirectingToBilling, setIsRedirectingToBilling] = useState(false) 
+  
   const isAdmin = ["admin", "dueño", "editor"].includes(user?.role?.toLowerCase() || "");
-  const canManageAiRules = ["admin", "dueño"].includes(user?.role?.toLowerCase() || "");
   const isActive = (path: string) => location.pathname === path
 
   const handleNavigation = (path: string) => {
     navigate(path)
-    setIsMobileOpen(false)
+    setIsMobileOpen(false) 
   }
 
   const handleUpgradePlan = async () => {
@@ -48,26 +47,26 @@ export default function DashboardPage() {
   const requiresAttention = isDataLocked || subscription_status === 'past_due' || subscription_status === 'canceled';
 
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true; 
 
     const checkUserStatus = async () => {
       try {
         if (!tenant_id) {
           if (isMounted) {
             setIsVerifying(false);
-            logout();
+            logout(); 
           }
           return;
         }
         await api.get<EntidadBackend[]>(`/v1/entidades/${tenant_id}`)
       } catch (err) {
         const error = err as AxiosError;
-        if (import.meta.env.DEV) {
+        if (process.env.NODE_ENV === 'development') {
           console.warn("Dashboard Warming Error:", error.response?.status);
         }
       } finally {
         if (isMounted) {
-          setIsVerifying(false)
+          setIsVerifying(false) 
         }
       }
     }
@@ -89,9 +88,9 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-hidden">
-
+      
       {isMobileOpen && (
-        <div
+        <div 
           className="fixed inset-0 bg-slate-900/60 z-40 md:hidden backdrop-blur-sm transition-opacity"
           onClick={() => setIsMobileOpen(false)}
         />
@@ -102,7 +101,7 @@ export default function DashboardPage() {
         md:relative md:translate-x-0 shrink-0
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-
+        
         <div className="p-5 border-b border-slate-800 flex justify-between items-center">
           <div className="w-full">
             <h2 className="text-2xl font-bold text-white tracking-tight mb-4 flex items-center gap-2">
@@ -121,60 +120,59 @@ export default function DashboardPage() {
             <LayoutDashboard className={`mr-3 h-5 w-5 ${isActive('/dashboard') ? 'text-indigo-400' : 'text-slate-500'}`} /> Dashboard
           </Button>
 
-          <FeatureGuard feature="b2b_directory">
+          {/* 🌟 FIX ARQUITECTURA: Enlace al nuevo módulo MDM */}
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/directorio') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/directorio')}>
             <Building2 className={`mr-3 h-5 w-5 ${isActive('/dashboard/directorio') ? 'text-indigo-400' : 'text-slate-500'}`} /> Directorio B2B
           </Button>
-          </FeatureGuard>
 
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/comprobantes') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/comprobantes')}>
             <FileText className={`mr-3 h-5 w-5 ${isActive('/dashboard/comprobantes') ? 'text-indigo-400' : 'text-slate-500'}`} /> Comprobantes
           </Button>
 
-          <FeatureGuard feature="expenses_payments">
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/bancos') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/bancos')}>
             <Landmark className={`mr-3 h-5 w-5 ${isActive('/dashboard/bancos') ? 'text-indigo-400' : 'text-slate-500'}`} /> Bancos
           </Button>
-          </FeatureGuard>
 
-          <FeatureGuard feature="expenses_payments">
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/egresos') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/egresos')}>
             <Wallet className={`mr-3 h-5 w-5 ${isActive('/dashboard/egresos') ? 'text-indigo-400' : 'text-slate-500'}`} /> Egresos y Pagos
           </Button>
-          </FeatureGuard>
 
-          <FeatureGuard feature="reconciliation">
           <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/conciliacion') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/conciliacion')}>
             <Calculator className={`mr-3 h-5 w-5 ${isActive('/dashboard/conciliacion') ? 'text-indigo-400' : 'text-slate-500'}`} /> Conciliación
           </Button>
-          </FeatureGuard>
-
-          {canManageAiRules && <FeatureGuard feature="ai_rules" tenantFeature="ai_rules">
-            <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/reglas-ia') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/reglas-ia')}>
-              <BrainCircuit className={`mr-3 h-5 w-5 ${isActive('/dashboard/reglas-ia') ? 'text-indigo-400' : 'text-slate-500'}`} /> Reglas IA
-            </Button>
-          </FeatureGuard>}
 
           {isAdmin && (
             <>
-              <FeatureGuard feature="tax_registries">
               <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/padrones') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/padrones')}>
                 <ClipboardList className={`mr-3 h-5 w-5 ${isActive('/dashboard/padrones') ? 'text-indigo-400' : 'text-slate-500'}`} /> Padrones Fiscales
               </Button>
-              </FeatureGuard>
 
               <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/reportes') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/reportes')}>
                 <Calculator className={`mr-3 h-5 w-5 ${isActive('/dashboard/reportes') ? 'text-indigo-400' : 'text-slate-500'}`} /> Reportes Contables
               </Button>
-
-              <FeatureGuard feature="team">
+              
               <Button variant="ghost" className={`w-full justify-start hover:text-white hover:bg-slate-800 transition-colors ${isActive('/dashboard/equipo') ? 'bg-slate-800 text-white font-semibold' : ''}`} onClick={() => handleNavigation('/dashboard/equipo')}>
                 <Users className={`mr-3 h-5 w-5 ${isActive('/dashboard/equipo') ? 'text-indigo-400' : 'text-slate-500'}`} /> Mi Equipo
               </Button>
-              </FeatureGuard>
             </>
           )}
 
+          {isAdmin && (
+            <div className="pt-4 mt-4 border-t border-slate-800">
+              <FeatureGuard 
+                feature="ml_matching" 
+                fallback={
+                  <Button variant="ghost" className="w-full justify-start text-slate-600 hover:text-slate-500 hover:bg-transparent opacity-50 cursor-not-allowed" title="Funcionalidad Premium">
+                    <Lock className="mr-3 h-5 w-5" /> Reglas de IA
+                  </Button>
+                }
+              >
+                <Button variant="ghost" className="w-full justify-start hover:text-white hover:bg-slate-800 text-emerald-400">
+                  <BrainCircuit className="mr-3 h-5 w-5" /> Reglas de IA
+                </Button>
+              </FeatureGuard>
+            </div>
+          )}
         </nav>
 
         <div className="p-4 bg-slate-950/50 mt-auto border-t border-slate-800 shrink-0">
@@ -185,10 +183,10 @@ export default function DashboardPage() {
       </aside>
 
       <main className="flex-1 flex flex-col h-screen bg-slate-50/50 relative w-full overflow-hidden">
-
+        
         <header className="h-16 w-full bg-white border-b border-slate-200 flex items-center justify-between md:justify-end px-4 md:px-6 shrink-0 z-[60] shadow-sm relative">
-
-          <button
+          
+          <button 
             onClick={() => setIsMobileOpen(true)}
             className="md:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 focus:outline-none"
           >
@@ -196,9 +194,9 @@ export default function DashboardPage() {
           </button>
 
           <div className="flex items-center gap-4">
-
+            
             {requiresAttention && (
-              <button
+              <button 
                 onClick={handleUpgradePlan}
                 disabled={isRedirectingToBilling}
                 className="group flex items-center gap-2 px-3 py-1.5 md:px-4 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-full hover:bg-emerald-100 hover:border-emerald-400 hover:shadow-md transition-all duration-300 disabled:opacity-50"
@@ -208,9 +206,9 @@ export default function DashboardPage() {
                 ) : (
                   <AlertCircle className="w-4 h-4 text-emerald-600 animate-pulse" />
                 )}
-
+                
                 <span className="hidden sm:inline">Mantén tus números al día</span>
-
+                
                 <span className="flex items-center gap-1.5 px-2.5 py-0.5 text-white bg-emerald-600 group-hover:bg-emerald-700 rounded-full transition-colors">
                   Pagar <CreditCard className="w-3 h-3" />
                 </span>
@@ -225,7 +223,7 @@ export default function DashboardPage() {
           {isDataLocked && (
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
               <div className="absolute inset-0 bg-slate-100/40 backdrop-blur-md"></div>
-
+              
               <div className="relative bg-white/90 p-8 rounded-3xl shadow-2xl max-w-md border border-slate-200/50">
                 <div className="mx-auto w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mb-5 shadow-inner">
                   <Lock className="w-8 h-8 text-rose-500" />
@@ -234,9 +232,9 @@ export default function DashboardPage() {
                 <p className="text-sm text-slate-500 mb-8 leading-relaxed">
                   Tu suscripción se encuentra inactiva o presenta un saldo pendiente. Regulariza tu situación para recuperar el acceso a tu información operativa.
                 </p>
-                <Button
-                  onClick={handleUpgradePlan}
-                  disabled={isRedirectingToBilling}
+                <Button 
+                  onClick={handleUpgradePlan} 
+                  disabled={isRedirectingToBilling} 
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-full h-12 font-bold shadow-lg shadow-emerald-600/20 transition-all hover:scale-[1.02]"
                 >
                   {isRedirectingToBilling ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <CreditCard className="w-5 h-5 mr-2" />}

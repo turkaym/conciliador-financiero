@@ -32,7 +32,7 @@ def _conciliar_notas_credito_huerfanas(db: Session, tenant_id: str):
     vinculadas = 0
     for nc in ncs_huerfanas:
         asociados = db.query(ComprobanteAsociado).filter(ComprobanteAsociado.comprobante_id == nc.id).all()
-
+        
         for asoc in asociados:
             padre = db.query(Comprobante).filter(
                 Comprobante.cuit_emisor == nc.cuit_emisor,
@@ -43,7 +43,7 @@ def _conciliar_notas_credito_huerfanas(db: Session, tenant_id: str):
 
             if padre:
                 nc.comprobante_origen_id = padre.id
-
+                
                 # Conversión cruzada si hay mismatch de moneda
                 if padre.moneda != nc.moneda:
                     importe_nc_ars = Decimal(str(nc.importe_total)) * Decimal(str(nc.cotizacion))
@@ -55,7 +55,7 @@ def _conciliar_notas_credito_huerfanas(db: Session, tenant_id: str):
                 logger.info(f"🔗 [AUDITOR] Conciliación retroactiva: NC {nc.numero} vinculada a Factura {padre.numero}")
                 vinculadas += 1
                 break
-
+                
     if vinculadas > 0:
         logger.info(f"✨ [AUDITOR] Se resolvieron {vinculadas} Notas de Crédito desincronizadas en {tenant_id}.")
 
@@ -70,17 +70,17 @@ def _detectar_fugas_cae(db: Session, tenant_id: str):
         Comprobante.estado == 'BORRADOR',
         Comprobante.created_at < limite_tiempo
     ).all()
-
+    
     if borradores_estancados:
         logger.error(f"🚨 [AUDITOR] RIESGO FISCAL: {len(borradores_estancados)} comprobantes atascados sin CAE por más de 24hs en {tenant_id}.")
-
+        
 def procesar_outbox_auditoria(db: Session, tenant_id: str):
     """
     Patrón Outbox (Fase 7.5): Extrae eventos pendientes,
     consolida en Audit Trail y purga la cola temporal.
     """
     logger.debug(f"🧹 [OUTBOX] Iniciando barrido para {tenant_id}")
-
+    
     # 1. Extraemos hasta 1000 eventos pendientes usando Row-Level Lock
     eventos_pendientes = db.query(OutboxEvent).filter(
         OutboxEvent.status == "PENDING"
@@ -96,7 +96,7 @@ def procesar_outbox_auditoria(db: Session, tenant_id: str):
         # 2. Formateamos y preparamos para inyección masiva
         for evento in eventos_pendientes:
             payload = evento.payload
-
+            
             # Aseguramos el tipado correcto para los campos que pueden ser None o string
             entidad_id_val = payload.get("entidad_id")
             entidad_id_int = int(entidad_id_val) if entidad_id_val and str(entidad_id_val).isdigit() else 0
@@ -115,14 +115,14 @@ def procesar_outbox_auditoria(db: Session, tenant_id: str):
         # 3. Inyección O(1) en la tabla definitiva
         if tenant_logs:
             db.connection().execute(insert(LogAuditoria).values(tenant_logs))
-
+        
         # 4. Eliminación de la cola temporal
         if ids_a_borrar:
             db.query(OutboxEvent).filter(OutboxEvent.id.in_(ids_a_borrar)).delete(synchronize_session=False)
 
         db.commit()
         logger.info(f"✅ [OUTBOX] {len(tenant_logs)} eventos forenses consolidados en {tenant_id}")
-
+        
     except Exception as e:
         db.rollback()
         logger.error(f"❌ [OUTBOX] Fallo crítico consolidando eventos en {tenant_id}: {e}", exc_info=True)
@@ -137,12 +137,12 @@ def ejecutar_auditoria_integral(db: Session, tenant_id: str):
     try:
         # 🌟 NUEVO: Consolidación rápida de logs
         procesar_outbox_auditoria(db, tenant_id)
-
+        
         # Procesos pesados existentes
         _conciliar_notas_credito_huerfanas(db, tenant_id)
         _auditar_mensajes_muertos(db, tenant_id)
         _detectar_fugas_cae(db, tenant_id)
-
+        
         db.commit()
     except SQLAlchemyError as e:
         db.rollback()

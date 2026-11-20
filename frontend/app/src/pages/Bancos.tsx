@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useBancos } from "../features/bancos/hooks/useBancos"
 import { NuevaCuentaModal } from "../features/bancos/components/NuevaCuentaModal"
@@ -16,9 +16,9 @@ import { AlertCircle, Building2, Wallet, Landmark, History, RefreshCw, Loader2, 
 
 export default function BancosPage() {
   const { entidadActiva, user } = useAuthStore()
-
+  
   // 🌟 FIX FASE 3: Extraemos las variables del motor de clearing
-  const {
+  const { 
     cuentas, movimientos, isLoadingCuentas, isLoadingMovs, isPolling, hasMoreMovs, errorCuentas, errorMovs, globalMessage, setErrorMovs, fetchCuentas, createCuenta, fetchMovimientos, createMovimiento, clearMovimientos, uploadExtracto, cancelarIngesta, procesarPreVuelo, confirmarIngesta,
     resolverAprobacion,
     proveedoresClearing, fetchProveedoresClearing
@@ -28,58 +28,57 @@ export default function BancosPage() {
   const [page, setPage] = useState(0)
 
   const [activeView, setActiveView] = useState<'historial' | 'aprobaciones'>('historial')
-
+  
   // 🌟 FIX FASE C: Uso estricto del discriminador de tipo
-  const movimientosPendientes = useMemo(() =>
+  const movimientosPendientes = useMemo(() => 
     movimientos.filter(m => {
       const isSolicitud = m.tipo_registro === 'SOLICITUD';
       const isPending = m.estado === 'PENDING_APPROVAL';
       const isAdmin = user?.role === 'admin' || user?.role === 'dueño';
       return isSolicitud && isPending && isAdmin;
-    }),
+    }), 
   [movimientos, user])
-
-  const movimientosHistorial = useMemo(() =>
-    movimientos.filter(m => m.tipo_registro === 'MOVIMIENTO'),
+  
+  const movimientosHistorial = useMemo(() => 
+    movimientos.filter(m => m.tipo_registro === 'MOVIMIENTO'), 
   [movimientos])
 
   const isSyncing = isLoadingCuentas || isLoadingMovs
   const storageKey = `conciliador_banco_activo_${entidadActiva?.id}`;
 
-  const selectInitialCuenta = useCallback((loadedCuentas: typeof cuentas) => {
-    if (loadedCuentas.length === 0) return
-    const savedId = localStorage.getItem(storageKey)
-    const initialId = savedId && loadedCuentas.some(c => c.id.toString() === savedId)
-      ? savedId
-      : loadedCuentas[0].id.toString()
-    setSelectedCuentaId(initialId)
-  }, [storageKey])
-
-  useEffect(() => useAuthStore.subscribe((state, previousState) => {
-    if (state.entidadActiva?.id !== previousState.entidadActiva?.id) {
-      setSelectedCuentaId("")
-      setPage(0)
-      setActiveView('historial')
-    }
-  }), [])
-
   useEffect(() => {
     if (entidadActiva?.id) {
+      setSelectedCuentaId("")
+      setPage(0)
       clearMovimientos()
-      void fetchCuentas(selectInitialCuenta)
+      fetchCuentas()
+      setActiveView('historial') 
     }
-  }, [clearMovimientos, entidadActiva?.id, fetchCuentas, selectInitialCuenta])
+  }, [entidadActiva?.id])
+
+  useEffect(() => {
+    if (!isLoadingCuentas && cuentas.length > 0 && !selectedCuentaId) {
+      const savedId = localStorage.getItem(storageKey);
+      
+      if (savedId && cuentas.some(c => c.id.toString() === savedId)) {
+        setSelectedCuentaId(savedId);
+      } else {
+        setSelectedCuentaId(cuentas[0].id.toString());
+      }
+    }
+  }, [cuentas, selectedCuentaId, isLoadingCuentas, storageKey])
 
   useEffect(() => {
     if (!isLoadingCuentas && selectedCuentaId && cuentas.length > 0) {
       const cuentaValida = cuentas.some(c => c.id.toString() === selectedCuentaId);
-
+      
       if (cuentaValida) {
         localStorage.setItem(storageKey, selectedCuentaId);
         fetchMovimientos(selectedCuentaId, page);
       }
     }
-  }, [selectedCuentaId, page, cuentas, isLoadingCuentas, storageKey, fetchMovimientos])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCuentaId, page, cuentas, isLoadingCuentas, storageKey])
 
   const handleDataRefresh = () => {
     fetchCuentas()
@@ -87,9 +86,9 @@ export default function BancosPage() {
     else setPage(0)
   }
 
-  const handleResolucion = async (id: number, tipoRegistro: 'MOVIMIENTO' | 'SOLICITUD', accion: 'aprobar' | 'rechazar', motivoRechazo?: string) => {
+  const handleResolucion = async (id: number, accion: 'aprobar' | 'rechazar', motivoRechazo?: string) => {
     if (resolverAprobacion) {
-      const exito = await resolverAprobacion(id, tipoRegistro, accion, motivoRechazo);
+      const exito = await resolverAprobacion(id, accion, motivoRechazo);
       if (exito) handleDataRefresh();
     }
   }
@@ -112,7 +111,7 @@ export default function BancosPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-8 pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-
+      
       {globalMessage && (
         <div className={`fixed top-20 right-8 z-50 p-4 rounded-xl shadow-2xl border-l-4 flex items-center gap-3 animate-in slide-in-from-right-10 duration-300 ${
           globalMessage.type === 'success' ? 'bg-white border-emerald-500 text-emerald-900' : 'bg-white border-red-500 text-red-900'
@@ -126,10 +125,10 @@ export default function BancosPage() {
 
       <DataGuard>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
+          
           <div className="lg:col-span-2 flex flex-col justify-between p-7 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative group">
             <div className="absolute top-0 right-0 -mt-4 -mr-4 h-32 w-32 bg-indigo-50 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500" />
-
+            
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200 text-white">
@@ -174,10 +173,10 @@ export default function BancosPage() {
                 </div>
                 <div className="pt-5">
                   {/* 🌟 FIX FASE 3: Pasamos props de proveedores y trigger al hijo */}
-                  <NuevaCuentaModal
-                    isLoading={isLoadingCuentas || isPolling}
-                    errorMsg={errorCuentas}
-                    onSubmit={createCuenta}
+                  <NuevaCuentaModal 
+                    isLoading={isLoadingCuentas || isPolling} 
+                    errorMsg={errorCuentas} 
+                    onSubmit={createCuenta} 
                     proveedores={proveedoresClearing}
                     onOpen={fetchProveedoresClearing}
                   />
@@ -190,18 +189,18 @@ export default function BancosPage() {
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Wallet className="h-24 w-24" />
             </div>
-
+            
             <div>
               <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">Disponibilidad Actual</p>
               {cuentaSeleccionadaData ? (
                 <div className="space-y-1">
                   <h2 className="text-4xl font-black tracking-tighter">
-                    {new Intl.NumberFormat('es-AR', {
-                      style: 'currency',
-                      currency: cuentaSeleccionadaData.moneda || 'ARS'
+                    {new Intl.NumberFormat('es-AR', { 
+                      style: 'currency', 
+                      currency: cuentaSeleccionadaData.moneda || 'ARS' 
                     }).format(Number(cuentaSeleccionadaData.saldo_actual) - Number(cuentaSeleccionadaData.saldo_retenido || 0))}
                   </h2>
-
+                  
                   {Number(cuentaSeleccionadaData.saldo_retenido) > 0 && (
                     <p className="text-xs text-amber-400 font-bold tracking-wide flex items-center gap-1.5 pb-2">
                       <ShieldAlert className="h-3 w-3" />
@@ -242,17 +241,17 @@ export default function BancosPage() {
 
         <Card className="rounded-2xl border-slate-200 overflow-hidden shadow-xl bg-white mt-6">
           <div className="bg-slate-50/50 border-b border-slate-200 p-4 flex flex-col lg:flex-row justify-between items-center gap-4">
-
+            
             <div className="flex bg-slate-200/60 p-1 rounded-xl w-full lg:w-auto">
-              <button
+              <button 
                 onClick={() => setActiveView('historial')}
                 className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition-all ${activeView === 'historial' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 <History className="h-4 w-4" /> Historial
               </button>
-
+              
               {(user?.role === 'admin' || user?.role === 'dueño') && (
-                <button
+                <button 
                   onClick={() => setActiveView('aprobaciones')}
                   className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition-all ${activeView === 'aprobaciones' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
@@ -273,14 +272,14 @@ export default function BancosPage() {
                     <RefreshCw className={`h-4 w-4 sm:mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
                     <span className="hidden sm:inline">Actualizar</span>
                   </Button>
-
-                  <ImportarExtractoModal
+                  
+                  <ImportarExtractoModal 
                     cuentaId={selectedCuentaId} isLoading={isLoadingMovs || isPolling} errorMsg={errorMovs}
                     onSubmit={uploadExtracto} onAnalyzeFormat={procesarPreVuelo} onConfirmDynamic={confirmarIngesta}
-                    isPolling={isPolling} onClearError={() => setErrorMovs(null)} onCancelProcess={cancelarIngesta}
-                    statusMsg={cuentaSeleccionadaData?.status_msg ?? undefined} progress={cuentaSeleccionadaData?.progress ?? undefined}
+                    isPolling={isPolling} onClearError={() => setErrorMovs(null)} onCancelProcess={cancelarIngesta} 
+                    statusMsg={cuentaSeleccionadaData?.status_msg} progress={cuentaSeleccionadaData?.progress}
                   />
-                  <NuevoMovimientoModal
+                  <NuevoMovimientoModal 
                     cuentaId={selectedCuentaId} isLoading={isLoadingMovs || isPolling} errorMsg={errorMovs}
                     onSubmit={async (payload) => {
                       const success = await createMovimiento(payload);
@@ -302,10 +301,10 @@ export default function BancosPage() {
                 <p className="text-slate-500 font-medium max-w-[280px]">Seleccioná un canal bancario para auditar los flujos de caja.</p>
               </div>
             ) : activeView === 'historial' ? (
-              <MovimientosTable
+              <MovimientosTable 
                 movimientos={movimientosHistorial}
                 isLoading={isLoadingMovs}
-                isPolling={isPolling}
+                isPolling={isPolling} 
                 selectedCuentaId={selectedCuentaId}
                 page={page}
                 hasMore={hasMoreMovs}
@@ -313,10 +312,10 @@ export default function BancosPage() {
                 onPageChange={setPage}
               />
             ) : (
-              <BandejaAprobaciones
-                pendientes={movimientosPendientes}
-                isLoading={isLoadingMovs}
-                onResolver={handleResolucion}
+              <BandejaAprobaciones 
+                pendientes={movimientosPendientes} 
+                isLoading={isLoadingMovs} 
+                onResolver={handleResolucion} 
               />
             )}
           </div>

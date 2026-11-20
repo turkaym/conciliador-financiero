@@ -263,7 +263,7 @@ class RoleChecker:
 class EntityRoleChecker:
     """
     🛡️ Escudo Zero-Trust Multi-Entidad.
-    Cruza la base de datos para garantizar que el usuario posea la autoridad
+    Cruza la base de datos para garantizar que el usuario posea la autoridad 
     financiera explícita sobre la Entidad/Sucursal en la que intenta operar.
     """
     def __init__(self, allowed_roles: List[str]):
@@ -280,19 +280,19 @@ class EntityRoleChecker:
             return current_user
 
         enlace = None
-
+        
         # 2. Búsqueda Restrictiva en Base de Datos (Normalizada)
         try:
             from core.database.models_tenant import UsuarioEntidadRol
             from sqlalchemy import func
-
-            # 🌟 FIX ARQUITECTURA: La DB guarda Emails en 'user_id'.
+            
+            # 🌟 FIX ARQUITECTURA: La DB guarda Emails en 'user_id'. 
             # Normalizamos ambos lados a minúsculas y sin espacios para evitar falsos negativos.
             enlace = db.query(UsuarioEntidadRol).filter(
                 func.trim(func.lower(UsuarioEntidadRol.user_id)) == current_user.email.strip().lower(),
                 UsuarioEntidadRol.entidad_id == x_entity_id
             ).first()
-
+            
         except ImportError:
             logger.error("No se encontró el modelo UsuarioEntidadRol. Omitiendo validación.")
             raise HTTPException(status_code=501, detail="Configuración Multi-Entidad incompleta.")
@@ -429,10 +429,10 @@ class B2BRateLimiter:
             client_id = request.client.host
 
         key = f"rate_limit:b2b:{client_id}"
-
+        
         # Soporte híbrido para Redis asíncrono o síncrono (según inyección de FastAPI)
         redis_inst = getattr(request.app.state, "redis", None)
-
+        
         try:
             if redis_inst:
                 async with redis_inst.pipeline(transaction=True) as pipe:
@@ -463,7 +463,7 @@ class B2BRateLimiter:
             raise
         except Exception as e:
             logger.error(f"Fallo en Rate Limiter nativo: {e}")
-
+            
 # ==========================================
 # 🔌 PROVEEDORES DE INTEGRACIÓN EXTERNA (DEPENDENCY INJECTION)
 # ==========================================
@@ -474,14 +474,14 @@ class AfipClientMock:
 
 def get_afip_client():
     """
-    Inyector dinámico de dependencias.
+    Inyector dinámico de dependencias. 
     Resuelve la instancia correcta según el entorno (Producción vs Testing).
     """
     # Si estamos en modo de prueba o desarrollo, inyectamos el mock.
     # En producción real, devolveríamos la instancia de tu cliente AFIP verdadero.
     # Por ahora, como lo exige QA Capa 1, forzamos el Mock.
-    is_testing_env = getattr(settings, "TESTING_MODE", True)
-
+    is_testing_env = getattr(settings, "TESTING_MODE", True) 
+    
     if is_testing_env:
         return AfipClientMock()
     else:

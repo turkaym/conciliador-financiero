@@ -11,7 +11,7 @@ redis_client = redis.from_url(settings.REDIS_URL)
 def redis_lock(key_prefix: str, timeout: int = 30, extend_interval: int = 20):
     """
     Decorador Zero-Zombie: Previene Doble Ejecución.
-    Implementa un Watchdog que auto-extiende el TTL del candado mientras
+    Implementa un Watchdog que auto-extiende el TTL del candado mientras 
     el worker siga vivo, evadiendo bloqueos infinitos si el contenedor crashea.
     """
     def decorator(func):
@@ -29,7 +29,7 @@ def redis_lock(key_prefix: str, timeout: int = 30, extend_interval: int = 20):
 
             # 2. Inicializamos el Watchdog Thread
             stop_event = threading.Event()
-
+            
             def watchdog():
                 # Mientras no se dé la orden de detener, espera 20s y renueva el candado
                 while not stop_event.wait(extend_interval):
@@ -55,6 +55,6 @@ def redis_lock(key_prefix: str, timeout: int = 30, extend_interval: int = 20):
                         task_lock.release()
                 except Exception as e:
                     logger.error(f"❌ [MUTEX] Fallo al liberar candado en Redis: {e}")
-
+                    
         return wrapper
     return decorator

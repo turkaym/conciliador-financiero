@@ -24,7 +24,7 @@ def upgrade() -> None:
 
     # Escudo de Idempotencia (SQL Crudo) para alterar la tabla existente
     op.execute(f"""
-        ALTER TABLE "{target_schema}".conciliacion_matches
+        ALTER TABLE "{target_schema}".conciliacion_matches 
         ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE NOT NULL;
     """)
 
@@ -35,6 +35,6 @@ def downgrade() -> None:
 
     # Rollback Idempotente (Downgrade Defensivo)
     op.execute(f"""
-        ALTER TABLE "{target_schema}".conciliacion_matches
+        ALTER TABLE "{target_schema}".conciliacion_matches 
         DROP COLUMN IF EXISTS is_active;
     """)

@@ -19,8 +19,8 @@ class HeuristicEngine:
         "monto": [
             re.compile(r'^-?\d{1,3}(?:\.\d{3})*,\d{2}$'), # -1.500,00 (AR)
             re.compile(r'^-?\d{1,3}(?:,\d{3})*\.\d{2}$'), # -1,500.00 (US)
-            re.compile(r'^-?\d+,\d{2}$'),                 # -1500,00
-            re.compile(r'^-?\d+\.\d{2}$'),                # -1500.00
+            re.compile(r'^-?\d+,\d{2}$'),                 # -1500,00 
+            re.compile(r'^-?\d+\.\d{2}$'),                # -1500.00 
         ],
         "referencia": [
             re.compile(r'^\d{6,22}$'),                 # Numéricos largos
@@ -74,12 +74,12 @@ class HeuristicEngine:
         # Openpyxl puede leer desde un buffer de bytes en RAM
         wb = openpyxl.load_workbook(io.BytesIO(file_stream), read_only=True, data_only=True)
         sheet = wb.active
-
+        
         lineas_brutas = []
         for row in sheet.iter_rows(min_row=1, max_row=30, values_only=True):
             # Convertimos todo a string para el motor RegEx
             lineas_brutas.append([str(cell) if cell is not None else "" for cell in row])
-
+            
         wb.close()
         return cls._infer_schema(lineas_brutas)
 
@@ -110,15 +110,15 @@ class HeuristicEngine:
         for col_idx in range(len(headers)):
             col_name = str(headers[col_idx]).strip() if col_idx < len(headers) else f"Columna_{col_idx}"
             scores = {"fecha": 0, "monto": 0, "referencia": 0, "concepto": 0}
-
+            
             muestras_validas = 0
             for row in data_sample:
                 if col_idx < len(row):
                     cell_val = str(row[col_idx]).strip()
                     if not cell_val: continue
-
+                    
                     muestras_validas += 1
-
+                    
                     # Test RegEx
                     if any(p.match(cell_val) for p in cls.PATTERNS["fecha"]): scores["fecha"] += 1
                     elif any(p.match(cell_val) for p in cls.PATTERNS["monto"]): scores["monto"] += 1
@@ -132,7 +132,7 @@ class HeuristicEngine:
                     if puntaje / muestras_validas >= 0.5:
                         tipo_ganador = tipo
                         break
-
+            
             column_analysis.append({
                 "index": col_idx,
                 "header": col_name,

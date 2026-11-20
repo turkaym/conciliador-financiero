@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
         // 🌟 MAGIA DEL PROXY: Interceptamos peticiones a /api y las mandamos al backend
         '/api': {
           // Si VITE_API_URL está definida en docker-compose, la usa, sino usa el nombre del contenedor
-          target: env.VITE_API_URL || 'http://api-gateway:80',
+          target: env.VITE_API_URL || 'http://api-gateway:80', 
           changeOrigin: true,
           secure: false, // Por si el backend no tiene HTTPS en local
           rewrite: (path) => path.replace(/^\/api/, ''), // Le saca el '/api' antes de dárselo a FastAPI

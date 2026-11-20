@@ -21,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     # 🌟 DDL Defensivo: Creación de tabla idempotente
     op.execute(f"""
         CREATE TABLE IF NOT EXISTS {target_schema}.historial_ingestas_padrones (
@@ -36,31 +36,31 @@ def upgrade() -> None:
             tarea_celery_id VARCHAR(255),
             iniciado_el TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
             finalizado_el TIMESTAMP WITH TIME ZONE,
-
+            
             -- Campos AuditableMixin
             created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
             created_by VARCHAR(255),
             updated_by VARCHAR(255),
-
-            CONSTRAINT fk_hist_padrones_entidad FOREIGN KEY (entidad_id)
+            
+            CONSTRAINT fk_hist_padrones_entidad FOREIGN KEY (entidad_id) 
                 REFERENCES {target_schema}.razones_sociales_propias(id) ON DELETE CASCADE
         );
-
-        CREATE INDEX IF NOT EXISTS ix_historial_padrones_jurisdiccion
+        
+        CREATE INDEX IF NOT EXISTS ix_historial_padrones_jurisdiccion 
             ON {target_schema}.historial_ingestas_padrones (jurisdiccion);
-
-        CREATE INDEX IF NOT EXISTS ix_historial_padrones_periodo
+            
+        CREATE INDEX IF NOT EXISTS ix_historial_padrones_periodo 
             ON {target_schema}.historial_ingestas_padrones (periodo);
-
-        CREATE INDEX IF NOT EXISTS ix_historial_padrones_tarea
+            
+        CREATE INDEX IF NOT EXISTS ix_historial_padrones_tarea 
             ON {target_schema}.historial_ingestas_padrones (tarea_celery_id);
     """)
 
 def downgrade() -> None:
     context = op.get_context()
     target_schema = context.config.attributes.get("tenant_schema") or context.opts.get("tenant_schema")
-
+    
     # 🌟 Downgrade Defensivo: Eliminación limpia
     op.execute(f"DROP INDEX IF EXISTS {target_schema}.ix_historial_padrones_tarea;")
     op.execute(f"DROP INDEX IF EXISTS {target_schema}.ix_historial_padrones_periodo;")

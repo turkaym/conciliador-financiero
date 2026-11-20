@@ -13,7 +13,7 @@ from core.database.models_tenant import (
 )
 from core.database.models_master import SystemLog
 from core.services.periodo_service import periodo_service
-from core.database.session import tenant_session_ctx
+from core.database.session import tenant_session_ctx 
 
 logger = logging.getLogger("ACCOUNTING_ENGINE")
 
@@ -38,19 +38,19 @@ def registrar_falla_critica(tenant_id: str, operacion: str, referencia_id: int, 
 def obtener_cuentas_base(db: Session) -> dict:
     anclas_requeridas = ["BANCOS", "VENTAS", "COMPRAS_GASTOS", "GASTOS_BANCARIOS", "DIF_CAMBIO_POS"]
     cuentas = db.query(PlanCuentas).filter(PlanCuentas.codigo_sistema.in_(anclas_requeridas)).all()
-
+    
     mapa_cuentas = {c.codigo_sistema: c.id for c in cuentas}
-
+    
     faltantes = set(anclas_requeridas) - set(mapa_cuentas.keys())
     if faltantes:
         raise ValueError(f"🚨 ROTURA DE CONFIGURACIÓN: Faltan las siguientes cuentas base en el Plan de Cuentas: {', '.join(faltantes)}.")
-
+        
     return mapa_cuentas
 
 def validar_partida_doble_estricta(lineas: list[LineaAsiento]):
     total_debe = sum(l.debe for l in lineas)
     total_haber = sum(l.haber for l in lineas)
-
+    
     if total_debe != total_haber:
         raise ValueError(f"💥 ROTURA CONTABLE DETECTADA: Asiento descuadrado. Debe: {total_debe} | Haber: {total_haber}")
 
@@ -70,10 +70,10 @@ def generar_asiento_core(db: Session, match_id: int) -> int:
         joinedload(ConciliacionMatch.detalles_movimientos).joinedload(MatchDetalleMovimiento.movimiento_tesoreria),
         joinedload(ConciliacionMatch.detalles_comprobantes).joinedload(MatchDetalleComprobante.comprobante)
     ).filter(ConciliacionMatch.id == match_id).first()
-
+    
     if not match:
         raise ValueError(f"Match {match_id} no encontrado o ya fue borrado físicamente.")
-
+        
     if not match.detalles_movimientos:
         raise ValueError(f"Match {match_id} no tiene movimientos bancarios asociados.")
 
@@ -82,36 +82,36 @@ def generar_asiento_core(db: Session, match_id: int) -> int:
     fecha_asiento = primer_mov.fecha
 
     periodo_service.verificar_periodo_abierto(db, fecha_asiento.year, fecha_asiento.month)
-
+    
     total_pago_aplicado = Decimal(sum(abs(d.monto_aplicado) for d in match.detalles_movimientos))
     total_deuda_aplicada = Decimal(sum(abs(d.monto_aplicado) for d in match.detalles_comprobantes))
-
+    
     # Evita explotar si es un match de $0 o Overpayment puro
     if total_pago_aplicado == 0 and total_deuda_aplicada == 0:
         logger.warning(f"Match {match_id} con montos aplicados en cero. Abortando generación de asiento.")
         return 0
 
     cuentas = obtener_cuentas_base(db)
-
+    
     asiento = AsientoContable(
         fecha=fecha_asiento,
         concepto=f"Conciliación | Match ID: {match.id} | {len(match.detalles_comprobantes)} Cbtes vs {len(match.detalles_movimientos)} Movs",
         match_id=match.id
     )
     db.add(asiento)
-    db.flush()
-
+    db.flush() 
+    
     delta = total_deuda_aplicada - total_pago_aplicado
     es_ingreso = sum(d.monto_aplicado for d in match.detalles_movimientos) > 0
 
     lineas = []
-
+    
     if es_ingreso:
         if total_pago_aplicado > 0:
             lineas.append(LineaAsiento(asiento_id=asiento.id, cuenta_id=cuentas["BANCOS"], debe=total_pago_aplicado, haber=0))
         if total_deuda_aplicada > 0:
             lineas.append(LineaAsiento(asiento_id=asiento.id, cuenta_id=cuentas["VENTAS"], debe=0, haber=total_deuda_aplicada))
-
+        
         if delta > 0:
             lineas.append(LineaAsiento(asiento_id=asiento.id, cuenta_id=cuentas["GASTOS_BANCARIOS"], debe=delta, haber=0))
         elif delta < 0:
@@ -121,24 +121,24 @@ def generar_asiento_core(db: Session, match_id: int) -> int:
             lineas.append(LineaAsiento(asiento_id=asiento.id, cuenta_id=cuentas["COMPRAS_GASTOS"], debe=total_deuda_aplicada, haber=0))
         if total_pago_aplicado > 0:
             lineas.append(LineaAsiento(asiento_id=asiento.id, cuenta_id=cuentas["BANCOS"], debe=0, haber=total_pago_aplicado))
-
+        
         if delta > 0:
             lineas.append(LineaAsiento(asiento_id=asiento.id, cuenta_id=cuentas["DIF_CAMBIO_POS"], debe=0, haber=delta))
         elif delta < 0:
             lineas.append(LineaAsiento(asiento_id=asiento.id, cuenta_id=cuentas["GASTOS_BANCARIOS"], debe=abs(delta), haber=0))
-
+            
     if lineas:
         validar_partida_doble_estricta(lineas)
         db.add_all(lineas)
-        db.flush()
-
+        db.flush() 
+        
     return asiento.id
 
 def revertir_asiento_core(db: Session, asiento_original_id: int) -> int:
     asiento_orig = db.query(AsientoContable).options(
         joinedload(AsientoContable.lineas)
     ).filter(AsientoContable.id == asiento_original_id).first()
-
+    
     if not asiento_orig:
         raise ValueError(f"Asiento original {asiento_original_id} no encontrado.")
 
@@ -146,7 +146,7 @@ def revertir_asiento_core(db: Session, asiento_original_id: int) -> int:
     reversion_existente = db.query(AsientoContable).filter(
         AsientoContable.concepto == f"ANULACIÓN - {asiento_orig.concepto}"
     ).first()
-
+    
     if reversion_existente:
         logger.warning(f"⚡ [IDEMPOTENCIA] El Asiento {asiento_original_id} ya posee reversión.")
         return reversion_existente.id
@@ -164,12 +164,12 @@ def revertir_asiento_core(db: Session, asiento_original_id: int) -> int:
     lineas_rev = [LineaAsiento(
         asiento_id=asiento_rev.id, cuenta_id=lo.cuenta_id, debe=lo.haber, haber=lo.debe
     ) for lo in asiento_orig.lineas]
-
+    
     validar_partida_doble_estricta(lineas_rev)
-
+        
     if lineas_rev:
         db.add_all(lineas_rev)
-
+        
     db.flush()
     return asiento_rev.id
 
@@ -180,7 +180,7 @@ def revertir_asiento_core(db: Session, asiento_original_id: int) -> int:
 @app.task(name="generar_asiento_conciliacion", bind=True, max_retries=3)
 def generar_asiento_conciliacion(self, tenant_id: str, match_id: int):
     logger.info(f"⚖️ [MOTOR CONTABLE] Evaluando Match {match_id} en {tenant_id} (Modo N:M)")
-
+    
     with tenant_session_ctx(tenant_id) as db:
         try:
             asiento_id = generar_asiento_core(db, match_id)
@@ -211,7 +211,7 @@ def generar_asiento_conciliacion(self, tenant_id: str, match_id: int):
 @app.task(name="revertir_asiento_conciliacion", bind=True, max_retries=3)
 def revertir_asiento_conciliacion(self, tenant_id: str, asiento_original_id: int):
     logger.info(f"⏪ [MOTOR CONTABLE] Generando reversión para el Asiento {asiento_original_id}")
-
+    
     with tenant_session_ctx(tenant_id) as db:
         try:
             asiento_rev_id = revertir_asiento_core(db, asiento_original_id)

@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from core.database.session import tenant_session_ctx
 from core.database.models_tenant import Comprobante, ComprobanteIva, ComprobanteTributo, ComprobanteAsociado, ColaMensajesMuertos
-from core.domains.comprobantes.schemas import ComprobanteCreate
+from core.domains.comprobantes.schemas import ComprobanteCreate 
 from .wsfe import BaseFiscalProvider
 
 logger = logging.getLogger("INGEST_ENGINE")
@@ -22,41 +22,41 @@ class IngestManager:
         if not self.redis:
             logger.warning("⚠️ [AFIP] Redis no inyectado. Rate Limit deshabilitado.")
             return True
-
+            
         current_month = datetime.now(timezone.utc).strftime("%Y-%m")
         bucket_key = f"rate_limit:{self.tenant_id}:arca_requests:{current_month}"
-
+        
         try:
             current_usage = int(self.redis.incr(bucket_key))
             if current_usage == 1:
                 self.redis.expire(bucket_key, 31 * 86400)
-
+                
             if current_usage > 1875:
                 logger.warning(f"🛑 [AFIP] Rate Limit excedido para {self.tenant_id} ({current_usage} requests). Pausando ingesta.")
                 return False
             return True
         except Exception as e:
             logger.error(f"❌ [AFIP] Fallo al validar Rate Limit en Redis: {e}")
-            return True
+            return True 
 
     def sync_recent_invoices(self, entidad_id: int, punto_venta: int, tipo_cbte: int, chunk_size: int = 500) -> dict:
         logger.info(f"🚀 Ingesta: Entidad {entidad_id} | PV {punto_venta} | Tipo {tipo_cbte}")
 
         try:
             last_arca_nro = self.afip.get_last_voucher_number(punto_venta, tipo_cbte)
-
+            
             with tenant_session_ctx(self.tenant_id) as db:
                 last_local = db.query(Comprobante.numero)\
                     .filter(
                         Comprobante.entidad_id == entidad_id,
-                        Comprobante.punto_venta == punto_venta,
+                        Comprobante.punto_venta == punto_venta, 
                         Comprobante.tipo_cbte_afip == tipo_cbte
                     )\
                     .order_by(desc(Comprobante.numero))\
                     .first()
-
+            
             last_local_nro = last_local[0] if last_local else 0
-
+            
             if last_local_nro >= last_arca_nro:
                 logger.info(f"✅ [AFIP] Sincronización al día. No hay nuevos comprobantes.")
                 return {"new_records": 0, "has_more": False}
@@ -70,7 +70,7 @@ class IngestManager:
                 if not self._check_rate_limit():
                     rate_limited = True
                     break
-
+                
                 try:
                     invoice_data = self.afip.get_voucher_details(nro, punto_venta, tipo_cbte)
                     if invoice_data:
@@ -82,18 +82,18 @@ class IngestManager:
                     try:
                         with tenant_session_ctx(self.tenant_id) as dlq_db:
                             falla = ColaMensajesMuertos(
-                                entidad_id=entidad_id, punto_venta=punto_venta,
+                                entidad_id=entidad_id, punto_venta=punto_venta, 
                                 tipo_cbte_afip=tipo_cbte, numero=nro,
-                                error_msg=str(inner_e)[:500]
+                                error_msg=str(inner_e)[:500] 
                             )
                             dlq_db.add(falla)
                             dlq_db.commit()
                     except Exception as dlq_e:
                         logger.error(f"💥 [DLQ] Fallo crítico al registrar mensaje muerto: {dlq_e}")
-                    continue
-
+                    continue 
+            
             new_records = 0
-
+            
             # 2. Transacción ORM Segura (Anti-TOCTOU y Anti-N+1)
             if batch_data:
                 with tenant_session_ctx(self.tenant_id) as db:
@@ -113,16 +113,16 @@ class IngestManager:
                         iva_data = data.pop('detalles_iva', [])
                         trib_data = data.pop('detalles_tributos', [])
                         asoc_data = data.pop('comprobantes_asociados', [])
-
+                        
                         # 🌟 FIX: Aislamiento estricto por factura. Todo éxito o fallo ocurre atómicamente.
                         try:
                             with db.begin_nested():
                                 nuevo_cbte = Comprobante(**data)
-
+                                
                                 for iva in iva_data: nuevo_cbte.detalles_iva.append(ComprobanteIva(**iva))
                                 for trib in trib_data: nuevo_cbte.detalles_tributos.append(ComprobanteTributo(**trib))
                                 for asoc in asoc_data: nuevo_cbte.comprobantes_asociados.append(ComprobanteAsociado(**asoc))
-
+                                
                                 db.add(nuevo_cbte)
                                 db.flush() # Dispara la asignación de ID y validaciones de integridad BD
 
@@ -136,11 +136,11 @@ class IngestManager:
                                             Comprobante.punto_venta == asoc['punto_venta'],
                                             Comprobante.numero == asoc['numero']
                                         ).with_for_update().first()
-
+                                        
                                         if factura_padre:
                                             logger.info(f"🔗 [NC] Vinculando Nota Crédito {nuevo_cbte.numero} a Factura {factura_padre.numero}")
-                                            nuevo_cbte.comprobante_origen_id = factura_padre.id
-
+                                            nuevo_cbte.comprobante_origen_id = factura_padre.id 
+                                            
                                             # Conversión cruzada
                                             if factura_padre.moneda != nuevo_cbte.moneda:
                                                 importe_nc_ars = Decimal(str(nuevo_cbte.importe_total)) * Decimal(str(nuevo_cbte.cotizacion))
@@ -157,13 +157,13 @@ class IngestManager:
                                                 # La NC es mayor a lo que se debe. Queda un saldo a favor.
                                                 sobrante = descuento_aplicable - factura_padre.saldo_pendiente
                                                 factura_padre.saldo_pendiente = Decimal('0.0')
-
+                                                
                                                 if factura_padre.moneda != nuevo_cbte.moneda:
                                                     sobrante_nc_cur = sobrante * Decimal(str(factura_padre.cotizacion)) / Decimal(str(nuevo_cbte.cotizacion))
                                                     nuevo_cbte.saldo_pendiente = sobrante_nc_cur
                                                 else:
                                                     nuevo_cbte.saldo_pendiente = sobrante
-
+                                                    
                                                 nuevo_cbte.es_saldo_a_favor = True
                                                 logger.info(f"💰 [NC] Se generó un saldo a favor de {nuevo_cbte.moneda} {nuevo_cbte.saldo_pendiente}")
 
@@ -173,9 +173,9 @@ class IngestManager:
                             # La factura padre NUNCA es modificada si la NC falla.
                             logger.warning(f"⚠️ [TOCTOU] Comprobante {data['numero']} colisión concurrente. Ignorado.")
                             continue
-
+                        
                     db.commit() # Impacto total del lote validado
-
+            
             has_more = not rate_limited and (target_nro < last_arca_nro)
             return {"new_records": new_records, "has_more": has_more, "rate_limited": rate_limited}
 

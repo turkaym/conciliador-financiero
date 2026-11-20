@@ -31,9 +31,9 @@ def process_agent_message_task(self, tenant_schema: str, entidad_id: int, user_i
     # El thread_id pasa a ser la combinación del inquilino y el uuid del chat frontal.
     # Evita cruce de datos si dos usuarios mandan el mismo thread_id.
     secure_thread_id = f"{tenant_schema}__{thread_id}"
-
+    
     logger.info(f"💬 [AGENT] Procesando hilo {secure_thread_id} | Entidad: {entidad_id}")
-
+    
     # 1. Armamos la Configuración del Hilo
     config = {
         "configurable": {
@@ -43,7 +43,7 @@ def process_agent_message_task(self, tenant_schema: str, entidad_id: int, user_i
             "user_id": user_id
         }
     }
-
+    
     # 2. Inicializamos el estado del grafo
     input_state = {
         "messages": [HumanMessage(content=user_message)],
@@ -54,33 +54,33 @@ def process_agent_message_task(self, tenant_schema: str, entidad_id: int, user_i
 
     try:
         self.update_state(state='PROCESSING', meta={'progress': 10, 'message': "Despertando a la IA y cargando memoria..."})
-
+        
         # 3. CONEXIÓN SEGURA A BASE DE DATOS PARA EL CHECKPOINTER
         with ConnectionPool(
             conninfo=DB_URL,
             min_size=1,  # 🌟 FIX: min_size debe ser <= max_size
-            max_size=3,
-            kwargs={"autocommit": True}
+            max_size=3,  
+            kwargs={"autocommit": True} 
         ) as pool:
-
+            
             checkpointer = PostgresSaver(pool)
             checkpointer.setup() # Asegura que las tablas existan (Idempotente)
-
+            
             # Compilamos el grafo inyectándole el saver
             financial_copilot = compile_financial_copilot(checkpointer=checkpointer)
 
             self.update_state(state='PROCESSING', meta={'progress': 30, 'message': "Analizando tu consulta..."})
-
+            
             # 4. Ejecución del Grafo con Streaming de Nodos
             final_state = None
             for chunk in financial_copilot.stream(input_state, config=config, stream_mode="updates"):
-
+                
                 # Emitimos Heartbeats según el nodo
                 if "tools" in chunk:
                     self.update_state(state='PROCESSING', meta={'progress': 50, 'message': "Ejecutando acción en el ERP..."})
                 elif "chatbot" in chunk:
                     self.update_state(state='PROCESSING', meta={'progress': 80, 'message': "Estructurando respuesta..."})
-
+                    
                 final_state = chunk
 
             # 5. Extracción de la respuesta final del nodo chatbot
@@ -90,7 +90,7 @@ def process_agent_message_task(self, tenant_schema: str, entidad_id: int, user_i
                 # Fallback de seguridad leyendo el estado general si algo falló
                 estado_completo = financial_copilot.get_state(config).values
                 respuesta_texto = estado_completo["messages"][-1].content
-
+            
             # El pool se cierra al salir del 'with'
             return {"respuesta": respuesta_texto}
 
