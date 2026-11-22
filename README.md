@@ -2,6 +2,12 @@
 
 Aplicación web multiempresa para administrar operaciones financieras de un tenant: directorio B2B, egresos y pagos, registros fiscales, equipo y reglas determinísticas. El MVP actual se ejecuta localmente con Docker Compose; no existe todavía un despliegue público verificado.
 
+## Integrantes y presentación
+
+- **Farid** — Frontend y experiencia de usuario.
+- **Hugo** — Backend, datos y arquitectura.
+- **Video de presentación y demostración:** [carpeta compartida en Google Drive](https://drive.google.com/drive/folders/1u--ZeSzxYbiMrS3M9uGK5YhFymV46eLQ?usp=sharing).
+
 ## Alcance actual
 
 El estado autorizado se define en [`config/feature_flags.json`](config/feature_flags.json). Una capacidad es usable únicamente cuando está habilitada e implementada. La habilitación global no reemplaza la autorización del tenant ni los controles RBAC.
