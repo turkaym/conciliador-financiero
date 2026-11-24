@@ -16,8 +16,8 @@ Restore the approved reconciliation MVP exactly as required by the professor whi
 
 - [x] Restore the historical tree exactly.
 - [x] Verify the recovered structure and tree integrity.
-- [ ] Execute the restored backend and frontend test suites in a later work unit.
-- [ ] Validate the database schema and project documentation.
+- [x] Execute the restored backend and frontend test suites: 35 backend tests and 13 frontend tests pass; the frontend production build also passes.
+- [x] Validate the database schema and project documentation structurally; PostgreSQL runtime validation remains pending while Docker Desktop is unavailable.
 - [ ] Validate the demonstration PDF.
 - [ ] Validate deployment configuration and runtime behavior.
 - [ ] Rebuild the final README presentation reference with a direct video file URL.
@@ -35,4 +35,13 @@ Revert this recovery commit.
 
 ## Current Next Step
 
-Execute the restored historical test suites after the exact tree restore is committed.
+Open the recovery pull request for Hugo's review, then add the missing professor-required backend proof on Hugo's dedicated branch: competing 1:1 proposals, blank rejection reasons, duplicate file imports, and duplicate receipt rows.
+
+## Verification Evidence
+
+- `backend\.venv\Scripts\python.exe -m pytest backend/tests -vv`: 35 passed.
+- `npm test` from `frontend`: 13 passed across three test files.
+- `npm run build` from `frontend`: passed.
+- `render.yaml`: valid YAML with one database and two web services.
+- Recovery tree: clean and identical to `f68298292a211eb7357fb0e863865eae32668f87`, excluding this recovery record.
+- Environment limitation: Docker Desktop was stopped, so PostgreSQL locks, triggers, and deployment runtime were not executed.
