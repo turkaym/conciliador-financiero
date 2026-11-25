@@ -32,6 +32,7 @@ describe("proposal workspace", () => {
       const url = String(input);
       if (url.includes("/catalog/sources?type=MOVIMIENTO")) return json({ total: 1, items: [{ id: 1, code: "BANCO_NACION", name: "Banco Nación", type: "MOVIMIENTO" }] });
       if (url.includes("/catalog/sources?type=COMPROBANTE")) return json({ total: 1, items: [{ id: 2, code: "ARCA", name: "ARCA", type: "COMPROBANTE" }] });
+      if (url.endsWith("/proposals/sync")) return json({ generated_count: 0, proposal_ids: [] });
       if (url.includes("/proposals?")) return json({ page: 1, page_size: 100, total: 1, items: [summary] });
       if (url.includes("/records?") && url.includes("type=MOVIMIENTO")) return json({ page: 1, page_size: 25, total: 1, items: [movementCandidate] });
       if (url.includes("/records?") && url.includes("type=COMPROBANTE")) return json({ page: 1, page_size: 25, total: 1, items: [receiptCandidate] });
@@ -53,6 +54,9 @@ describe("proposal workspace", () => {
 
     expect(await screen.findByText("Banco Nación · Lote #31")).toBeInTheDocument();
     expect(screen.getByText("ARCA · Lote #32")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/proposals/sync"), expect.objectContaining({ method: "POST" }));
+    await user.click(screen.getByRole("button", { name: "Buscar coincidencias" }));
+    expect(await screen.findByText("No se detectaron nuevas coincidencias.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Conciliar" }));
 
     expect(await screen.findByText(/Conciliación #5 creada/)).toBeInTheDocument();

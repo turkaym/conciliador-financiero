@@ -33,7 +33,7 @@ export function ProposalPage() {
   const [reconciliations, setReconciliations] = useState<ReconciliationDetail[]>([]);
   const [reversalReasons, setReversalReasons] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState<number | "manual" | null>(null);
+  const [submitting, setSubmitting] = useState<number | "manual" | "sync" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
@@ -77,7 +77,9 @@ export function ProposalPage() {
     setLoading(true);
     setError(null);
     const request = workspace.activeTab === "automatic"
-      ? api.getProposals(session!.accessToken).then((result) => { if (active) setProposals(result.items); })
+      ? api.synchronizeProposals(session!.accessToken)
+        .then(() => api.getProposals(session!.accessToken))
+        .then((result) => { if (active) setProposals(result.items); })
       : workspace.activeTab === "audit"
         ? api.getReconciliations(session!.accessToken, workspace.auditFilters).then((result) => { if (active) setReconciliations(result.items); })
         : Promise.all((["MOVIMIENTO", "COMPROBANTE"] as ImportType[]).map((type) => {
@@ -110,6 +112,18 @@ export function ProposalPage() {
       const result = await api.confirmProposal(session!.accessToken, proposalId);
       setProposals((current) => current.filter((proposal) => proposal.id !== proposalId));
       setFeedback(`Propuesta conciliada. Conciliación #${result.reconciliation.id} creada.`);
+    } catch (reason) { fail(reason, setError); } finally { setSubmitting(null); }
+  }
+
+  async function synchronizeAutomatic() {
+    setSubmitting("sync"); setError(null);
+    try {
+      const result = await api.synchronizeProposals(session!.accessToken);
+      const current = await api.getProposals(session!.accessToken);
+      setProposals(current.items);
+      setFeedback(result.generated_count === 0
+        ? "No se detectaron nuevas coincidencias."
+        : `Se detectaron ${result.generated_count} nueva(s) coincidencia(s).`);
     } catch (reason) { fail(reason, setError); } finally { setSubmitting(null); }
   }
 
@@ -164,6 +178,7 @@ export function ProposalPage() {
     {loading && <p className="loading" role="status">Cargando propuestas...</p>}{error && <p className="error" role="alert">{error}</p>}{feedback && <p className="success" role="status">{feedback}</p>}
 
     {!loading && !error && workspace.activeTab === "automatic" && <>
+      <div className="proposal-pair-heading"><p className="muted">Las coincidencias se recalculan al ingresar. También podés ejecutar la búsqueda manualmente.</p><button type="button" onClick={() => void synchronizeAutomatic()} disabled={submitting !== null}>{submitting === "sync" ? "Buscando..." : "Buscar coincidencias"}</button></div>
       {proposals.length === 0 && <p className="empty" role="status">No hay propuestas automáticas para revisar.</p>}
       <div className="proposal-list">{proposals.map((proposal) => <article className="proposal-pair" key={proposal.id}>
         <div className="proposal-pair-heading"><div><strong>Propuesta #{proposal.id}</strong><span>{proposal.exact_match ? "Coincidencia exacta" : `Referencia ${proposal.reference_score}`} · {Math.abs(proposal.day_difference)} día(s)</span></div><Link to={`/proposals/${proposal.id}`}>Ver detalle o rechazar</Link></div>

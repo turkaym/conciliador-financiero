@@ -9,7 +9,8 @@ from app.access.security import get_current_user
 from app.database import get_db
 from app.errors import ApiError
 from app.models import BankMovement, DataSource, ImportBatch, ImportedRecord, Receipt, ReconciliationProposal, User
-from app.proposals.schemas import ProposalDetail, ProposalList, ProposalRanking, ProposalRecord, ProposalSummary
+from app.proposals.schemas import ProposalDetail, ProposalGenerationResponse, ProposalList, ProposalRanking, ProposalRecord, ProposalSummary
+from app.proposals.service import synchronize_for_user
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
@@ -77,6 +78,19 @@ def list_proposals(
             )
             for row in rows
         ],
+    )
+
+
+@router.post("/sync", response_model=ProposalGenerationResponse)
+def synchronize_proposals(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    generated = synchronize_for_user(db, user.id)
+    db.commit()
+    return ProposalGenerationResponse(
+        generated_count=len(generated),
+        proposal_ids=[proposal.id for proposal in generated],
     )
 
 

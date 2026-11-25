@@ -245,5 +245,10 @@ def test_manual_reconciliation_rejects_wrong_owner_and_reconciled_records():
     assert [item["record_id"] for item in movement_candidates["items"]] == [1]
     assert [item["record_id"] for item in receipt_candidates["items"]] == [11]
     assert owner.get("/api/v1/reconciliations").json()["total"] == 0
+    synchronization = owner.post("/api/v1/proposals/sync")
+    assert synchronization.status_code == 200
+    assert synchronization.json()["generated_count"] == 1
+    assert owner.get("/api/v1/proposals?status=GENERADA").json()["total"] == 1
+    assert owner.post("/api/v1/proposals/sync").json()["generated_count"] == 0
     app.dependency_overrides.clear()
     engine.dispose()

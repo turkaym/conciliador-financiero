@@ -61,6 +61,11 @@ class ProposalList(BaseModel):
     items: list[ProposalSummary]
 
 
+class ProposalGenerationResponse(BaseModel):
+    generated_count: int
+    proposal_ids: list[int]
+
+
 class ProposalDetail(BaseModel):
     id: int
     status: str

@@ -278,6 +278,9 @@ export const api = {
   getProposals(accessToken: string) {
     return request<{ page: number; page_size: number; total: number; items: ProposalSummary[] }>("/api/v1/proposals?status=GENERADA&page_size=100", undefined, accessToken);
   },
+  synchronizeProposals(accessToken: string) {
+    return request<{ generated_count: number; proposal_ids: number[] }>("/api/v1/proposals/sync", { method: "POST" }, accessToken);
+  },
   getProposal(accessToken: string, proposalId: number) {
     return request<ProposalDetail>(`/api/v1/proposals/${proposalId}`, undefined, accessToken);
   },
