@@ -352,14 +352,7 @@ BEGIN
         OLD.score_referencia, OLD.coincidencia_exacta, OLD.diferencia_dias, OLD.explicacion) THEN
         RAISE EXCEPTION 'identidad y evaluacion de propuesta son inmutables';
     END IF;
-    IF OLD.estado = 'CONFIRMADA' AND NEW.estado = 'GENERADA' THEN
-        IF NOT EXISTS (
-            SELECT 1 FROM conciliacion
-             WHERE propuesta_id = OLD.id AND estado = 'REVERTIDA'
-        ) THEN
-            RAISE EXCEPTION 'una propuesta confirmada solo puede reabrirse tras revertir su conciliacion';
-        END IF;
-    ELSIF OLD.estado <> 'GENERADA' OR NEW.estado NOT IN ('CONFIRMADA', 'RECHAZADA', 'CADUCADA') THEN
+    IF OLD.estado <> 'GENERADA' OR NEW.estado NOT IN ('CONFIRMADA', 'RECHAZADA', 'CADUCADA') THEN
         RAISE EXCEPTION 'transicion de propuesta no permitida: % -> %', OLD.estado, NEW.estado;
     END IF;
     RETURN NEW;
@@ -386,17 +379,27 @@ BEGIN
             RAISE EXCEPTION 'propuesta generada incompatible con conciliacion activa';
         END IF;
 
+        IF NEW.origen_tipo = 'REVERSION' AND NOT EXISTS (
+            SELECT 1
+              FROM conciliacion c
+              JOIN propuesta_conciliacion p ON p.id = c.propuesta_id
+             WHERE c.id = NEW.conciliacion_revertida_id
+               AND c.estado = 'REVERTIDA'
+               AND c.movimiento_id = NEW.movimiento_id
+               AND c.comprobante_id = NEW.comprobante_id
+               AND p.version_regla = NEW.version_regla
+               AND p.huella_evaluacion = NEW.huella_evaluacion
+        ) THEN
+            RAISE EXCEPTION 'propuesta de reversion no corresponde a la conciliacion indicada';
+        END IF;
+
         IF EXISTS (
             SELECT 1 FROM propuesta_conciliacion
              WHERE movimiento_id = NEW.movimiento_id
                AND comprobante_id = NEW.comprobante_id
                AND version_regla = NEW.version_regla
                AND huella_evaluacion = NEW.huella_evaluacion
-               AND (estado = 'RECHAZADA' OR id = (
-                   SELECT propuesta_id
-                     FROM conciliacion
-                    WHERE id = NEW.conciliacion_revertida_id
-               ))
+               AND estado = 'RECHAZADA'
         ) THEN
             RAISE EXCEPTION 'evaluacion terminal identica suprimida';
         END IF;

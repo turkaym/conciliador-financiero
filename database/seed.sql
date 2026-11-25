@@ -139,17 +139,79 @@ BEGIN
         OLD.score_referencia, OLD.coincidencia_exacta, OLD.diferencia_dias, OLD.explicacion) THEN
         RAISE EXCEPTION 'identidad y evaluacion de propuesta son inmutables';
     END IF;
-    IF OLD.estado = 'CONFIRMADA' AND NEW.estado = 'GENERADA' THEN
-        IF NOT EXISTS (
-            SELECT 1 FROM conciliacion
-             WHERE propuesta_id = OLD.id AND estado = 'REVERTIDA'
-        ) THEN
-            RAISE EXCEPTION 'una propuesta confirmada solo puede reabrirse tras revertir su conciliacion';
-        END IF;
-    ELSIF OLD.estado <> 'GENERADA' OR NEW.estado NOT IN ('CONFIRMADA', 'RECHAZADA', 'CADUCADA') THEN
+    IF OLD.estado <> 'GENERADA' OR NEW.estado NOT IN ('CONFIRMADA', 'RECHAZADA', 'CADUCADA') THEN
         RAISE EXCEPTION 'transicion de propuesta no permitida: % -> %', OLD.estado, NEW.estado;
     END IF;
     RETURN NEW;
 END $$;
+
+CREATE OR REPLACE FUNCTION proteger_propuesta_generada() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.estado = 'GENERADA' THEN
+        PERFORM id
+          FROM registro_importado
+         WHERE id IN (NEW.movimiento_id, NEW.comprobante_id)
+         ORDER BY id
+         FOR UPDATE;
+
+        IF EXISTS (
+            SELECT 1
+              FROM conciliacion
+             WHERE estado = 'ACTIVA'
+               AND (movimiento_id IN (NEW.movimiento_id, NEW.comprobante_id)
+                    OR comprobante_id IN (NEW.movimiento_id, NEW.comprobante_id))
+        ) THEN
+            RAISE EXCEPTION 'propuesta generada incompatible con conciliacion activa';
+        END IF;
+
+        IF NEW.origen_tipo = 'REVERSION' AND NOT EXISTS (
+            SELECT 1
+              FROM conciliacion c
+              JOIN propuesta_conciliacion p ON p.id = c.propuesta_id
+             WHERE c.id = NEW.conciliacion_revertida_id
+               AND c.estado = 'REVERTIDA'
+               AND c.movimiento_id = NEW.movimiento_id
+               AND c.comprobante_id = NEW.comprobante_id
+               AND p.version_regla = NEW.version_regla
+               AND p.huella_evaluacion = NEW.huella_evaluacion
+        ) THEN
+            RAISE EXCEPTION 'propuesta de reversion no corresponde a la conciliacion indicada';
+        END IF;
+
+        IF EXISTS (
+            SELECT 1 FROM propuesta_conciliacion
+             WHERE movimiento_id = NEW.movimiento_id
+               AND comprobante_id = NEW.comprobante_id
+               AND version_regla = NEW.version_regla
+               AND huella_evaluacion = NEW.huella_evaluacion
+               AND estado = 'RECHAZADA'
+        ) THEN
+            RAISE EXCEPTION 'evaluacion terminal identica suprimida';
+        END IF;
+    END IF;
+    RETURN NEW;
+END $$;
+
+WITH propuestas_reabiertas AS (
+    UPDATE propuesta_conciliacion p
+       SET estado = 'CONFIRMADA',
+           decidida_por = c.confirmada_por,
+           decidida_en = c.confirmada_en
+      FROM conciliacion c
+     WHERE c.propuesta_id = p.id
+       AND c.estado = 'REVERTIDA'
+       AND p.estado = 'GENERADA'
+       AND p.version_regla <> 'manual-v1'
+    RETURNING p.*, c.id AS conciliacion_id
+)
+INSERT INTO propuesta_conciliacion (
+    movimiento_id, comprobante_id, estado, normalizador_version, version_regla,
+    huella_evaluacion, origen_tipo, lote_origen_id, conciliacion_revertida_id,
+    score_referencia, coincidencia_exacta, diferencia_dias, explicacion
+)
+SELECT movimiento_id, comprobante_id, 'GENERADA', normalizador_version, version_regla,
+       huella_evaluacion, 'REVERSION', NULL, conciliacion_id,
+       score_referencia, coincidencia_exacta, diferencia_dias, explicacion
+  FROM propuestas_reabiertas;
 
 COMMIT;

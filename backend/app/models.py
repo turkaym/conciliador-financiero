@@ -142,7 +142,7 @@ class Reconciliation(Base):
     __tablename__ = "conciliacion"
 
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
-    proposal_id: Mapped[int] = mapped_column("propuesta_id", BigInteger, nullable=False)
+    proposal_id: Mapped[int] = mapped_column("propuesta_id", BigInteger, nullable=False, unique=True)
     movement_id: Mapped[int] = mapped_column("movimiento_id", BigInteger, nullable=False)
     receipt_id: Mapped[int] = mapped_column("comprobante_id", BigInteger, nullable=False)
     status: Mapped[str] = mapped_column("estado", String(20), nullable=False)

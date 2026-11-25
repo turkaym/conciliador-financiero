@@ -83,7 +83,10 @@ def test_reverse_is_atomic_releases_both_records_and_regenerates_deterministical
     body = response.json()
     assert body["status"] == "REVERTIDA"
     assert body["reversal"]["reason"] == "Bank correction"
-    assert body["generated_proposals"] == [{"id": 2, "origin": {"type": "REVERSAL", "reverted_reconciliation_id": 1}}]
+    assert body["generated_proposals"] == [
+        {"id": 2, "origin": {"type": "REVERSAL", "reverted_reconciliation_id": 1}},
+        {"id": 3, "origin": {"type": "REVERSAL", "reverted_reconciliation_id": 1}},
+    ]
 
     with Session(engine) as db:
         assert db.get(ImportedRecord, 1).status == "CON_PROPUESTAS"
@@ -91,7 +94,7 @@ def test_reverse_is_atomic_releases_both_records_and_regenerates_deterministical
         reconciliation = db.get(Reconciliation, 1)
         assert reconciliation.status == "REVERTIDA"
         assert reconciliation.reversal_reason == "Bank correction"
-        assert db.get(ReconciliationProposal, 1).status == "GENERADA"
+        assert db.get(ReconciliationProposal, 1).status == "CONFIRMADA"
         assert db.scalar(select(ReconciliationProposal).where(ReconciliationProposal.id == 2)).origin_type == "REVERSION"
         events = db.scalars(select(EventHistory).order_by(EventHistory.id)).all()
         assert [event.event_type for event in events] == ["CONCILIACION_REVERTIDA"]
@@ -102,6 +105,12 @@ def test_reverse_is_atomic_releases_both_records_and_regenerates_deterministical
     assert detail.json()["reversal"]["reason"] == "Bank correction"
     assert client.get("/api/v1/history", params={"event_type": "CONCILIACION_REVERTIDA"}).json()["total"] == 1
     assert client.get("/api/v1/reconciliations").json()["total"] == 0
+    confirmation = client.post("/api/v1/proposals/2/confirm")
+    assert confirmation.status_code == 200
+    assert confirmation.json()["reconciliation"]["id"] == 2
+    audit = client.get("/api/v1/reconciliations").json()
+    assert audit["total"] == 1
+    assert audit["items"][0]["proposal_id"] == 2
     close_engine(engine)
 
 

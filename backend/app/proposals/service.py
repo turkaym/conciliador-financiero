@@ -79,12 +79,20 @@ def _generate_for_records(
         for result in rank_matches(list(result_pairs)):
             pair = result_pairs[result]
             fingerprint = evaluation_fingerprint(pair)
-            exists = db.scalar(select(ReconciliationProposal.id).where(
+            existing_query = select(ReconciliationProposal.id).where(
                 ReconciliationProposal.movement_id == pair.movement_id,
                 ReconciliationProposal.receipt_id == pair.receipt_id,
                 ReconciliationProposal.rule_version == RULE_VERSION,
                 ReconciliationProposal.evaluation_fingerprint == fingerprint,
-            ))
+            )
+            if reverted_reconciliation_id is not None:
+                reversed_proposals = select(Reconciliation.proposal_id).where(
+                    Reconciliation.status == "REVERTIDA"
+                )
+                existing_query = existing_query.where(
+                    ReconciliationProposal.id.not_in(reversed_proposals)
+                )
+            exists = db.scalar(existing_query)
             if exists is not None:
                 continue
             proposal = ReconciliationProposal(
