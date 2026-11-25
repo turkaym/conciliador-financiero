@@ -107,6 +107,22 @@ def test_proposal_api_requires_authentication_and_hides_other_owner():
     with TestClient(app) as client:
         assert client.get("/api/v1/proposals").status_code == 401
         assert client.get("/api/v1/proposals", headers={"Authorization": f"Bearer {create_access_token(1)}"}).json()["total"] == 0
-        assert client.get("/api/v1/proposals", headers={"Authorization": f"Bearer {create_access_token(2)}"}).json()["total"] == 1
+        proposal_list = client.get(
+            "/api/v1/proposals",
+            headers={"Authorization": f"Bearer {create_access_token(2)}"},
+        ).json()
+        assert proposal_list["total"] == 1
+        assert proposal_list["items"][0]["movement"] == {
+            "record_id": 1,
+            "batch_id": 1,
+            "source_id": 1,
+            "source_name": "Bank",
+            "external_id": None,
+            "date": "2026-01-01",
+            "amount": "1.00",
+            "currency": "ARS",
+            "reference_original": "x",
+        }
+        assert proposal_list["items"][0]["receipt"]["source_name"] == "Receipt"
     app.dependency_overrides.clear()
     engine.dispose()

@@ -12,6 +12,11 @@ class ReversalRequest(BaseModel):
     reason: str
 
 
+class ManualReconciliationRequest(BaseModel):
+    movement_id: int
+    receipt_id: int
+
+
 class DecisionResponse(BaseModel):
     id: int
     status: str
@@ -39,6 +44,13 @@ class ReconciliationDetail(BaseModel):
     confirmed_by: int
     confirmed_at: datetime
     reversal: dict[str, object] | None = None
+
+
+class ReconciliationAuditList(BaseModel):
+    page: int
+    page_size: int
+    total: int
+    items: list[ReconciliationDetail]
 
 
 class GeneratedProposalResponse(BaseModel):

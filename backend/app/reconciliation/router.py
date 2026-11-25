@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 from app.access.security import get_current_user
 from app.database import get_db
 from app.errors import ApiError
-from app.models import BankMovement, EventHistory, ImportBatch, ImportedRecord, Receipt, Reconciliation, ReconciliationProposal, User
-from app.reconciliation.schemas import ConfirmationResponse, DecisionResponse, GeneratedProposalResponse, HistoryItem, HistoryList, ReconciliationDetail, ReconciliationResponse, RejectionRequest, ReversalRequest, ReversalResponse
-from app.reconciliation.service import confirm_proposal, owned_proposal, reject_proposal, reverse_reconciliation
+from app.models import BankMovement, DataSource, EventHistory, ImportBatch, ImportedRecord, Receipt, Reconciliation, ReconciliationProposal, User
+from app.reconciliation.schemas import ConfirmationResponse, DecisionResponse, GeneratedProposalResponse, HistoryItem, HistoryList, ManualReconciliationRequest, ReconciliationAuditList, ReconciliationDetail, ReconciliationResponse, RejectionRequest, ReversalRequest, ReversalResponse
+from app.reconciliation.service import confirm_proposal, reconcile_manually, reject_proposal, reverse_reconciliation
 
 router = APIRouter(tags=["reconciliation"])
 
@@ -17,6 +17,51 @@ router = APIRouter(tags=["reconciliation"])
 def _owned_reconciliation(db: Session, reconciliation_id: int, user_id: int) -> Reconciliation | None:
     return db.scalar(
         select(Reconciliation).join(ImportedRecord, ImportedRecord.id == Reconciliation.movement_id).join(ImportBatch, ImportBatch.id == ImportedRecord.batch_id).where(Reconciliation.id == reconciliation_id, ImportBatch.user_id == user_id)
+    )
+
+
+def _reconciliation_detail(db: Session, reconciliation: Reconciliation) -> ReconciliationDetail:
+    movement_record = db.get(ImportedRecord, reconciliation.movement_id)
+    receipt_record = db.get(ImportedRecord, reconciliation.receipt_id)
+    movement = db.get(BankMovement, reconciliation.movement_id)
+    receipt = db.get(Receipt, reconciliation.receipt_id)
+    movement_source = db.get(DataSource, movement_record.source_id)
+    receipt_source = db.get(DataSource, receipt_record.source_id)
+    return ReconciliationDetail(
+        id=reconciliation.id,
+        status=reconciliation.status,
+        proposal_id=reconciliation.proposal_id,
+        movement={
+            "record_id": movement_record.id,
+            "batch_id": movement_record.batch_id,
+            "source_id": movement_source.id,
+            "source_name": movement_source.name,
+            "external_id": movement_record.external_id,
+            "date": movement.date,
+            "amount": str(movement.amount),
+            "currency": movement.currency,
+            "reference_original": movement_record.original_data.get("referencia"),
+        },
+        receipt={
+            "record_id": receipt_record.id,
+            "batch_id": receipt_record.batch_id,
+            "source_id": receipt_source.id,
+            "source_name": receipt_source.name,
+            "external_id": receipt_record.external_id,
+            "date": receipt.date,
+            "amount": str(receipt.amount),
+            "currency": receipt.currency,
+            "reference_original": receipt_record.original_data.get("referencia"),
+        },
+        confirmed_by=reconciliation.confirmed_by,
+        confirmed_at=reconciliation.confirmed_at,
+        reversal=None
+        if reconciliation.reversed_at is None
+        else {
+            "reason": reconciliation.reversal_reason,
+            "actor": reconciliation.reversed_by,
+            "occurred_at": reconciliation.reversed_at,
+        },
     )
 
 
@@ -37,21 +82,69 @@ def reject(proposal_id: int, request: RejectionRequest, db: Annotated[Session, D
     return DecisionResponse(id=proposal.id, status=proposal.status, reason=proposal.decision_reason, decided_by=proposal.decided_by, decided_at=proposal.decided_at)
 
 
+@router.post("/reconciliations/manual", response_model=ConfirmationResponse)
+def confirm_manual_reconciliation(
+    request: ManualReconciliationRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    proposal, reconciliation = reconcile_manually(
+        db, request.movement_id, request.receipt_id, user.id
+    )
+    db.commit()
+    return ConfirmationResponse(
+        proposal=DecisionResponse(
+            id=proposal.id,
+            status=proposal.status,
+            decided_by=proposal.decided_by,
+            decided_at=proposal.decided_at,
+        ),
+        reconciliation=ReconciliationResponse(
+            id=reconciliation.id, status=reconciliation.status
+        ),
+    )
+
+
+@router.get("/reconciliations", response_model=ReconciliationAuditList)
+def list_reconciliations(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+    status: str | None = Query(default=None),
+    page: int = Query(default=1),
+    page_size: int = Query(default=25),
+):
+    if status is not None and status not in {"ACTIVA", "REVERTIDA"}:
+        raise ApiError(400, "INVALID_RECONCILIATION_STATUS", "Unsupported reconciliation status")
+    if page < 1 or page_size < 1 or page_size > 100:
+        raise ApiError(400, "INVALID_PAGINATION", "Invalid pagination values")
+    query = (
+        select(Reconciliation)
+        .join(ImportedRecord, ImportedRecord.id == Reconciliation.movement_id)
+        .join(ImportBatch, ImportBatch.id == ImportedRecord.batch_id)
+        .where(ImportBatch.user_id == user.id)
+    )
+    if status:
+        query = query.where(Reconciliation.status == status)
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    rows = db.scalars(
+        query.order_by(Reconciliation.confirmed_at.desc(), Reconciliation.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    return ReconciliationAuditList(
+        page=page,
+        page_size=page_size,
+        total=total,
+        items=[_reconciliation_detail(db, reconciliation) for reconciliation in rows],
+    )
+
+
 @router.get("/reconciliations/{reconciliation_id}", response_model=ReconciliationDetail)
 def get_reconciliation(reconciliation_id: int, db: Annotated[Session, Depends(get_db)], user: Annotated[User, Depends(get_current_user)]):
     reconciliation = _owned_reconciliation(db, reconciliation_id, user.id)
     if reconciliation is None:
         raise ApiError(404, "RECONCILIATION_NOT_FOUND", "Reconciliation not found")
-    proposal = db.get(ReconciliationProposal, reconciliation.proposal_id)
-    movement = db.get(BankMovement, reconciliation.movement_id)
-    receipt = db.get(Receipt, reconciliation.receipt_id)
-    return ReconciliationDetail(
-        id=reconciliation.id, status=reconciliation.status, proposal_id=reconciliation.proposal_id,
-        movement={"record_id": reconciliation.movement_id, "date": movement.date, "amount": str(movement.amount), "currency": movement.currency},
-        receipt={"record_id": reconciliation.receipt_id, "date": receipt.date, "amount": str(receipt.amount), "currency": receipt.currency},
-        confirmed_by=reconciliation.confirmed_by, confirmed_at=reconciliation.confirmed_at,
-        reversal=None if reconciliation.reversed_at is None else {"reason": reconciliation.reversal_reason, "actor": reconciliation.reversed_by, "occurred_at": reconciliation.reversed_at},
-    )
+    return _reconciliation_detail(db, reconciliation)
 
 
 @router.post("/reconciliations/{reconciliation_id}/reverse", response_model=ReversalResponse)

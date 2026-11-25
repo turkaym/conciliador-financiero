@@ -10,7 +10,9 @@ MVP-06 agrega matching determinista y propuestas persistidas, sin confirmar ni
 conciliar automáticamente los registros.
 MVP-07 agrega decisiones humanas atómicas, conciliaciones activas e historial
 consultable con alcance por propietario. MVP-08 agrega reversión atómica con
-recomparación, auditoría y protección contra repetición.
+recomparación, auditoría y protección contra repetición. La consulta consolidada
+`GET /api/v1/records` expone movimientos y comprobantes válidos con filtros por
+fuente, conciliación y rango de fechas, además de paginación y ordenamiento.
 
 ## Requisitos
 

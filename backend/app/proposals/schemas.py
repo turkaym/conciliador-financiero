@@ -7,6 +7,9 @@ from pydantic import BaseModel, field_serializer
 class ProposalRecord(BaseModel):
     record_id: int
     batch_id: int
+    source_id: int
+    source_name: str
+    external_id: str | None
     date: date
     amount: Decimal
     currency: str
@@ -43,6 +46,8 @@ class ProposalSummary(BaseModel):
     day_difference: int
     rule_version: str
     normalizer_version: str
+    movement: ProposalRecord
+    receipt: ProposalRecord
 
     @field_serializer("reference_score")
     def serialize_score(self, score: Decimal) -> str:

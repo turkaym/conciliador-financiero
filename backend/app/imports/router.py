@@ -55,22 +55,30 @@ def _response(batch: ImportBatch, source: DataSource, template: ImportTemplate |
     )
 
 
-def _template_columns(db: Session, template: ImportTemplate) -> list[tuple[str, str, bool]]:
+def _template_columns(
+    db: Session, template: ImportTemplate
+) -> list[tuple[str, str, str, bool, str | None, str | None]]:
     fields = db.scalars(select(TemplateField).where(TemplateField.template_id == template.id).order_by(TemplateField.id)).all()
     defaults = {
         "id_externo": ("TEXTO", False), "fecha": ("FECHA", True), "monto": ("DECIMAL", True),
         "moneda": ("MONEDA", True), "referencia": ("TEXTO", False), "tipo_movimiento": ("CATEGORIA", True),
         "clase": ("CATEGORIA", True),
     }
-    fields_by_column = {field.source_column: field for field in fields}
-    ordered_columns = order_columns(template.template_type, list(fields_by_column))
+    canonical_order = order_columns(
+        template.template_type, [field.canonical_field for field in fields]
+    )
+    canonical_rank = {column: index for index, column in enumerate(canonical_order)}
+    fields.sort(key=lambda field: (canonical_rank[field.canonical_field], field.id))
     return [
         (
             field.source_column,
+            field.canonical_field,
             field.data_type or defaults.get(field.canonical_field, ("TEXTO", True))[0],
             field.required if field.required is not None else defaults.get(field.canonical_field, ("TEXTO", True))[1],
+            field.date_format,
+            field.decimal_separator,
         )
-        for field in (fields_by_column[column] for column in ordered_columns)
+        for field in fields
     ]
 
 
@@ -88,30 +96,44 @@ def _process_batch(db: Session, batch: ImportBatch, template: ImportTemplate) ->
         batch.status = "FALLIDO"
         batch.finished_at = datetime.now(timezone.utc)
         return
+    duplicate_keys = {row.duplicate_key for row in parsed.rows}
+    existing_records = db.scalars(
+        select(ImportedRecord)
+        .where(
+            ImportedRecord.source_id == batch.source_id,
+            ImportedRecord.record_type == batch.batch_type,
+            ImportedRecord.duplicate_key.in_(duplicate_keys),
+            ImportedRecord.status != "INVALIDO",
+        )
+        .order_by(ImportedRecord.id)
+    ).all() if duplicate_keys else []
+    existing_by_key = {record.duplicate_key: record for record in existing_records}
     seen: dict[bytes, ImportedRecord] = {}
+    invalid = 0
     for row in parsed.rows:
-        duplicate = seen.get(row.duplicate_key)
+        duplicate = seen.get(row.duplicate_key) or existing_by_key.get(row.duplicate_key)
         errors = list(row.errors)
         if duplicate is not None:
-            errors.append(RowError(None, "ID_EXTERNO_DUPLICADO" if row.original.get("id_externo", "").strip() else "HUELLA_FILA_DUPLICADA", "The row duplicates an earlier row in this batch"))
+            errors.append(RowError(None, "ID_EXTERNO_DUPLICADO" if row.canonical.get("id_externo", "").strip() else "HUELLA_FILA_DUPLICADA", "The row duplicates a previously imported row"))
+        if errors:
+            invalid += 1
         record = ImportedRecord(
             batch_id=batch.id, source_id=batch.source_id, row_number=row.row_number, record_type=batch.batch_type,
-            status="INVALIDO" if errors else "PENDIENTE", external_id=row.original.get("id_externo", "").strip() or None,
+            status="INVALIDO" if errors else "PENDIENTE", external_id=row.canonical.get("id_externo", "").strip() or None,
             duplicate_key=row.duplicate_key, original_record_id=duplicate.id if duplicate and errors else None,
-            original_data=row.original,
+            original_data={**row.original, **row.canonical},
         )
         db.add(record)
         db.flush()
         if not errors:
             if batch.batch_type == "MOVIMIENTO":
-                db.add(BankMovement(record_id=record.id, date=row.values["fecha"], amount=row.values["monto"], currency=row.values["moneda"], normalized_reference=None, is_credit=True))
+                db.add(BankMovement(record_id=record.id, date=row.values["fecha"], amount=row.values["monto"], currency=row.values.get("moneda") or "ARS", normalized_reference=None, is_credit=True))
             else:
-                db.add(Receipt(record_id=record.id, date=row.values["fecha"], amount=row.values["monto"], currency=row.values["moneda"], normalized_reference=None, category=row.values["clase"]))
+                db.add(Receipt(record_id=record.id, date=row.values["fecha"], amount=row.values["monto"], currency=row.values.get("moneda") or "ARS", normalized_reference=None, category=row.values.get("clase") or "VENTA"))
             seen[row.duplicate_key] = record
         for error in errors:
             db.add(ValidationError(batch_id=batch.id, record_id=record.id, scope="FILA", field=error.field, code=error.code, message=error.message, original_record_id=duplicate.id if duplicate else None))
     total = len(parsed.rows)
-    invalid = sum(bool(row.errors) or row.duplicate_key in {r.duplicate_key for r in parsed.rows[:i]} for i, row in enumerate(parsed.rows))
     batch.status = "PROCESADO_SIN_VALIDOS" if invalid == total else ("PROCESADO_CON_ERRORES" if invalid else "PROCESADO")
     batch.finished_at = datetime.now(timezone.utc)
 

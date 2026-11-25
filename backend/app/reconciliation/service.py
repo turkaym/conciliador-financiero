@@ -4,7 +4,14 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.errors import ApiError
-from app.models import EventHistory, ImportBatch, ImportedRecord, Reconciliation, ReconciliationProposal
+from app.models import BankMovement, EventHistory, ImportBatch, ImportedRecord, Receipt, Reconciliation, ReconciliationProposal
+from app.proposals.matching import (
+    MANUAL_RULE_VERSION,
+    NORMALIZER_VERSION,
+    MatchInput,
+    evaluate_manual_pair,
+    evaluation_fingerprint,
+)
 from app.proposals.service import generate_for_reversal
 
 
@@ -92,6 +99,80 @@ def confirm_proposal(db: Session, proposal_id: int, user_id: int) -> tuple[Recon
     _event(db, user_id=user_id, proposal_id=proposal.id, event_type="PROPUESTA_CONFIRMADA")
     db.flush()
     return proposal, reconciliation
+
+
+def reconcile_manually(
+    db: Session, movement_id: int, receipt_id: int, user_id: int
+) -> tuple[ReconciliationProposal, Reconciliation]:
+    if movement_id <= 0 or receipt_id <= 0 or movement_id == receipt_id:
+        raise ApiError(422, "INVALID_MANUAL_PAIR", "A movement and receipt are required")
+
+    records = _lock_records(db, (movement_id, receipt_id))
+    records_by_id = {record.id: record for record in records}
+    movement_record = records_by_id.get(movement_id)
+    receipt_record = records_by_id.get(receipt_id)
+    if (
+        movement_record is None
+        or receipt_record is None
+        or movement_record.record_type != "MOVIMIENTO"
+        or receipt_record.record_type != "COMPROBANTE"
+    ):
+        raise ApiError(404, "MANUAL_PAIR_NOT_FOUND", "Movement or receipt not found")
+    batches = {
+        batch.id: batch
+        for batch in db.scalars(
+            select(ImportBatch).where(
+                ImportBatch.id.in_((movement_record.batch_id, receipt_record.batch_id))
+            )
+        ).all()
+    }
+    if (
+        len(batches) != 2
+        or any(batch.user_id != user_id for batch in batches.values())
+    ):
+        raise ApiError(404, "MANUAL_PAIR_NOT_FOUND", "Movement or receipt not found")
+    if any(
+        record.status not in {"PENDIENTE", "CON_PROPUESTAS"}
+        or _active_reconciliation(db, record.id)
+        for record in (movement_record, receipt_record)
+    ):
+        raise ApiError(409, "RECORD_NOT_PENDING", "One or more records are no longer pending")
+
+    movement = db.get(BankMovement, movement_id)
+    receipt = db.get(Receipt, receipt_id)
+    if movement is None or receipt is None:
+        raise ApiError(404, "MANUAL_PAIR_NOT_FOUND", "Movement or receipt not found")
+    pair = MatchInput(
+        movement_id=movement_id,
+        movement_date=movement.date,
+        movement_amount=movement.amount,
+        movement_currency=movement.currency,
+        movement_reference=movement_record.original_data.get("referencia"),
+        receipt_id=receipt_id,
+        receipt_date=receipt.date,
+        receipt_amount=receipt.amount,
+        receipt_currency=receipt.currency,
+        receipt_reference=receipt_record.original_data.get("referencia"),
+    )
+    result = evaluate_manual_pair(pair)
+    proposal = ReconciliationProposal(
+        movement_id=movement_id,
+        receipt_id=receipt_id,
+        status="GENERADA",
+        normalizer_version=NORMALIZER_VERSION,
+        rule_version=MANUAL_RULE_VERSION,
+        evaluation_fingerprint=evaluation_fingerprint(pair),
+        origin_type="LOTE",
+        origin_batch_id=movement_record.batch_id,
+        reference_score=result.reference_score,
+        exact_match=result.exact_match,
+        day_difference=result.day_difference,
+        explanation={**result.explanation, "manual": True},
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(proposal)
+    db.flush()
+    return confirm_proposal(db, proposal.id, user_id)
 
 
 def reject_proposal(db: Session, proposal_id: int, user_id: int, reason: str) -> ReconciliationProposal:

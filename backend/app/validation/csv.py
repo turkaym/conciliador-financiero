@@ -3,11 +3,8 @@ import hashlib
 import io
 import json
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-
-from app.import_catalogs.schemas import order_columns
-
 
 @dataclass(frozen=True)
 class RowError:
@@ -20,6 +17,7 @@ class RowError:
 class ParsedRow:
     row_number: int
     original: dict[str, str]
+    canonical: dict[str, str]
     values: dict[str, object]
     errors: tuple[RowError, ...]
     duplicate_key: bytes
@@ -45,31 +43,69 @@ def _row_key(record_type: str, source_id: int, original: dict[str, str]) -> byte
     return hashlib.sha256(payload).digest()
 
 
-def parse_csv(content: bytes, record_type: str, source_id: int, columns: list[tuple[str, str, bool]]) -> ParsedFile:
+def _decode(content: bytes) -> str:
     try:
-        text = content.decode("utf-8-sig")
-        reader = csv.reader(io.StringIO(text, newline=""))
+        return content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return content.decode("cp1252")
+
+
+def _parse_date(value: str, date_format: str | None) -> date:
+    formats = {
+        "DD/MM/YYYY": "%d/%m/%Y",
+        "YYYY-MM-DD": "%Y-%m-%d",
+        "DD-MM-YYYY": "%d-%m-%Y",
+    }
+    if date_format in formats:
+        return datetime.strptime(value, formats[date_format]).date()
+    if date_format == "ISO_DATETIME":
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+    return date.fromisoformat(value)
+
+
+def _parse_decimal(value: str, decimal_separator: str | None) -> Decimal:
+    normalized = value.strip().replace("\u00a0", "").replace(" ", "")
+    if decimal_separator == ",":
+        normalized = normalized.replace(".", "").replace(",", ".")
+    elif decimal_separator == ".":
+        normalized = normalized.replace(",", "")
+    return Decimal(normalized)
+
+
+def parse_csv(
+    content: bytes,
+    record_type: str,
+    source_id: int,
+    columns: list[tuple[str, str, str, bool, str | None, str | None]],
+) -> ParsedFile:
+    try:
+        text = _decode(content)
+        dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t")
+        reader = csv.reader(io.StringIO(text, newline=""), dialect)
         header = next(reader)
     except (UnicodeDecodeError, csv.Error, StopIteration):
         return ParsedFile((), RowError(None, "CABECERA_INCOMPATIBLE", "The CSV header could not be read"))
 
-    expected = order_columns(record_type, [column[0] for column in columns])
-    columns_by_name = {column[0]: column for column in columns}
-    columns = [columns_by_name[column] for column in expected]
-    if header != expected:
-        return ParsedFile((), RowError(None, "CABECERA_INCOMPATIBLE", "The CSV header does not match the selected template"))
+    expected = [column[0] for column in columns]
+    missing = [column for column in expected if column not in header]
+    if missing:
+        return ParsedFile((), RowError(None, "CABECERA_INCOMPATIBLE", f"The CSV header does not match the selected source. Expected: {', '.join(expected)}"))
 
     rows: list[ParsedRow] = []
     try:
         for row_number, values in enumerate(reader, start=2):
-            if len(values) != len(expected):
+            if len(values) != len(header):
                 return ParsedFile((), RowError(None, "ESTRUCTURA_INVALIDA", "A CSV row has an unexpected number of columns"))
-            original = dict(zip(expected, values, strict=True))
+            original = dict(zip(header, values, strict=True))
+            canonical = {
+                canonical_field: original[source_column]
+                for source_column, canonical_field, *_rest in columns
+            }
             errors: list[RowError] = []
             typed: dict[str, object] = {}
             if any(value.startswith(("=", "+", "-", "@")) for value in values):
                 errors.append(RowError(None, "FORMULA_NO_ADMITIDA", "Formula-like values are not accepted"))
-            for field, data_type, required in columns:
+            for field, canonical_field, data_type, required, date_format, decimal_separator in columns:
                 value = original[field]
                 if required and not value.strip():
                     errors.append(RowError(field, "CAMPO_REQUERIDO", "Required field is empty"))
@@ -79,29 +115,30 @@ def parse_csv(content: bytes, record_type: str, source_id: int, columns: list[tu
                     continue
                 if data_type == "FECHA":
                     try:
-                        typed[field] = date.fromisoformat(value)
+                        typed[canonical_field] = _parse_date(value, date_format)
                     except ValueError:
-                        errors.append(RowError(field, "FECHA_INVALIDA", "Date must use YYYY-MM-DD"))
+                        expected_format = date_format or "YYYY-MM-DD"
+                        errors.append(RowError(field, "FECHA_INVALIDA", f"Date must use {expected_format}"))
                 elif data_type == "DECIMAL":
                     try:
-                        amount = Decimal(value)
+                        amount = _parse_decimal(value, decimal_separator)
                         if amount <= 0:
                             errors.append(RowError(field, "MONTO_NO_POSITIVO", "Amount must be greater than zero"))
                         elif amount.as_tuple().exponent < -2:
                             errors.append(RowError(field, "MONTO_INVALIDO", "Amount allows at most two decimal places"))
                         else:
-                            typed[field] = amount
+                            typed[canonical_field] = amount
                     except InvalidOperation:
                         errors.append(RowError(field, "MONTO_INVALIDO", "Amount is not a valid decimal"))
-                elif field == "moneda" and value != "ARS":
+                elif canonical_field == "moneda" and value != "ARS":
                     errors.append(RowError(field, "MONEDA_NO_ADMITIDA", "Only ARS is accepted"))
-                elif field == "tipo_movimiento" and value != "CREDITO":
+                elif canonical_field == "tipo_movimiento" and value != "CREDITO":
                     errors.append(RowError(field, "TIPO_MOVIMIENTO_NO_ADMITIDO", "Only CREDITO is accepted"))
-                elif field == "clase" and value not in {"VENTA", "COBRO"}:
+                elif canonical_field == "clase" and value not in {"VENTA", "COBRO"}:
                     errors.append(RowError(field, "CLASE_NO_ADMITIDA", "Only VENTA or COBRO is accepted"))
                 else:
-                    typed[field] = value
-            rows.append(ParsedRow(row_number, original, typed, tuple(errors), _row_key(record_type, source_id, original)))
+                    typed[canonical_field] = value
+            rows.append(ParsedRow(row_number, original, canonical, typed, tuple(errors), _row_key(record_type, source_id, canonical)))
     except csv.Error:
         return ParsedFile((), RowError(None, "ESTRUCTURA_INVALIDA", "The CSV contains malformed quoting"))
     return ParsedFile(tuple(rows))

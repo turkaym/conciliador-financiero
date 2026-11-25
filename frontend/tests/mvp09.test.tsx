@@ -36,10 +36,11 @@ describe("MVP-09 import and pending workflows", () => {
     const user = userEvent.setup();
     renderApp();
     await user.selectOptions(await screen.findByLabelText("Fuente"), "1");
-    expect(await screen.findByRole("option", { name: "movimientos v1" })).toBeInTheDocument();
+    expect(await screen.findByText(/Formato CSV esperado para Banco demo/)).toHaveTextContent("id_externo, fecha, monto, moneda, referencia, tipo_movimiento");
+    expect(screen.queryByLabelText("Plantilla")).not.toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Tipo de archivo"), "COMPROBANTE");
     await user.selectOptions(await screen.findByLabelText("Fuente"), "2");
-    expect(await screen.findByRole("option", { name: "comprobantes v1" })).toBeInTheDocument();
+    expect(await screen.findByText(/Formato CSV esperado para Comprobantes demo/)).toHaveTextContent("id_externo, fecha, monto, moneda, referencia, clase");
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/catalog/sources?type=COMPROBANTE"), expect.objectContaining({ headers: expect.anything() }));
   });
 
@@ -61,7 +62,7 @@ describe("MVP-09 import and pending workflows", () => {
     const user = userEvent.setup();
     renderApp();
     await user.selectOptions(await screen.findByLabelText("Fuente"), "1");
-    await user.selectOptions(await screen.findByLabelText("Plantilla"), "11");
+    await screen.findByText(/Formato CSV esperado para Banco demo/);
     await user.upload(screen.getByLabelText("Archivo CSV"), new File(["fecha,monto\n2026-01-01,broken"], "movimientos.csv", { type: "text/csv" }));
     const submit = screen.getByRole("button", { name: "Validar archivo" });
     await waitFor(() => expect(submit).toBeEnabled());

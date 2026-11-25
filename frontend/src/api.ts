@@ -65,6 +65,20 @@ export interface PendingItem {
   cause: string;
 }
 
+export interface ConsolidatedItem {
+  record_id: number;
+  type: ImportType;
+  source: { id: number; code: string; name: string };
+  batch_id: number;
+  external_id: string | null;
+  date: string;
+  amount: string;
+  currency: string;
+  description: string | null;
+  state: string;
+  reconciled: boolean;
+}
+
 export interface ProposalSummary {
   id: number;
   status: string;
@@ -75,12 +89,24 @@ export interface ProposalSummary {
   day_difference: number;
   rule_version: string;
   normalizer_version: string;
+  movement: ProposalRecord;
+  receipt: ProposalRecord;
+}
+
+export interface ProposalRecord {
+  record_id: number;
+  batch_id: number;
+  source_id: number;
+  source_name: string;
+  external_id: string | null;
+  date: string;
+  amount: string;
+  currency: string;
+  reference_original: string | null;
 }
 
 export interface ProposalDetail extends ProposalSummary {
   evaluation_fingerprint: string;
-  movement: { record_id: number; batch_id: number; date: string; amount: string; currency: string; reference_original: string | null };
-  receipt: { record_id: number; batch_id: number; date: string; amount: string; currency: string; reference_original: string | null };
   ranking: { exact_match: boolean; reference_score: string; day_difference: number; normalizer_version: string; rule_version: string; movement_normalized: string; receipt_normalized: string; movement_tokens: string[]; receipt_tokens: string[] };
   origin: Record<string, unknown>;
   decision: { reason?: string | null; decided_at?: string } | null;
@@ -101,8 +127,8 @@ export interface ReconciliationDetail {
   id: number;
   status: string;
   proposal_id: number;
-  movement: Record<string, unknown>;
-  receipt: Record<string, unknown>;
+  movement: ProposalRecord;
+  receipt: ProposalRecord;
   confirmed_by: number;
   confirmed_at: string;
   reversal: { reason: string; actor: number; occurred_at: string } | null;
@@ -176,14 +202,59 @@ export const api = {
   getPending(accessToken: string) {
     return request<{ page: number; page_size: number; total: number; items: PendingItem[] }>("/api/v1/pending?page_size=100", undefined, accessToken);
   },
+  getConsolidatedRecords(accessToken: string, filters: {
+    type: ImportType;
+    sourceId?: number;
+    batchId?: number;
+    reconciled?: boolean;
+    amount?: string;
+    amountTolerance?: string;
+    reference?: string;
+    from?: string;
+    to?: string;
+    page: number;
+    pageSize: number;
+    sortBy: string;
+    sortOrder: "asc" | "desc";
+  }) {
+    const params = new URLSearchParams({
+      type: filters.type,
+      page: String(filters.page),
+      page_size: String(filters.pageSize),
+      sort_by: filters.sortBy,
+      sort_order: filters.sortOrder,
+    });
+    if (filters.sourceId) params.set("source_id", String(filters.sourceId));
+    if (filters.batchId) params.set("batch_id", String(filters.batchId));
+    if (filters.reconciled !== undefined) params.set("reconciled", String(filters.reconciled));
+    if (filters.amount) params.set("amount", filters.amount);
+    if (filters.amountTolerance) params.set("amount_tolerance", filters.amountTolerance);
+    if (filters.reference) params.set("reference", filters.reference);
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    return request<{ page: number; page_size: number; total: number; items: ConsolidatedItem[] }>(
+      `/api/v1/records?${params.toString()}`,
+      undefined,
+      accessToken,
+    );
+  },
   getProposals(accessToken: string) {
-    return request<{ page: number; page_size: number; total: number; items: ProposalSummary[] }>("/api/v1/proposals?page_size=100", undefined, accessToken);
+    return request<{ page: number; page_size: number; total: number; items: ProposalSummary[] }>("/api/v1/proposals?status=GENERADA&page_size=100", undefined, accessToken);
   },
   getProposal(accessToken: string, proposalId: number) {
     return request<ProposalDetail>(`/api/v1/proposals/${proposalId}`, undefined, accessToken);
   },
   confirmProposal(accessToken: string, proposalId: number) {
     return request<{ proposal: { id: number; status: string }; reconciliation: { id: number; status: string } }>(`/api/v1/proposals/${proposalId}/confirm`, { method: "POST" }, accessToken);
+  },
+  confirmManualReconciliation(accessToken: string, movementId: number, receiptId: number) {
+    return request<{ proposal: { id: number; status: string }; reconciliation: { id: number; status: string } }>("/api/v1/reconciliations/manual", {
+      method: "POST",
+      body: JSON.stringify({ movement_id: movementId, receipt_id: receiptId }),
+    }, accessToken);
+  },
+  getReconciliations(accessToken: string) {
+    return request<{ page: number; page_size: number; total: number; items: ReconciliationDetail[] }>("/api/v1/reconciliations?page_size=100", undefined, accessToken);
   },
   rejectProposal(accessToken: string, proposalId: number, reason: string) {
     return request<{ id: number; status: string; reason: string }>(`/api/v1/proposals/${proposalId}/reject`, { method: "POST", body: JSON.stringify({ reason }) }, accessToken);

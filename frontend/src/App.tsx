@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { LoginForm, useAuth } from "./auth";
+import { ConsolidatedPage } from "./modules/consolidated/ConsolidatedPage";
 import { ImportPage } from "./modules/imports/ImportPage";
 import { PendingPage } from "./modules/pending/PendingPage";
 import { ProposalDetailPage, ProposalPage } from "./modules/proposals/ProposalPage";
@@ -30,11 +31,11 @@ function AppShell() {
           <button className="text-button" type="button" onClick={handleLogout}>Cerrar sesión</button>
         </div>
       </header>
-        <nav className="main-nav" aria-label="Navegación principal"><Link to="/">Importar</Link><Link to="/pending">Pendientes</Link><Link to="/proposals">Propuestas</Link><Link to="/history">Historial</Link></nav>
+        <nav className="main-nav" aria-label="Navegación principal"><Link to="/">Importar</Link><Link to="/consolidated">Consolidado</Link><Link to="/pending">Pendientes</Link><Link to="/proposals">Propuestas</Link><Link to="/history">Historial</Link></nav>
         <main className="workspace">
          <p className="eyebrow">Panel de trabajo</p>
          <h1>Bienvenido al conciliador</h1>
-          <Routes><Route path="/" element={<ImportPage />} /><Route path="/pending" element={<PendingPage />} /><Route path="/proposals" element={<ProposalPage />} /><Route path="/proposals/:proposalId" element={<ProposalDetailPage />} /><Route path="/history" element={<HistoryPage />} /><Route path="/history/reconciliations/:reconciliationId" element={<ReconciliationDetailPage />} /></Routes>
+          <Routes><Route path="/" element={<ImportPage />} /><Route path="/consolidated" element={<ConsolidatedPage />} /><Route path="/pending" element={<PendingPage />} /><Route path="/proposals" element={<ProposalPage />} /><Route path="/proposals/:proposalId" element={<ProposalDetailPage />} /><Route path="/history" element={<HistoryPage />} /><Route path="/history/reconciliations/:reconciliationId" element={<ReconciliationDetailPage />} /></Routes>
       </main>
     </div>
   );

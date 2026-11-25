@@ -9,6 +9,7 @@ import unicodedata
 
 NORMALIZER_VERSION = "ref-nfkd-v1"
 RULE_VERSION = "match-v1"
+MANUAL_RULE_VERSION = "manual-v1"
 
 
 @dataclass(frozen=True)
@@ -62,14 +63,8 @@ def _jaccard(left: set[str], right: set[str]) -> Decimal:
     return Decimal(0) if not union else Decimal(len(left & right)) / Decimal(len(union))
 
 
-def evaluate_pair(pair: MatchInput) -> MatchResult | None:
-    if pair.movement_currency != "ARS" or pair.receipt_currency != "ARS":
-        return None
-    if pair.movement_amount != pair.receipt_amount:
-        return None
+def evaluate_manual_pair(pair: MatchInput) -> MatchResult:
     day_difference = (pair.receipt_date - pair.movement_date).days
-    if abs(day_difference) > 3:
-        return None
     movement_normalized, movement_tokens = normalize_reference(pair.movement_reference)
     receipt_normalized, receipt_tokens = normalize_reference(pair.receipt_reference)
     return MatchResult(
@@ -83,6 +78,16 @@ def evaluate_pair(pair: MatchInput) -> MatchResult | None:
         movement_tokens=movement_tokens,
         receipt_tokens=receipt_tokens,
     )
+
+
+def evaluate_pair(pair: MatchInput) -> MatchResult | None:
+    if pair.movement_currency != "ARS" or pair.receipt_currency != "ARS":
+        return None
+    if pair.movement_amount != pair.receipt_amount:
+        return None
+    if abs((pair.receipt_date - pair.movement_date).days) > 3:
+        return None
+    return evaluate_manual_pair(pair)
 
 
 def rank_matches(matches: list[MatchResult]) -> list[MatchResult]:

@@ -45,12 +45,23 @@ export function ImportPage() {
   }, [type, session, logout, navigate]);
 
   useEffect(() => {
-    if (!sourceId) return;
-    let active = true;
+    setError(null);
     setTemplates([]);
     setTemplateId("");
+    if (!sourceId) return;
+    let active = true;
     api.getTemplates(session!.accessToken, Number(sourceId), type)
-      .then((result) => { if (active) setTemplates(result.items); })
+      .then((result) => {
+        if (!active) return;
+        setTemplates(result.items);
+        if (result.items.length === 1) {
+          setTemplateId(String(result.items[0].id));
+        } else {
+          setError(result.items.length === 0
+            ? "La fuente seleccionada no tiene un esquema de importación configurado."
+            : "La fuente seleccionada tiene más de un esquema activo.");
+        }
+      })
       .catch(handleApiError);
     return () => { active = false; };
   }, [sourceId, type, session, logout, navigate]);
@@ -91,12 +102,7 @@ export function ImportPage() {
         <option value="">{loading ? "Cargando fuentes..." : "Seleccioná una fuente"}</option>
         {sources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}
       </select>
-      <label htmlFor="template">Plantilla</label>
-      <select id="template" value={templateId} onChange={(event) => setTemplateId(event.target.value)} disabled={!sourceId || templates.length === 0} required>
-        <option value="">{templates.length ? "Seleccioná una plantilla" : "Seleccioná una fuente primero"}</option>
-        {templates.map((template) => <option key={template.id} value={template.id}>{template.name} v{template.version}</option>)}
-      </select>
-      {templates[0] && <p className="field-hint">Columnas aprobadas: {templates[0].columns.join(", ")}</p>}
+      {templates[0] && <p className="field-hint">Formato CSV esperado para {sources.find((source) => String(source.id) === sourceId)?.name}: {templates[0].columns.join(", ")}</p>}
       <label htmlFor="csv-file">Archivo CSV</label>
       <input id="csv-file" type="file" accept=".csv,text/csv" onChange={handleFile} required />
       <button type="submit" disabled={submitting || !file || !sourceId || !templateId}>{submitting ? "Procesando..." : "Validar archivo"}</button>
