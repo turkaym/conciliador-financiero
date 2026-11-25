@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe de revisión de propuestas</title>
+  <desc id="desc">Comparación de movimiento y comprobante, ranking explicable y acciones confirmar o rechazar con motivo.</desc>
+  <rect width="900" height="600" fill="#fff" stroke="#111"/><text x="30" y="40" font-size="24">CONCILIADOR</text><text x="320" y="40">Cargas Pendientes [Propuestas] Historial</text><line x1="0" y1="60" x2="900" y2="60" stroke="#111"/>
+  <text x="40" y="100" font-size="24">Propuesta #81 · GENERADA</text><text x="650" y="100">1 de 12 candidatas</text>
+  <rect x="40" y="125" width="390" height="150" fill="#fff" stroke="#111"/><text x="60" y="155">Movimiento #11 · lote #3</text><text x="60" y="190">10/04/2026 · ARS 1.500,00</text><text x="60" y="225">Referencia: FACTURA 100</text>
+  <rect x="470" y="125" width="390" height="150" fill="#fff" stroke="#111"/><text x="490" y="155">Comprobante #24 · lote #7</text><text x="490" y="190">11/04/2026 · ARS 1.500,00</text><text x="490" y="225">Referencia: Factura-100</text>
+  <rect x="40" y="300" width="820" height="125" fill="#f5f5f5" stroke="#111"/><text x="60" y="330">Elegibilidad: ARS ✓ · monto exacto ✓ · diferencia 1 día ✓</text><text x="60" y="360">Ranking: exacta sí · Jaccard 1,0000 · ref-nfkd-v1 · match-v1</text><text x="60" y="390">Tokens únicos: [100, FACTURA] / [100, FACTURA] · origen lote #7</text>
+  <rect x="40" y="465" width="210" height="50" fill="#ddd" stroke="#111" stroke-width="3"/><text x="95" y="496">Confirmar</text><rect x="280" y="465" width="210" height="50" fill="#fff" stroke="#111"/><text x="350" y="496">Rechazar</text>
+  <rect x="520" y="450" width="340" height="90" fill="#fff" stroke="#777"/><text x="535" y="475">Diálogo de rechazo: Motivo *</text><line x1="535" y1="510" x2="840" y2="510" stroke="#111"/><text x="535" y="535">Cancelar · Confirmar rechazo</text>
+  <text x="40" y="570">Estados terminales: CONFIRMADA, RECHAZADA o CADUCADA.</text>
+</svg>

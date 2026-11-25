@@ -1,0 +1,4 @@
+id_externo,fecha,monto,moneda,referencia,clase
+COMP-001,2026-04-11,1500.00,ARS,Factura-100,VENTA
+COMP-002,2026-04-16,2750.50,ARS,Cobro cuota 8,COBRO
+COMP-003,2026-04-23,900.00,ARS,,VENTA

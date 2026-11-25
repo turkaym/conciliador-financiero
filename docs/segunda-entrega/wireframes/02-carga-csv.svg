@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+  <title id="title">Wireframe de carga CSV</title>
+  <desc id="desc">Selección inequívoca de fuente, plantilla por ID, tipo y archivo con ayuda de formato y validación previa.</desc>
+  <rect width="900" height="560" fill="#fff" stroke="#111"/><text x="30" y="40" font-size="24">CONCILIADOR</text>
+  <text x="320" y="40">[Cargas] Pendientes Propuestas Historial</text><line x1="0" y1="60" x2="900" y2="60" stroke="#111"/>
+  <text x="50" y="105" font-size="24">Nueva carga CSV</text>
+  <text x="50" y="150">Fuente</text><rect x="50" y="165" width="360" height="40" fill="#fff" stroke="#111"/><text x="65" y="191">Banco de prueba ▼</text>
+  <text x="470" y="150">Tipo</text><rect x="470" y="165" width="360" height="40" fill="#fff" stroke="#111"/><text x="485" y="191">MOVIMIENTO ▼</text>
+  <text x="50" y="245">Plantilla (ID · nombre · versión)</text><rect x="50" y="260" width="360" height="40" fill="#fff" stroke="#111"/><text x="65" y="286">#17 · movimientos · v1 ▼</text>
+  <text x="470" y="245">Archivo CSV</text><rect x="470" y="260" width="360" height="40" fill="#fff" stroke="#111" stroke-width="3"/><text x="485" y="286">Seleccionar archivo…</text>
+  <rect x="50" y="335" width="780" height="70" fill="#f5f5f5" stroke="#777"/><text x="65" y="362">Formato: UTF-8, coma, cabecera exacta, máximo de prueba 10.000 filas.</text><text x="65" y="387">Estado previo: archivo compatible / campo requerido pendiente.</text>
+  <rect x="650" y="450" width="180" height="48" fill="#ddd" stroke="#111"/><text x="705" y="480">Cargar</text>
+</svg>

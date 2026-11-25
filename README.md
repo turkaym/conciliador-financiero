@@ -1,275 +1,216 @@
-# Conciliador financiero
+# CONCILIADOR - Financial and Accounting Reconciliation Platform
 
-Aplicación web multiempresa para administrar operaciones financieras de un tenant: directorio B2B, egresos y pagos, registros fiscales, equipo y reglas determinísticas. El MVP actual se ejecuta localmente con Docker Compose; no existe todavía un despliegue público verificado.
+Academic proposal for the **Final Project** course in the **University Technical Degree in Programming (UTN)**. The first submission, approved without observations, provides the background for the problem, validation strategy, scope, and initial technical proposal.
 
-## Integrantes y presentación
+**Current status:** the MVP is implemented and deployed to Render. Remote login, both CSV imports, proposal generation, proposal confirmation, and history recording have been verified. Reversal smoke verification remains pending. This documentation translation covers only the allowed files listed in the delivery request; other academic documents remain in Spanish.
 
-- **Farid** — Frontend y experiencia de usuario.
-- **Hugo** — Backend, datos y arquitectura.
-- **Video de presentación y demostración:** [carpeta compartida en Google Drive](https://drive.google.com/drive/folders/1u--ZeSzxYbiMrS3M9uGK5YhFymV46eLQ?usp=sharing).
+### Public deployment
 
-## Alcance actual
+- Frontend: https://conciliador-frontend-8djd.onrender.com
+- API: https://conciliador-api-bym3.onrender.com
+- Render Blueprint: `conciliador-financiero-mvp`
+- Demo credentials: `demo@conciliador.local` / `Demo1234!` (fictional credentials for demonstration only; change or remove them before using real data).
 
-El estado autorizado se define en [`config/feature_flags.json`](config/feature_flags.json). Una capacidad es usable únicamente cuando está habilitada e implementada. La habilitación global no reemplaza la autorización del tenant ni los controles RBAC.
+The remote smoke test verified login, both valid CSV fixtures with 3/3 valid rows, pending records, three proposals, Proposal #1 confirmation, and the `PROPUESTA_CONFIRMADA` history event. Remote reversal verification is still pending, so MVP-11 remains open.
 
-| Módulo | Identificador | Habilitado | Implementado | Usable en el MVP |
-| --- | --- | ---: | ---: | ---: |
-| Directorio B2B | `b2b_directory` | Sí | Sí | Sí |
-| Egresos y pagos | `expenses_payments` | Sí | Sí | Sí |
-| Registros fiscales | `tax_registries` | Sí | Sí | Sí |
-| Gestión de equipo | `team` | Sí | Sí | Sí |
-| Reglas determinísticas | `ai_rules` | Sí | Sí | Sí |
-| Conciliación | `reconciliation` | No | Sí | No |
-| Copiloto de IA | `ai_copilot` | No | Sí | No |
-| Integraciones B2B | `b2b_integrations` | No | Sí | No |
+## Team and availability
 
-`implementado` indica que existe código para la capacidad; no implica que esté autorizado para uso. Conciliación debe permanecer deshabilitada hasta que un cambio revisado modifique el manifiesto. Un manifiesto ausente, malformado, con claves duplicadas, desconocidas o incompletas, tipos no booleanos o versión no soportada impide el arranque. Una capacidad ausente en el frontend también se considera no usable: el comportamiento es *fail closed*.
+| Member | GitHub user | Planned primary role |
+|---|---|---|
+| Hugo Tcach | `HugoTcach` | Backend, database, and local infrastructure |
+| Farid Salomón | `turkaym` | Functional analysis, frontend, documentation, and quality |
 
-## Arquitectura
+Joint availability is approximately **10 hours per week**. Both members will participate in discovery, change review, testing, and presentation. Cross-training is planned so that no area depends on a single person.
 
-| Componente | Responsabilidad | Ubicación o servicio |
-| --- | --- | --- |
-| Frontend | SPA React, navegación, guards de capacidad y proxy `/api` | `frontend/app`, servicio `frontend` sobre Nginx |
-| API gateway y core | FastAPI, autenticación, RBAC, composición de rutas y dominio | `services/api-gateway`, `core`, servicio `api-gateway` |
-| PostgreSQL | Base maestra y datos aislados por esquema de tenant | servicio `postgres`, migraciones en `alembic_master` y `alembic_tenants` |
-| PgBouncer | Pool transaccional para API y workers | servicio `pgbouncer`; las migraciones usan PostgreSQL directo |
-| Redis | Caché, rate limiting, denylist JWT, OTP y resultados Celery | servicio `redis` |
-| RabbitMQ | Broker de tareas Celery | servicio `rabbitmq` |
-| MinIO | Objetos y cargas financieras compatibles con S3 | servicio `minio`, cliente en `core/storage` |
-| Workers Celery | Colas fiscal, contable, matching/general e IA | `worker-afip`, `worker-accounting`, `worker-matching`, `worker-ai` |
-| Celery Beat | Programación periódica filtrada por capacidades | servicio `celery-beat`, configuración en `core/tasks/celery_config.py` |
-| Flower | Observación local de workers | servicio `flower` |
+## Problem and initial hypothesis
 
-La base maestra conserva usuarios y tenants. Cada tenant opera en su propio esquema PostgreSQL. La API y los workers acceden mediante PgBouncer; el servicio efímero `migrate` conecta directamente a PostgreSQL para aplicar DDL y aprovisionar el entorno local.
+Companies and accounting firms may receive bank transactions and records or receipts from separate sources. Reconciliation requires relating those data, detecting differences, and retaining evidence of decisions.
 
-## Requisitos
+The initial hypothesis is that manual comparisons and disconnected tools can create repetitive work, difficulty identifying pending items, and limited traceability of why two records were matched or discarded. **This hypothesis has not yet been validated through interviews or metrics.**
 
-- Git.
-- Docker con el subcomando Compose v2 (`docker compose`). No se requiere instalar bases ni brokers en el host.
-- Para reproducir los quality gates fuera de contenedores: Python 3.11 y Node.js 24 con npm.
-- Recursos suficientes para PostgreSQL 16, Redis 7, RabbitMQ 3, MinIO, cuatro workers y la compilación Node 24. El frontend servido usa Nginx 1.27.
+### Actors and needs to validate
 
-Las versiones anteriores provienen de los Dockerfiles, imágenes Compose y [workflow de calidad](.github/workflows/quality-gates.yml). Compose v2.40.3 fue la versión local validada, pero el repositorio no declara un mínimo más específico.
+| Actor | Participation in the flow | Proposed need |
+|---|---|---|
+| Administrative or accounting staff | Gather sources, compare records, and resolve differences | Reduce repetitive comparisons without losing control over decisions |
+| Process owner | Monitor status and review exceptions | Identify pending items and reconstruct decisions |
+| Company or accounting firm | Define criteria and retain documentation | Maintain a consistent and traceable process |
 
-## Inicio local seguro
+### Assumed current flow
 
-### 1. Preparar el entorno
+1. Obtain bank transactions and records or receipts from separate sources.
+2. Review formats and normalize data when necessary.
+3. Compare amount, date, and references to find matches.
+4. Investigate differences and decide which items match.
+5. Record results and leave unresolved cases pending.
 
-Desde un clon nuevo, en la raíz del repositorio:
+This flow is an initial representation that will be validated and corrected during discovery.
 
-```bash
-cp .env.example .env
-```
+### Digitization and added value
 
-En PowerShell, el equivalente es:
+Digitization would move the comparison to a screen without changing the process. The proposal aims to add value by assisting comparison with explainable rules, highlighting exceptions, preserving human review, and recording basic traceability. This value is not assumed to be proven; it will be evaluated with actors and workflow tests.
 
-```powershell
-Copy-Item .env.example .env
-```
+### Formal statement
 
-`.env` está ignorado por Git. Los valores de `.env.example` son marcadores de desarrollo y NO son secretos aptos para producción. Antes de iniciar, se deben reemplazar como mínimo:
+**Project question:** How can reconciliation between bank transactions and records or receipts be assisted to reduce repetitive review and make differences visible, without replacing human decisions and while preserving basic traceability?
 
-- `SECRET_KEY` y `ENCRYPTION_KEY_MASTER`;
-- `DB_PASSWORD`;
-- `RABBITMQ_PASSWORD` y la misma contraseña dentro de `RABBITMQ_URL`;
-- `MINIO_ROOT_PASSWORD` y `MINIO_SECRET_KEY`;
-- `ADMIN_PASSWORD`;
-- la contraseña incluida en `FLOWER_BASIC_AUTH`.
+## Validation strategy
 
-El siguiente comando funciona con Python 3, modifica solamente el `.env` ignorado, usa aleatoriedad criptográfica y no imprime valores. Ejecútelo una sola vez sobre la copia sin modificar:
+No users, results, or measurements are available at this stage. The following activities are proposed to validate relevance:
 
-```bash
-python -c "from pathlib import Path; import base64, functools, os, secrets; p=Path('.env'); t=p.read_text(); db=secrets.token_urlsafe(36); mq=secrets.token_urlsafe(36); mini=secrets.token_urlsafe(36); admin=secrets.token_urlsafe(36); flower=secrets.token_urlsafe(36); pairs=[('generate-a-random-development-secret',secrets.token_urlsafe(48)),('generate-a-valid-fernet-key',base64.urlsafe_b64encode(os.urandom(32)).decode()),('generate-a-random-database-password',db),('generate-a-random-rabbitmq-password',mq),('amqp://conciliador:replace-me@rabbitmq:5672//',f'amqp://conciliador:{mq}@rabbitmq:5672//'),('generate-a-random-minio-password',mini),('generate-a-random-admin-password',admin),('admin:generate-a-random-flower-password',f'admin:{flower}')]; p.write_text(functools.reduce(lambda s,r:s.replace(*r),pairs,t))"
-```
+1. Identify people who perform or supervise reconciliation in companies or accounting firms.
+2. Conduct semi-structured interviews about sources, steps, exceptions, frequency, and process difficulties.
+3. Observe anonymized examples or representative fictional data without requesting sensitive financial information.
+4. Document the actual flow and compare it with the initial hypothesis and actors.
+5. Test a workflow prototype with test data and record understanding, perceived usefulness, errors, and requested changes.
+6. Revisit scope if the problem is not recurrent, relevant, or compatible with the course schedule.
 
-También se puede usar un gestor de contraseñas para generar y editar esos campos sin enviarlos a la terminal, al portapapeles compartido ni al historial. Cambie `ADMIN_EMAIL` por una identidad local controlada por el operador. Las claves opcionales `PROMETEO_API_KEY`, `OPENAI_API_KEY` y `CLOUDFLARE_TOKEN` pueden permanecer vacías mientras sus integraciones no se utilicen.
+Relevance will be considered supported when discovery confirms the need to relate separate sources, resolve exceptions, and preserve traceability, and when the proposed flow can be evaluated with representative cases. Metrics and quantitative criteria will be defined after discovery, not before.
 
-### 2. Construir e iniciar
+## Value proposition and existing alternatives
 
-```bash
-docker compose -p conciliador-financiero-dev up -d --build
-```
+The proposal is a tool focused on reconciliation between two sources, with visible matching rules, human review, and decision traceability.
 
-No se requiere ejecutar migraciones manuales. Antes de habilitar la API, el servicio `migrate` ejecuta:
+| Alternative category | Typical contribution | Differentiation to evaluate |
+|---|---|---|
+| Spreadsheets | Flexibility and immediate access | Guide the flow, show pending items, and record decisions consistently |
+| Isolated banking portals | Transaction lookup for one institution | Relate transactions to external records in one flow |
+| General accounting systems or ERPs | Broad administrative-process coverage | Focus on a minimal, explainable, reviewable reconciliation experience |
 
-```text
-alembic -n master upgrade head
-python init_db.py
-```
+The differentiation is a proposal to validate and does not imply demonstrated superiority over these categories.
 
-El bootstrap es idempotente: aplica la base maestra, aprovisiona el tenant local y crea la cuenta administrativa a partir de `ADMIN_EMAIL` y `ADMIN_PASSWORD` sólo si todavía no existe. No registra ni muestra una contraseña predeterminada.
+## Prioritized scope
 
-### 3. Verificar
+### Essential MVP
 
-```bash
-docker compose -p conciliador-financiero-dev ps
-curl --fail http://127.0.0.1:18000/health
-curl --fail http://127.0.0.1:18000/v1/capabilities
-curl --fail --output /dev/null http://127.0.0.1:15173/
-```
+- Manual upload of two test-data sets: bank transactions and records or receipts.
+- Validation of structure and required fields.
+- Matching proposals based on amount, date, and reference.
+- Manual review to confirm or reject proposals.
+- Display of pending items.
+- Basic traceability of data origin and decisions.
 
-En PowerShell, `curl` puede ser un alias. Use `curl.exe` con esos mismos argumentos o:
+### Nice to have
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:18000/health
-Invoke-RestMethod http://127.0.0.1:18000/v1/capabilities
-Invoke-WebRequest http://127.0.0.1:15173/ -UseBasicParsing
-```
+- Approximate reference search with `pg_trgm`.
+- Asynchronous import for large files.
+- Basic dashboard.
+- Result export.
+- Deployment on a PaaS platform.
 
-La salud esperada de la API incluye `"status":"online"`; capacidades devuelve ocho registros sin secretos. `docker compose ... ps` debe mostrar `api-gateway` y `frontend` como `healthy`, además de los servicios de infraestructura.
+### Out of scope
 
-### Puertos predeterminados
+- Artificial intelligence and predictive models.
+- OCR.
+- Production integration with AFIP.
+- Real banking integrations.
+- Kubernetes and self-managed servers.
+- Multi-tenancy.
+- Monetization or SaaS model.
+- Advanced analytics.
 
-Todos los puertos publicados se limitan a `127.0.0.1`.
+## Initial technical proposal
 
-| Uso | URL o puerto del repositorio | Variable |
-| --- | --- | --- |
-| Frontend | `http://127.0.0.1:15173` | `FRONTEND_PORT` |
-| API | `http://127.0.0.1:18000` | `API_PORT` |
-| PgBouncer | `127.0.0.1:16432` | `PGBOUNCER_PORT` |
-| Redis | `127.0.0.1:16379` | `REDIS_PORT` |
-| RabbitMQ AMQP | `127.0.0.1:15672` | `RABBITMQ_PORT` |
-| RabbitMQ UI | `http://127.0.0.1:15673` | `RABBITMQ_MANAGEMENT_PORT` |
-| MinIO API | `http://127.0.0.1:19000` | `MINIO_API_PORT` |
-| MinIO UI | `http://127.0.0.1:19001` | `MINIO_CONSOLE_PORT` |
-| Flower | `http://127.0.0.1:15555` | `FLOWER_PORT` |
+### Planned MVP stack
 
-Estos son defaults versionados, no valores inferidos del equipo actual. El entorno local validado también expone API en `18000` y frontend en `15173`, pero cualquier equipo puede sobrescribirlos en su `.env`, por ejemplo:
+| Area | Technologies | Selection criterion |
+|---|---|---|
+| Frontend | TypeScript, React, and Vite | Typing, mature ecosystem, extensive documentation, and transferable learning |
+| Backend | Python, FastAPI, and Pydantic | Focused API, explicit validation, and broad community |
+| Persistence | SQLAlchemy and Alembic | Structured access and controlled schema evolution |
+| Database | PostgreSQL | Relational integrity, transactions, and traceability |
+| Collaboration | Git and GitHub | Version control and joint review |
+| Local environment | Docker Compose | Reproducible environment without making infrastructure the project goal |
 
-```dotenv
-API_PORT=28000
-FRONTEND_PORT=25173
-FRONTEND_URL=http://127.0.0.1:25173
-CORS_ORIGINS=http://127.0.0.1:25173
-```
+The choice considers the problem, the academic scale of the MVP, tool maturity, the development environment, and learning cost. A small, stable stack supported by active documentation and communities is preferred. Keeping these technologies throughout the project focuses effort on the problem and avoids unnecessary training, integration, and testing costs caused by a stack change.
 
-Si se cambia MinIO, ajuste también `MINIO_EXTERNAL_URL`. Los servicios `cloudflare` y `traefik` pertenecen al perfil opcional `edge` y no se inician con el comando normal.
+### Relational database versus NoSQL
 
-### Operación cotidiana
+Reconciliation relates transactions, records, proposals, decisions, and pending states. PostgreSQL suits this case through consistency, referential integrity, and transactional support. A NoSQL database could suit highly variable data or different scaling patterns, but those needs are not justified for the MVP. The decision will be revisited if discovery finds requirements incompatible with the relational model.
 
-```bash
-# Seguir logs de componentes concretos del proyecto
-docker compose -p conciliador-financiero-dev logs -f --tail=200 api-gateway frontend migrate
+### Deployment alternatives
 
-# Reiniciar sin eliminar contenedores ni datos persistentes
-docker compose -p conciliador-financiero-dev restart
+- **Initial development:** reproducible local execution through Docker Compose.
+- **Later alternative:** PaaS, if a demonstration needs to be published with less operational overhead.
+- **Initially out of scope:** self-managed servers and Kubernetes, because they add complexity without validating the core problem.
 
-# Detener y retirar contenedores/red; conserva los volúmenes nombrados
-docker compose -p conciliador-financiero-dev down
+## Work plan
 
-# Volver a crear el stack conservando datos
-docker compose -p conciliador-financiero-dev up -d --build
-```
+The sequence will be adjusted to the final course schedule and discovery findings.
 
-El nombre de proyecto evita operar sobre contenedores Compose ajenos. No use eliminación de volúmenes como parada ordinaria: borra bases, colas y objetos locales y exige una decisión explícita de recuperación desde cero.
+| Sequence | Stage | Owners | Factual status | Planned deliverable |
+|---:|---|---|---|---|
+| 1 | Discovery and validation | Hugo and Farid | **Not started** | Interviews, reviewed flow, and prioritized needs |
+| 2 | Formats and design | Hugo and Farid | **Documented** | Fictional formats, relational model, rules, and wireframes |
+| 3 | Workflow prototype | Hugo and Farid | **Not started** | Executable MVP flow with agreed test data |
+| 4 | Product verification | Hugo and Farid | **Not started** | Functional cases, technical tests, and limitations |
+| 5 | Presentation | Hugo and Farid | **Not started** | Demonstration and final documentation |
 
-## Autenticación y onboarding
+Each stage reserves time for learning, integration, and joint review. No nice-to-have item will be added while an essential MVP completion criterion is missing.
 
-No existe una cuenta pública ni una credencial demo segura. El acceso local inicial usa el `ADMIN_EMAIL` y `ADMIN_PASSWORD` que el operador definió en su `.env`; `migrate` los aprovisiona automáticamente mediante `init_db.py`.
+## Feasibility
 
-El endpoint `/v1/auth/register` crea un tenant y una cuenta inactiva que requiere OTP. Como el Compose predeterminado no incluye un servidor SMTP, ese flujo necesita una integración de correo configurada por el operador. Para desarrollo local desde cero, use la cuenta bootstrap; para otros entornos, el operador debe aprovisionar y activar identidades de forma controlada.
+| Dimension | Initial assessment | Planned measure |
+|---|---|---|
+| Technical | The flow can be solved with explicit rules and mature technologies suitable for MVP scale | Build in stages, use test data, and validate the minimum flow first |
+| Schedule | Joint availability is approximately 10 hours per week | Prioritize the MVP, limit parallel work, and adjust estimates to the final course schedule |
+| Operational | The system requires clear formats and human participation to resolve exceptions | Validate the flow with actors and keep rules and states understandable |
+| Knowledge | The team's academic background provides a common foundation, and the selected stack has broad documentation and communities | Organize cross-training, joint reviews, and decision documentation |
 
-## Feature flags
+Feasibility will be reassessed after discovery and each stage. If the required time or learning exceeds expectations, scope will be reduced before adding infrastructure or secondary features.
 
-1. Modifique exclusivamente el booleano correspondiente en [`config/feature_flags.json`](config/feature_flags.json).
-2. Revise el diff y ejecute las pruebas de paridad de flags.
-3. Para Conciliación, abra un cambio revisado; no la active mediante `.env` ni sólo desde la UI.
-4. Reconstruya API, frontend, workers y Beat con `docker compose -p conciliador-financiero-dev up -d --build`.
-5. Compruebe `/v1/capabilities`, rutas visibles, rutas API y programación de Beat.
+## Repository
 
-Ocultar navegación no constituye autorización. La composición se aplica en las rutas del frontend, el montaje de routers FastAPI, el registro/guard de tareas Celery y los schedules de Beat. Después actúan, de forma independiente, el entitlement del tenant, la autenticación y RBAC. Si una capa no reconoce una capacidad, debe denegarla.
+Project code and documentation: [github.com/turkaym/conciliador-financiero](https://github.com/turkaym/conciliador-financiero)
 
-## Calidad y pruebas
+## Documentation
 
-Los comandos de paridad con [`.github/workflows/quality-gates.yml`](.github/workflows/quality-gates.yml) son:
+- [Second delivery: index and review path](docs/segunda-entrega/README.md)
+- [API contract `/api/v1`](docs/segunda-entrega/09-contrato-api.md)
+- [CSV templates and fixtures](docs/segunda-entrega/csv/README.md)
+- [MVP wireframes](docs/segunda-entrega/wireframes/README.md)
+- [Backend skeleton](backend/README.md), [frontend skeleton](frontend/README.md), and [PostgreSQL schema](database/README.md)
 
-```bash
-cd frontend/app
-npm ci
-node --experimental-strip-types src/featureFlags.test.ts
-node --experimental-strip-types src/features/ai-rules/aiRules.test.ts
-npm run build
-npm audit --audit-level=high
-cd ../..
+## Local execution
 
-python -m pip install -r services/api-gateway/requirements-ci.txt
-python -m unittest tests.test_feature_flags tests.test_feature_composition tests.test_ai_rules
-python -m compileall -q config core services/api-gateway tests scripts/ci
-python -c "from config.feature_flags import feature_flags; from core.api.v1.endpoints.ai_rules import router; assert feature_flags.usable('ai_rules') and router"
-python scripts/ci/check_sensitive_paths.py BASE_SHA HEAD_SHA
-bash scripts/ci/check_compose_config.sh
-```
+1. Copy `.env.example` to `.env` and define a local `JWT_SECRET_KEY`.
+2. Run `docker compose up --wait` from the root. On a new volume, Compose runs `database/schema.sql` and `database/seed.sql` once.
+3. Install the backend with `backend\\.venv\\Scripts\\python.exe -m pip install -e backend[test]`.
+4. Start the API with `backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir backend --reload`.
+5. Start the frontend with `npm install && npm run dev` from `frontend/`.
 
-`npm audit --audit-level=high` falla ante avisos high/critical; los avisos low/moderate permanecen visibles. El lint general (`npm run lint`) conserva deuda conocida y no forma parte del gate: no debe describirse como verde. `check_compose_config.sh` requiere Bash, crea un `.env` temporal de CI y restaura el `.env` local mediante un trap.
+The local application uses `http://localhost:8000` as the API and `http://localhost:5173` as the default allowed origin. The demo user is `demo@conciliador.local` / `Demo1234!`; these are fictional development credentials and must not be reused in a public environment.
 
-La presencia del workflow y de estos resultados locales no demuestra que GitHub Actions se haya ejecutado en el hosting.
+## Render deployment
 
-## Seguridad y datos
+`render.yaml` defines a Blueprint with a managed PostgreSQL database, a FastAPI web service, and a Vite static site. The Blueprint generates `JWT_SECRET_KEY` and references the PostgreSQL connection; it contains no secrets. The deployed Blueprint is `conciliador-financiero-mvp`.
 
-- `.env`, variantes `.env.*`, certificados, claves privadas y formatos de certificados están ignorados; sólo `.env.example` se versiona.
-- `tenants_data`, uploads, logs, bases locales, dumps y volúmenes de runtime también están excluidos.
-- Los CSV financieros, adjuntos, objetos MinIO y datos reales de tenants nunca deben incorporarse a Git.
-- No use datos de producción para pruebas locales ni pegue archivos de entorno completos en issues, documentación o logs compartidos.
-- Si un secreto aparece en Git, logs o mensajería, revoque o rote primero la credencial en el sistema emisor; luego retire la exposición y audite su uso. Borrar el texto no invalida el secreto.
-- Las claves de `.env.example` son marcadores, no valores seguros para despliegue.
+1. In Render, connect the repository and select the `render.yaml` Blueprint.
+2. In `conciliador-api`, set `CORS_ORIGINS` to the final static-site URL, such as `https://<frontend>.onrender.com`.
+3. In `conciliador-frontend`, set `VITE_API_BASE_URL` to the final web-service URL, such as `https://<api>.onrender.com`.
+4. Save the changes and redeploy the frontend after configuring `VITE_API_BASE_URL`, because Vite embeds this variable during the build.
 
-## Contribución y revisión
+The backend start command runs `app.initialize_database`: it acquires a transactional lock, creates the schema only when `public.usuario` is missing, and runs the deterministic idempotent seed on every start. It does not perform a destructive reset. Render injects `PORT`, Uvicorn listens on `0.0.0.0`, and `/health` is the health check.
 
-Trabaje en una rama, mantenga cada commit como una unidad revisable, ejecute los checks relevantes y use mensajes Conventional Commits. La política detallada está en [`docs/github-governance.md`](docs/github-governance.md).
+### Credentials and required variables
 
-El repositorio incluye `CODEOWNERS` para revisión de propiedad y el workflow `Quality gates`. La protección/ruleset remoto, los checks requeridos y la ejecución alojada siguen pendientes de autorización y configuración; la presencia de archivos versionados no habilita esos controles en GitHub por sí sola.
+- `DATABASE_URL`: the Blueprint reference to the managed database.
+- `JWT_SECRET_KEY`: generated by Render; never add it to the repository.
+- `CORS_ORIGINS`: exact public frontend URL, without a trailing slash.
+- `VITE_API_BASE_URL`: exact public API URL, without a trailing slash.
+- `DATABASE_SCHEMA_PATH` and `DATABASE_SEED_PATH`: versioned paths used by the initializer.
 
-## Solución de problemas
+The seed creates or reactivates the demo user and catalogs. For a public demonstration, change the documented credentials or remove the demo user through a secure procedure before using real data.
 
-### Conflicto de puertos
+### Post-deployment smoke test
 
-Cambie sólo los puertos publicados en `.env` (`API_PORT`, `FRONTEND_PORT`, etc.) y mantenga coherentes `FRONTEND_URL`, `CORS_ORIGINS` y `MINIO_EXTERNAL_URL`. Después recree los servicios. No cambie los puertos internos de la red Compose.
+Verify from an authorized machine:
 
-### Contenedor no saludable
+1. `curl -fsS https://<api>.onrender.com/health` returns `{"status":"healthy"}`.
+2. The public frontend loads without asset or console errors.
+3. Login with the configured demo credentials receives a token.
+4. Upload both CSVs from `docs/segunda-entrega/csv/fixtures/`, inspect errors and pending records, and verify a proposal.
+5. Confirm a proposal, inspect history, reverse the reconciliation, and verify that both records return to pending.
+6. Restart or redeploy the backend and confirm that the seed does not duplicate catalogs or reset data.
 
-```bash
-docker compose -p conciliador-financiero-dev ps
-docker compose -p conciliador-financiero-dev logs --tail=200 postgres pgbouncer redis rabbitmq migrate api-gateway frontend
-```
-
-Resuelva primero el servicio dependiente más bajo. API y frontend esperan healthchecks; `migrate` debe terminar con código cero.
-
-### Migración o bootstrap fallido
-
-```bash
-docker compose -p conciliador-financiero-dev logs --tail=200 migrate postgres
-docker compose -p conciliador-financiero-dev run --rm migrate
-```
-
-El segundo comando vuelve a ejecutar el proceso idempotente. Verifique placeholders pendientes, conectividad directa a `postgres` y estado de Alembic antes de modificar datos manualmente.
-
-### Workers sin conectividad
-
-```bash
-docker compose -p conciliador-financiero-dev logs --tail=200 rabbitmq redis worker-afip worker-accounting worker-matching worker-ai celery-beat
-docker compose -p conciliador-financiero-dev exec worker-matching celery -A core.tasks.celery_config inspect ping
-```
-
-Revise que `RABBITMQ_PASSWORD` coincida con `RABBITMQ_URL` y que los hosts internos sigan siendo `rabbitmq` y `redis`, no `127.0.0.1`.
-
-### Dependencias obsoletas
-
-Use `npm ci`, no `npm install`, para reproducir el lockfile. Si la imagen conserva capas anteriores, ejecute nuevamente `up -d --build`; no edite dependencias dentro de un contenedor en ejecución.
-
-### Diferencia entre UI y API
-
-Compare `config/feature_flags.json` con `/v1/capabilities`, reconstruya frontend/API/workers/Beat y descarte assets antiguos del navegador. Una capacidad global usable todavía puede quedar bloqueada por entitlement del tenant o RBAC; eso no es un fallo del manifiesto.
-
-### Windows, Git Bash y PowerShell
-
-Los comandos `cp`, `cd ... && ...`, `/dev/null` y los scripts `.sh` requieren Git Bash/WSL. En PowerShell use `Copy-Item`, ejecute cada cambio de directorio por separado, use `$null` o los cmdlets web y lance `check_compose_config.sh` desde Git Bash. Los comandos `docker compose` son iguales en ambos shells.
-
-## Estado y limitaciones
-
-- El stack local `conciliador-financiero-dev` fue validado con API y frontend saludables y ocho capacidades coherentes con el manifiesto.
-- No se recreó un clon limpio ni se eliminaron volúmenes para probar el primer arranque; se validaron la configuración Compose, el bootstrap declarado y los comandos no destructivos contra el stack persistente actual.
-- No hay despliegue público verificado ni evidencia de ejecución alojada de CI.
-- El audit de npm puede conservar avisos moderate/low; el gate sólo rechaza high/critical.
-- El lint general del frontend tiene deuda conocida y no está verde.
-- CODEOWNERS y CI están versionados, pero las reglas remotas todavía no están habilitadas.
-- Conciliación, Copiloto de IA e Integraciones B2B permanecen deshabilitados aunque exista código implementado.
+MVP-11 is deployed, but it is not complete until the reversal step in this remote smoke test is verified explicitly.
