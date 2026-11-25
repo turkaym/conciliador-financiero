@@ -1,11 +1,9 @@
 # Propuestas
 
-- **Propósito:** generar y ordenar parejas elegibles tras lotes con válidos o durante reversión.
-- **Entrada:** registros habilitados y pendientes opuestos históricos.
-- **Salida:** propuestas versionadas con huella, procedencia, componentes y explicación.
-- **RF:** RF-08, RF-09; RN-01, RN-03, RN-04, RN-07.
-- **Dependencias:** repositorios de pendientes, conciliaciones y propuestas; bloquea registros por ID ascendente.
-- **Exclusiones:** generación manual pública, confirmación automática y reapertura de rechazos.
-- **MVP-07:** las decisiones se delegan al módulo de conciliación; una confirmación crea la conciliación activa y un rechazo conserva el motivo y devuelve los extremos a pendientes cuando no tienen otra propuesta vigente.
-- **MVP-06:** `ref-nfkd-v1` normaliza referencias para explicar y ordenar candidatos; ARS, monto exacto y ventana inclusiva de tres días son los únicos criterios de elegibilidad.
-- **MVP-08:** la reversión reutiliza el matching determinista con origen `REVERSION`, omite la pareja/evaluación ya confirmada y evita duplicar cualquier evaluación existente.
+- Evalúa parejas ARS con monto exacto y ventana de ±3 días.
+- Usa `ref-nfkd-v1` para ordenar y explicar referencias.
+- Genera propuestas al importar, durante reversión automática y mediante `POST /proposals/sync`.
+- `synchronize_for_user` bloquea registros disponibles, recorre sus lotes y evita duplicados `GENERADA` o rechazos idénticos.
+- Los históricos `CONFIRMADA`/`CADUCADA` no impiden una evaluación nueva cuando los registros vuelven a estar libres.
+- Una propuesta de reversión es una entidad nueva vinculada a la conciliación revertida; nunca se reabre la original.
+- `manual-v1` identifica decisiones manuales creadas por el módulo de conciliación.

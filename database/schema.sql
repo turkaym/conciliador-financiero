@@ -200,7 +200,7 @@ CREATE TABLE propuesta_conciliacion (
         OR (origen_tipo = 'REVERSION' AND lote_origen_id IS NULL AND conciliacion_revertida_id IS NOT NULL)
     ),
     CONSTRAINT ck_propuesta_score CHECK (score_referencia BETWEEN 0 AND 1),
-    CONSTRAINT ck_propuesta_dias CHECK (diferencia_dias BETWEEN -3 AND 3),
+    CONSTRAINT ck_propuesta_dias CHECK (diferencia_dias BETWEEN -32768 AND 32767),
     CONSTRAINT ck_propuesta_explicacion CHECK (jsonb_typeof(explicacion) = 'object'),
     CONSTRAINT ck_propuesta_decision CHECK (
         (estado = 'GENERADA' AND motivo_decision IS NULL AND decidida_por IS NULL AND decidida_en IS NULL)
@@ -379,17 +379,27 @@ BEGIN
             RAISE EXCEPTION 'propuesta generada incompatible con conciliacion activa';
         END IF;
 
+        IF NEW.origen_tipo = 'REVERSION' AND NOT EXISTS (
+            SELECT 1
+              FROM conciliacion c
+              JOIN propuesta_conciliacion p ON p.id = c.propuesta_id
+             WHERE c.id = NEW.conciliacion_revertida_id
+               AND c.estado = 'REVERTIDA'
+               AND c.movimiento_id = NEW.movimiento_id
+               AND c.comprobante_id = NEW.comprobante_id
+               AND p.version_regla = NEW.version_regla
+               AND p.huella_evaluacion = NEW.huella_evaluacion
+        ) THEN
+            RAISE EXCEPTION 'propuesta de reversion no corresponde a la conciliacion indicada';
+        END IF;
+
         IF EXISTS (
             SELECT 1 FROM propuesta_conciliacion
              WHERE movimiento_id = NEW.movimiento_id
                AND comprobante_id = NEW.comprobante_id
                AND version_regla = NEW.version_regla
                AND huella_evaluacion = NEW.huella_evaluacion
-               AND (estado = 'RECHAZADA' OR id = (
-                   SELECT propuesta_id
-                     FROM conciliacion
-                    WHERE id = NEW.conciliacion_revertida_id
-               ))
+               AND estado = 'RECHAZADA'
         ) THEN
             RAISE EXCEPTION 'evaluacion terminal identica suprimida';
         END IF;

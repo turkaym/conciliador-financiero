@@ -1,23 +1,24 @@
-# Second delivery: pre-coding design
+# Segunda entrega - documentación vigente
 
-This package defines CONCILIADOR's functional scope, rules, data, and target architecture. Product coding and discovery had not started when these academic documents were created. The modular READMEs, CSV, SVG, Compose, and SQL files are documentation assets; they do not constitute an implemented application.
+Este paquete comenzó como diseño previo a la codificación y fue actualizado para reflejar el MVP implementado. Los documentos canónicos son:
 
-## Recommended review path
+1. [Alcance y módulos](01-alcance-y-modulos.md)
+2. [Requerimientos](02-requerimientos.md)
+3. [Reglas de negocio](03-reglas-de-negocio.md)
+4. [Diseño de base de datos](04-diseno-base-de-datos.md)
+5. [Diccionario de datos](05-diccionario-de-datos.md)
+6. [Diagramas](06-diagramas.md)
+7. [Decisiones y supuestos](07-decisiones-y-supuestos.md)
+8. [Matriz de trazabilidad](08-matriz-trazabilidad.md)
+9. [Contrato API](09-contrato-api.md)
+10. [CSV y casos de prueba](csv/README.md)
 
-1. [Scope and modules](01-alcance-y-modulos.md)
-2. [Requirements](02-requerimientos.md) and [business rules](03-reglas-de-negocio.md)
-3. [Database design](04-diseno-base-de-datos.md) and [data dictionary](05-diccionario-de-datos.md)
-4. [Diagrams](06-diagramas.md)
-5. [Decisions and assumptions](07-decisiones-y-supuestos.md)
-6. [API contract](09-contrato-api.md), [CSV](csv/README.md), and [wireframes](wireframes/README.md)
-7. [Traceability matrix](08-matriz-trazabilidad.md)
+## Estado
 
-The [glossary](glosario.md) defines the common vocabulary. The requirements, rules, and dictionary documents are the canonical sources for their respective details; the others link to them without duplicating them.
+- Backend FastAPI, frontend React y esquema PostgreSQL implementados.
+- Importación por fuente, deduplicación, consolidado, conciliación automática/manual, auditoría, reversión y exportación disponibles.
+- El módulo visual Pendientes fue reemplazado por Consolidado y Propuestas > Manual.
+- La documentación de datos y diagramas conserva el diseño físico original; ante diferencias operativas, `database/schema.sql`, `database/seed.sql` y el contrato API vigente son la referencia ejecutable.
+- La última validación local registró 44 pruebas backend, 17 frontend y build aprobado.
 
-## Delivery boundaries
-
-- The academic MVP is documented before coding it.
-- Discovery is **Not started** and coding is **Not started** in this pre-coding package; no interviews or prior executions are attributed to it.
-- Timing from a future test will be an observation, not a service commitment.
-- The eight Mermaid sources are integrated into the diagrams document so GitHub renders them without duplicate files.
-- The documented local environment contains only PostgreSQL 16; the backend/frontend skeletons are READMEs only.
+La aplicación es académica, utiliza datos ficticios y no debe procesar información financiera real.

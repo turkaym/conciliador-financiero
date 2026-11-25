@@ -8,14 +8,34 @@ from sqlalchemy.orm import Session
 from app.access.security import get_current_user
 from app.database import get_db
 from app.errors import ApiError
-from app.models import BankMovement, ImportBatch, ImportedRecord, Receipt, ReconciliationProposal, User
-from app.proposals.schemas import ProposalDetail, ProposalList, ProposalRanking, ProposalRecord, ProposalSummary
+from app.models import BankMovement, DataSource, ImportBatch, ImportedRecord, Receipt, ReconciliationProposal, User
+from app.proposals.schemas import ProposalDetail, ProposalGenerationResponse, ProposalList, ProposalRanking, ProposalRecord, ProposalSummary
+from app.proposals.service import synchronize_for_user
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
 
 def _owned_query(db: Session, user_id: int):
     return select(ReconciliationProposal).join(ImportedRecord, ImportedRecord.id == ReconciliationProposal.movement_id).join(ImportBatch, ImportBatch.id == ImportedRecord.batch_id).where(ImportBatch.user_id == user_id)
+
+
+def _proposal_record(
+    db: Session, record_id: int, transaction: BankMovement | Receipt
+) -> ProposalRecord:
+    record = db.get(ImportedRecord, record_id)
+    batch = db.get(ImportBatch, record.batch_id)
+    source = db.get(DataSource, record.source_id)
+    return ProposalRecord(
+        record_id=record.id,
+        batch_id=batch.id,
+        source_id=source.id,
+        source_name=source.name,
+        external_id=record.external_id,
+        date=transaction.date,
+        amount=transaction.amount,
+        currency=transaction.currency,
+        reference_original=record.original_data.get("referencia"),
+    )
 
 
 @router.get("", response_model=ProposalList)
@@ -38,7 +58,40 @@ def list_proposals(
         query = query.where(ReconciliationProposal.origin_batch_id == batch_id)
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = db.scalars(query.order_by(ReconciliationProposal.exact_match.desc(), ReconciliationProposal.reference_score.desc(), func.abs(ReconciliationProposal.day_difference), ReconciliationProposal.movement_id, ReconciliationProposal.receipt_id).offset((page - 1) * page_size).limit(page_size)).all()
-    return ProposalList(page=page, page_size=page_size, total=total, items=[ProposalSummary(id=row.id, status=row.status, movement_id=row.movement_id, receipt_id=row.receipt_id, exact_match=row.exact_match, reference_score=row.reference_score, day_difference=row.day_difference, rule_version=row.rule_version, normalizer_version=row.normalizer_version) for row in rows])
+    return ProposalList(
+        page=page,
+        page_size=page_size,
+        total=total,
+        items=[
+            ProposalSummary(
+                id=row.id,
+                status=row.status,
+                movement_id=row.movement_id,
+                receipt_id=row.receipt_id,
+                exact_match=row.exact_match,
+                reference_score=row.reference_score,
+                day_difference=row.day_difference,
+                rule_version=row.rule_version,
+                normalizer_version=row.normalizer_version,
+                movement=_proposal_record(db, row.movement_id, db.get(BankMovement, row.movement_id)),
+                receipt=_proposal_record(db, row.receipt_id, db.get(Receipt, row.receipt_id)),
+            )
+            for row in rows
+        ],
+    )
+
+
+@router.post("/sync", response_model=ProposalGenerationResponse)
+def synchronize_proposals(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    generated = synchronize_for_user(db, user.id)
+    db.commit()
+    return ProposalGenerationResponse(
+        generated_count=len(generated),
+        proposal_ids=[proposal.id for proposal in generated],
+    )
 
 
 @router.get("/{proposal_id}", response_model=ProposalDetail)
@@ -56,7 +109,7 @@ def get_proposal(proposal_id: int, db: Annotated[Session, Depends(get_db)], user
         raise ApiError(404, "PROPOSAL_NOT_FOUND", "Proposal not found")
     return ProposalDetail(
         id=proposal.id, status=proposal.status, evaluation_fingerprint="sha256:" + base64.urlsafe_b64encode(proposal.evaluation_fingerprint).decode().rstrip("="),
-        movement=ProposalRecord(record_id=movement_record.id, batch_id=movement_batch.id, date=movement.date, amount=movement.amount, currency=movement.currency, reference_original=movement_record.original_data.get("referencia")),
-        receipt=ProposalRecord(record_id=receipt_record.id, batch_id=receipt_batch.id, date=receipt.date, amount=receipt.amount, currency=receipt.currency, reference_original=receipt_record.original_data.get("referencia")),
+        movement=_proposal_record(db, movement_record.id, movement),
+        receipt=_proposal_record(db, receipt_record.id, receipt),
         ranking=ranking, origin={"type": "BATCH" if proposal.origin_type == "LOTE" else "REVERSAL", "batch_id": proposal.origin_batch_id, "reverted_reconciliation_id": proposal.reverted_reconciliation_id, "generated_at": proposal.created_at}, decision=decision, created_at=proposal.created_at,
     )

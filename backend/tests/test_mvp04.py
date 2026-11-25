@@ -121,3 +121,58 @@ def test_duplicate_rows_and_owner_safe_errors(processing_client):
     assert [item["code"] for item in errors["items"]] == ["ID_EXTERNO_DUPLICADO", "HUELLA_FILA_DUPLICADA"]
     other = {"Authorization": f"Bearer {create_access_token(2)}"}
     assert client.get(f"/api/v1/batches/{batch['id']}/errors", headers=other).status_code == 404
+
+
+def test_duplicate_from_previous_batch_is_skipped_while_new_rows_are_processed(
+    processing_client,
+):
+    client, engine = processing_client
+    first_content = (
+        b"id_externo,fecha,monto,moneda,referencia,tipo_movimiento\n"
+        b"MOV-EXISTING,2026-11-20,100.00,ARS,Factura existente,CREDITO\n"
+    )
+    second_content = (
+        b"id_externo,fecha,monto,moneda,referencia,tipo_movimiento\n"
+        b"MOV-EXISTING,2026-11-20,100.00,ARS,Factura existente,CREDITO\n"
+        b"MOV-NEW,2026-11-21,250.00,ARS,Factura nueva,CREDITO\n"
+    )
+
+    first = client.post(
+        "/api/v1/batches",
+        headers=_headers(),
+        data={"source_id": "1", "template_id": "1", "type": "MOVIMIENTO"},
+        files={"file": ("primer-lote.csv", first_content, "text/csv")},
+    )
+    second = client.post(
+        "/api/v1/batches",
+        headers=_headers(),
+        data={"source_id": "1", "template_id": "1", "type": "MOVIMIENTO"},
+        files={"file": ("segundo-lote.csv", second_content, "text/csv")},
+    )
+
+    assert first.status_code == 202
+    assert second.status_code == 202
+    assert second.json()["status"] == "PROCESADO_CON_ERRORES"
+    assert second.json()["totals"] == {
+        "total_rows": 2,
+        "valid_rows": 1,
+        "invalid_rows": 1,
+    }
+    errors = client.get(
+        f"/api/v1/batches/{second.json()['id']}/errors", headers=_headers()
+    ).json()["items"]
+    assert [(item["row_number"], item["code"]) for item in errors] == [
+        (2, "ID_EXTERNO_DUPLICADO")
+    ]
+    assert errors[0]["original_record_id"] is not None
+    with Session(engine) as session:
+        movements = session.scalars(select(BankMovement)).all()
+        records = session.scalars(
+            select(ImportedRecord).order_by(ImportedRecord.id)
+        ).all()
+        assert len(movements) == 2
+        assert [record.status for record in records] == [
+            "PENDIENTE",
+            "INVALIDO",
+            "PENDIENTE",
+        ]

@@ -21,19 +21,47 @@ END $$;
 
 INSERT INTO fuente_datos (tipo_origen, codigo, nombre, activa)
 VALUES
-    ('BANCO', 'BANCO_DEMO', 'Banco demo', TRUE),
-    ('COMPROBANTES', 'COMPROBANTES_DEMO', 'Comprobantes demo', TRUE)
+    ('BANCO', 'BANCO_NACION', 'Banco Nación', TRUE),
+    ('BANCO', 'BANCO_PROVINCIA', 'Banco Provincia', TRUE),
+    ('BANCO', 'SANTANDER', 'Santander', TRUE),
+    ('BANCO', 'GALICIA', 'Galicia', TRUE),
+    ('BANCO', 'BBVA', 'BBVA', TRUE),
+    ('BANCO', 'MACRO', 'Banco Macro', TRUE),
+    ('BANCO', 'ICBC', 'ICBC', TRUE),
+    ('BANCO', 'SUPERVIELLE', 'Supervielle', TRUE),
+    ('BANCO', 'NARANJA_X', 'Naranja X', TRUE),
+    ('BANCO', 'MERCADO_PAGO_MOVIMIENTOS', 'Mercado Pago', TRUE),
+    ('COMPROBANTES', 'MERCADO_PAGO_COMPROBANTES', 'Mercado Pago', TRUE),
+    ('COMPROBANTES', 'TIENDA_NUBE', 'Tienda Nube', TRUE),
+    ('COMPROBANTES', 'FACTURAS_FISICAS_OCR', 'Facturas físicas (OCR a CSV)', TRUE),
+    ('COMPROBANTES', 'ARCA', 'ARCA', TRUE)
 ON CONFLICT (codigo) DO UPDATE
 SET tipo_origen = EXCLUDED.tipo_origen,
     nombre = EXCLUDED.nombre,
     activa = EXCLUDED.activa;
 
+UPDATE fuente_datos
+SET activa = FALSE
+WHERE codigo IN ('BANCO_DEMO', 'COMPROBANTES_DEMO');
+
 INSERT INTO plantilla_importacion (fuente_id, nombre, tipo, version, activa)
 SELECT f.id, catalog_values.nombre, catalog_values.tipo, catalog_values.version, TRUE
 FROM fuente_datos AS f
 JOIN (VALUES
-    ('BANCO_DEMO', 'movimientos', 'MOVIMIENTO', 1),
-    ('COMPROBANTES_DEMO', 'comprobantes', 'COMPROBANTE', 1)
+    ('BANCO_NACION', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('BANCO_PROVINCIA', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('SANTANDER', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('GALICIA', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('BBVA', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('MACRO', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('ICBC', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('SUPERVIELLE', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('NARANJA_X', 'movimientos_bancarios_generico', 'MOVIMIENTO', 1),
+    ('MERCADO_PAGO_MOVIMIENTOS', 'mercado_pago_movimientos', 'MOVIMIENTO', 1),
+    ('MERCADO_PAGO_COMPROBANTES', 'mercado_pago_comprobantes', 'COMPROBANTE', 1),
+    ('TIENDA_NUBE', 'tienda_nube_ventas', 'COMPROBANTE', 1),
+    ('FACTURAS_FISICAS_OCR', 'facturas_fisicas_ocr', 'COMPROBANTE', 1),
+    ('ARCA', 'arca_comprobantes', 'COMPROBANTE', 1)
 ) AS catalog_values(codigo, nombre, tipo, version) ON catalog_values.codigo = f.codigo
 ON CONFLICT (fuente_id, nombre, tipo, version) DO UPDATE
 SET activa = EXCLUDED.activa;
@@ -42,18 +70,50 @@ INSERT INTO campo_plantilla (plantilla_id, columna_origen, campo_canonico, tipo_
 SELECT p.id, fields.columna_origen, fields.campo_canonico, fields.tipo_dato, fields.requerido, fields.formato_fecha, fields.separador_decimal
 FROM plantilla_importacion AS p
 JOIN (VALUES
-    ('movimientos', 'MOVIMIENTO', 'id_externo', 'id_externo', 'TEXTO', FALSE, NULL, NULL),
-    ('movimientos', 'MOVIMIENTO', 'fecha', 'fecha', 'FECHA', TRUE, 'YYYY-MM-DD', NULL),
-    ('movimientos', 'MOVIMIENTO', 'monto', 'monto', 'DECIMAL', TRUE, NULL, '.'),
-    ('movimientos', 'MOVIMIENTO', 'moneda', 'moneda', 'MONEDA', TRUE, NULL, NULL),
-    ('movimientos', 'MOVIMIENTO', 'referencia', 'referencia', 'TEXTO', FALSE, NULL, NULL),
-    ('movimientos', 'MOVIMIENTO', 'tipo_movimiento', 'tipo_movimiento', 'CATEGORIA', TRUE, NULL, NULL),
-    ('comprobantes', 'COMPROBANTE', 'id_externo', 'id_externo', 'TEXTO', FALSE, NULL, NULL),
-    ('comprobantes', 'COMPROBANTE', 'fecha', 'fecha', 'FECHA', TRUE, 'YYYY-MM-DD', NULL),
-    ('comprobantes', 'COMPROBANTE', 'monto', 'monto', 'DECIMAL', TRUE, NULL, '.'),
-    ('comprobantes', 'COMPROBANTE', 'moneda', 'moneda', 'MONEDA', TRUE, NULL, NULL),
-    ('comprobantes', 'COMPROBANTE', 'referencia', 'referencia', 'TEXTO', FALSE, NULL, NULL),
-    ('comprobantes', 'COMPROBANTE', 'clase', 'clase', 'CATEGORIA', TRUE, NULL, NULL)
+    ('movimientos_bancarios_generico', 'MOVIMIENTO', 'Referencia', 'id_externo', 'TEXTO', FALSE, NULL, NULL),
+    ('movimientos_bancarios_generico', 'MOVIMIENTO', 'Fecha', 'fecha', 'FECHA', TRUE, 'DD/MM/YYYY', NULL),
+    ('movimientos_bancarios_generico', 'MOVIMIENTO', 'Crédito', 'monto', 'DECIMAL', TRUE, NULL, ','),
+    ('movimientos_bancarios_generico', 'MOVIMIENTO', 'Moneda', 'moneda', 'MONEDA', FALSE, NULL, NULL),
+    ('movimientos_bancarios_generico', 'MOVIMIENTO', 'Descripción', 'referencia', 'TEXTO', FALSE, NULL, NULL),
+
+    ('mercado_pago_movimientos', 'MOVIMIENTO', 'SOURCE_ID', 'id_externo', 'TEXTO', TRUE, NULL, NULL),
+    ('mercado_pago_movimientos', 'MOVIMIENTO', 'DATE', 'fecha', 'FECHA', TRUE, 'ISO_DATETIME', NULL),
+    ('mercado_pago_movimientos', 'MOVIMIENTO', 'REAL_AMOUNT', 'monto', 'DECIMAL', TRUE, NULL, '.'),
+    ('mercado_pago_movimientos', 'MOVIMIENTO', 'CURRENCY_ID', 'moneda', 'MONEDA', FALSE, NULL, NULL),
+    ('mercado_pago_movimientos', 'MOVIMIENTO', 'EXTERNAL_REFERENCE', 'referencia', 'TEXTO', FALSE, NULL, NULL),
+    ('mercado_pago_movimientos', 'MOVIMIENTO', 'TRANSACTION_TYPE', 'tipo_operacion', 'TEXTO', FALSE, NULL, NULL),
+
+    ('mercado_pago_comprobantes', 'COMPROBANTE', 'SOURCE_ID', 'id_externo', 'TEXTO', TRUE, NULL, NULL),
+    ('mercado_pago_comprobantes', 'COMPROBANTE', 'DATE', 'fecha', 'FECHA', TRUE, 'ISO_DATETIME', NULL),
+    ('mercado_pago_comprobantes', 'COMPROBANTE', 'TRANSACTION_AMOUNT', 'monto', 'DECIMAL', TRUE, NULL, '.'),
+    ('mercado_pago_comprobantes', 'COMPROBANTE', 'CURRENCY_ID', 'moneda', 'MONEDA', FALSE, NULL, NULL),
+    ('mercado_pago_comprobantes', 'COMPROBANTE', 'EXTERNAL_REFERENCE', 'referencia', 'TEXTO', FALSE, NULL, NULL),
+    ('mercado_pago_comprobantes', 'COMPROBANTE', 'TRANSACTION_TYPE', 'tipo_operacion', 'TEXTO', FALSE, NULL, NULL),
+
+    ('tienda_nube_ventas', 'COMPROBANTE', 'Número de orden', 'id_externo', 'TEXTO', TRUE, NULL, NULL),
+    ('tienda_nube_ventas', 'COMPROBANTE', 'Fecha', 'fecha', 'FECHA', TRUE, 'DD/MM/YYYY', NULL),
+    ('tienda_nube_ventas', 'COMPROBANTE', 'Total', 'monto', 'DECIMAL', TRUE, NULL, ','),
+    ('tienda_nube_ventas', 'COMPROBANTE', 'Moneda', 'moneda', 'MONEDA', FALSE, NULL, NULL),
+    ('tienda_nube_ventas', 'COMPROBANTE', 'Medio de pago', 'referencia', 'TEXTO', FALSE, NULL, NULL),
+    ('tienda_nube_ventas', 'COMPROBANTE', 'Estado del pago', 'estado_pago', 'TEXTO', FALSE, NULL, NULL),
+
+    ('facturas_fisicas_ocr', 'COMPROBANTE', 'Número', 'id_externo', 'TEXTO', TRUE, NULL, NULL),
+    ('facturas_fisicas_ocr', 'COMPROBANTE', 'Fecha', 'fecha', 'FECHA', TRUE, 'DD/MM/YYYY', NULL),
+    ('facturas_fisicas_ocr', 'COMPROBANTE', 'Importe total', 'monto', 'DECIMAL', TRUE, NULL, ','),
+    ('facturas_fisicas_ocr', 'COMPROBANTE', 'Moneda', 'moneda', 'MONEDA', FALSE, NULL, NULL),
+    ('facturas_fisicas_ocr', 'COMPROBANTE', 'CAE', 'referencia', 'TEXTO', FALSE, NULL, NULL),
+    ('facturas_fisicas_ocr', 'COMPROBANTE', 'CUIT emisor', 'cuit_emisor', 'TEXTO', TRUE, NULL, NULL),
+    ('facturas_fisicas_ocr', 'COMPROBANTE', 'Tipo de comprobante', 'tipo_comprobante', 'TEXTO', TRUE, NULL, NULL),
+    ('facturas_fisicas_ocr', 'COMPROBANTE', 'Punto de venta', 'punto_venta', 'TEXTO', TRUE, NULL, NULL),
+
+    ('arca_comprobantes', 'COMPROBANTE', 'Número Desde', 'id_externo', 'TEXTO', TRUE, NULL, NULL),
+    ('arca_comprobantes', 'COMPROBANTE', 'Fecha', 'fecha', 'FECHA', TRUE, 'YYYY-MM-DD', NULL),
+    ('arca_comprobantes', 'COMPROBANTE', 'Imp. Total', 'monto', 'DECIMAL', TRUE, NULL, ','),
+    ('arca_comprobantes', 'COMPROBANTE', 'Moneda', 'moneda', 'MONEDA', FALSE, NULL, NULL),
+    ('arca_comprobantes', 'COMPROBANTE', 'Cód. Autorización', 'referencia', 'TEXTO', FALSE, NULL, NULL),
+    ('arca_comprobantes', 'COMPROBANTE', 'Tipo', 'tipo_comprobante', 'TEXTO', TRUE, NULL, NULL),
+    ('arca_comprobantes', 'COMPROBANTE', 'Punto de Venta', 'punto_venta', 'TEXTO', TRUE, NULL, NULL),
+    ('arca_comprobantes', 'COMPROBANTE', 'CUIT Receptor', 'cuit_contraparte', 'TEXTO', FALSE, NULL, NULL)
 ) AS fields(nombre, tipo, columna_origen, campo_canonico, tipo_dato, requerido, formato_fecha, separador_decimal)
     ON fields.nombre = p.nombre AND fields.tipo = p.tipo
 ON CONFLICT (plantilla_id, columna_origen) DO UPDATE
@@ -62,5 +122,96 @@ SET campo_canonico = EXCLUDED.campo_canonico,
     requerido = EXCLUDED.requerido,
     formato_fecha = EXCLUDED.formato_fecha,
     separador_decimal = EXCLUDED.separador_decimal;
+
+ALTER TABLE propuesta_conciliacion DROP CONSTRAINT IF EXISTS ck_propuesta_dias;
+ALTER TABLE propuesta_conciliacion
+    ADD CONSTRAINT ck_propuesta_dias
+    CHECK (diferencia_dias BETWEEN -32768 AND 32767);
+
+CREATE OR REPLACE FUNCTION validar_actualizacion_propuesta() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF (NEW.movimiento_id, NEW.comprobante_id, NEW.normalizador_version, NEW.version_regla,
+        NEW.huella_evaluacion, NEW.origen_tipo, NEW.lote_origen_id, NEW.conciliacion_revertida_id,
+        NEW.score_referencia, NEW.coincidencia_exacta, NEW.diferencia_dias, NEW.explicacion)
+       IS DISTINCT FROM
+       (OLD.movimiento_id, OLD.comprobante_id, OLD.normalizador_version, OLD.version_regla,
+        OLD.huella_evaluacion, OLD.origen_tipo, OLD.lote_origen_id, OLD.conciliacion_revertida_id,
+        OLD.score_referencia, OLD.coincidencia_exacta, OLD.diferencia_dias, OLD.explicacion) THEN
+        RAISE EXCEPTION 'identidad y evaluacion de propuesta son inmutables';
+    END IF;
+    IF OLD.estado <> 'GENERADA' OR NEW.estado NOT IN ('CONFIRMADA', 'RECHAZADA', 'CADUCADA') THEN
+        RAISE EXCEPTION 'transicion de propuesta no permitida: % -> %', OLD.estado, NEW.estado;
+    END IF;
+    RETURN NEW;
+END $$;
+
+CREATE OR REPLACE FUNCTION proteger_propuesta_generada() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.estado = 'GENERADA' THEN
+        PERFORM id
+          FROM registro_importado
+         WHERE id IN (NEW.movimiento_id, NEW.comprobante_id)
+         ORDER BY id
+         FOR UPDATE;
+
+        IF EXISTS (
+            SELECT 1
+              FROM conciliacion
+             WHERE estado = 'ACTIVA'
+               AND (movimiento_id IN (NEW.movimiento_id, NEW.comprobante_id)
+                    OR comprobante_id IN (NEW.movimiento_id, NEW.comprobante_id))
+        ) THEN
+            RAISE EXCEPTION 'propuesta generada incompatible con conciliacion activa';
+        END IF;
+
+        IF NEW.origen_tipo = 'REVERSION' AND NOT EXISTS (
+            SELECT 1
+              FROM conciliacion c
+              JOIN propuesta_conciliacion p ON p.id = c.propuesta_id
+             WHERE c.id = NEW.conciliacion_revertida_id
+               AND c.estado = 'REVERTIDA'
+               AND c.movimiento_id = NEW.movimiento_id
+               AND c.comprobante_id = NEW.comprobante_id
+               AND p.version_regla = NEW.version_regla
+               AND p.huella_evaluacion = NEW.huella_evaluacion
+        ) THEN
+            RAISE EXCEPTION 'propuesta de reversion no corresponde a la conciliacion indicada';
+        END IF;
+
+        IF EXISTS (
+            SELECT 1 FROM propuesta_conciliacion
+             WHERE movimiento_id = NEW.movimiento_id
+               AND comprobante_id = NEW.comprobante_id
+               AND version_regla = NEW.version_regla
+               AND huella_evaluacion = NEW.huella_evaluacion
+               AND estado = 'RECHAZADA'
+        ) THEN
+            RAISE EXCEPTION 'evaluacion terminal identica suprimida';
+        END IF;
+    END IF;
+    RETURN NEW;
+END $$;
+
+WITH propuestas_reabiertas AS (
+    UPDATE propuesta_conciliacion p
+       SET estado = 'CONFIRMADA',
+           decidida_por = c.confirmada_por,
+           decidida_en = c.confirmada_en
+      FROM conciliacion c
+     WHERE c.propuesta_id = p.id
+       AND c.estado = 'REVERTIDA'
+       AND p.estado = 'GENERADA'
+       AND p.version_regla <> 'manual-v1'
+    RETURNING p.*, c.id AS conciliacion_id
+)
+INSERT INTO propuesta_conciliacion (
+    movimiento_id, comprobante_id, estado, normalizador_version, version_regla,
+    huella_evaluacion, origen_tipo, lote_origen_id, conciliacion_revertida_id,
+    score_referencia, coincidencia_exacta, diferencia_dias, explicacion
+)
+SELECT movimiento_id, comprobante_id, 'GENERADA', normalizador_version, version_regla,
+       huella_evaluacion, 'REVERSION', NULL, conciliacion_id,
+       score_referencia, coincidencia_exacta, diferencia_dias, explicacion
+  FROM propuestas_reabiertas;
 
 COMMIT;

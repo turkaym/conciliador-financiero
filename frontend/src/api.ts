@@ -52,17 +52,18 @@ export interface ValidationErrorItem {
   created_at: string;
 }
 
-export interface PendingItem {
+export interface ConsolidatedItem {
   record_id: number;
   type: ImportType;
+  source: { id: number; code: string; name: string };
   batch_id: number;
   external_id: string | null;
   date: string;
   amount: string;
   currency: string;
-  reference_original: string | null;
+  description: string | null;
   state: string;
-  cause: string;
+  reconciled: boolean;
 }
 
 export interface ProposalSummary {
@@ -75,12 +76,24 @@ export interface ProposalSummary {
   day_difference: number;
   rule_version: string;
   normalizer_version: string;
+  movement: ProposalRecord;
+  receipt: ProposalRecord;
+}
+
+export interface ProposalRecord {
+  record_id: number;
+  batch_id: number;
+  source_id: number;
+  source_name: string;
+  external_id: string | null;
+  date: string;
+  amount: string;
+  currency: string;
+  reference_original: string | null;
 }
 
 export interface ProposalDetail extends ProposalSummary {
   evaluation_fingerprint: string;
-  movement: { record_id: number; batch_id: number; date: string; amount: string; currency: string; reference_original: string | null };
-  receipt: { record_id: number; batch_id: number; date: string; amount: string; currency: string; reference_original: string | null };
   ranking: { exact_match: boolean; reference_score: string; day_difference: number; normalizer_version: string; rule_version: string; movement_normalized: string; receipt_normalized: string; movement_tokens: string[]; receipt_tokens: string[] };
   origin: Record<string, unknown>;
   decision: { reason?: string | null; decided_at?: string } | null;
@@ -101,11 +114,26 @@ export interface ReconciliationDetail {
   id: number;
   status: string;
   proposal_id: number;
-  movement: Record<string, unknown>;
-  receipt: Record<string, unknown>;
+  movement: ProposalRecord;
+  receipt: ProposalRecord;
   confirmed_by: number;
   confirmed_at: string;
   reversal: { reason: string; actor: number; occurred_at: string } | null;
+}
+
+export interface AuditFilters {
+  confirmedFrom: string;
+  confirmedTo: string;
+  movementFrom: string;
+  movementTo: string;
+  receiptFrom: string;
+  receiptTo: string;
+  movementSourceId: string;
+  receiptSourceId: string;
+  amount: string;
+  reference: string;
+  batchId: string;
+  origin: "" | "AUTOMATICA" | "MANUAL";
 }
 
 export class ApiError extends Error {
@@ -149,6 +177,44 @@ async function request<T>(path: string, init?: RequestInit, accessToken?: string
   return body as T;
 }
 
+function reconciliationQuery(filters: AuditFilters) {
+  const params = new URLSearchParams({ status: "ACTIVA", page_size: "100" });
+  const values: Array<[string, string]> = [
+    ["confirmed_from", filters.confirmedFrom],
+    ["confirmed_to", filters.confirmedTo],
+    ["movement_from", filters.movementFrom],
+    ["movement_to", filters.movementTo],
+    ["receipt_from", filters.receiptFrom],
+    ["receipt_to", filters.receiptTo],
+    ["movement_source_id", filters.movementSourceId],
+    ["receipt_source_id", filters.receiptSourceId],
+    ["amount", filters.amount],
+    ["reference", filters.reference],
+    ["batch_id", filters.batchId],
+    ["origin", filters.origin],
+  ];
+  values.forEach(([key, value]) => {
+    if (value.trim()) params.set(key, value.trim());
+  });
+  return params.toString();
+}
+
+async function download(path: string, accessToken: string): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  } catch {
+    throw new ApiError("No se pudo conectar con el servidor.", 0);
+  }
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string; code?: string } | null;
+    throw new ApiError(body?.message ?? "No se pudo descargar el archivo.", response.status, body?.code);
+  }
+  return response.blob();
+}
+
 export const api = {
   login(email: string, password: string) {
     return request<LoginResponse>("/api/v1/auth/login", {
@@ -173,17 +239,65 @@ export const api = {
   getBatchErrors(accessToken: string, batchId: number) {
     return request<{ total: number; items: ValidationErrorItem[] }>(`/api/v1/batches/${batchId}/errors`, undefined, accessToken);
   },
-  getPending(accessToken: string) {
-    return request<{ page: number; page_size: number; total: number; items: PendingItem[] }>("/api/v1/pending?page_size=100", undefined, accessToken);
+  getConsolidatedRecords(accessToken: string, filters: {
+    type: ImportType;
+    sourceId?: number;
+    batchId?: number;
+    reconciled?: boolean;
+    amount?: string;
+    amountTolerance?: string;
+    reference?: string;
+    from?: string;
+    to?: string;
+    page: number;
+    pageSize: number;
+    sortBy: string;
+    sortOrder: "asc" | "desc";
+  }) {
+    const params = new URLSearchParams({
+      type: filters.type,
+      page: String(filters.page),
+      page_size: String(filters.pageSize),
+      sort_by: filters.sortBy,
+      sort_order: filters.sortOrder,
+    });
+    if (filters.sourceId) params.set("source_id", String(filters.sourceId));
+    if (filters.batchId) params.set("batch_id", String(filters.batchId));
+    if (filters.reconciled !== undefined) params.set("reconciled", String(filters.reconciled));
+    if (filters.amount) params.set("amount", filters.amount);
+    if (filters.amountTolerance) params.set("amount_tolerance", filters.amountTolerance);
+    if (filters.reference) params.set("reference", filters.reference);
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    return request<{ page: number; page_size: number; total: number; items: ConsolidatedItem[] }>(
+      `/api/v1/records?${params.toString()}`,
+      undefined,
+      accessToken,
+    );
   },
   getProposals(accessToken: string) {
-    return request<{ page: number; page_size: number; total: number; items: ProposalSummary[] }>("/api/v1/proposals?page_size=100", undefined, accessToken);
+    return request<{ page: number; page_size: number; total: number; items: ProposalSummary[] }>("/api/v1/proposals?status=GENERADA&page_size=100", undefined, accessToken);
+  },
+  synchronizeProposals(accessToken: string) {
+    return request<{ generated_count: number; proposal_ids: number[] }>("/api/v1/proposals/sync", { method: "POST" }, accessToken);
   },
   getProposal(accessToken: string, proposalId: number) {
     return request<ProposalDetail>(`/api/v1/proposals/${proposalId}`, undefined, accessToken);
   },
   confirmProposal(accessToken: string, proposalId: number) {
     return request<{ proposal: { id: number; status: string }; reconciliation: { id: number; status: string } }>(`/api/v1/proposals/${proposalId}/confirm`, { method: "POST" }, accessToken);
+  },
+  confirmManualReconciliation(accessToken: string, movementId: number, receiptId: number) {
+    return request<{ proposal: { id: number; status: string }; reconciliation: { id: number; status: string } }>("/api/v1/reconciliations/manual", {
+      method: "POST",
+      body: JSON.stringify({ movement_id: movementId, receipt_id: receiptId }),
+    }, accessToken);
+  },
+  getReconciliations(accessToken: string, filters: AuditFilters) {
+    return request<{ page: number; page_size: number; total: number; items: ReconciliationDetail[] }>(`/api/v1/reconciliations?${reconciliationQuery(filters)}`, undefined, accessToken);
+  },
+  downloadReconciliations(accessToken: string, filters: AuditFilters) {
+    return download(`/api/v1/reconciliations/export.csv?${reconciliationQuery(filters)}`, accessToken);
   },
   rejectProposal(accessToken: string, proposalId: number, reason: string) {
     return request<{ id: number; status: string; reason: string }>(`/api/v1/proposals/${proposalId}/reject`, { method: "POST", body: JSON.stringify({ reason }) }, accessToken);

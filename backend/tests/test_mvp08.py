@@ -1,3 +1,5 @@
+import csv
+import io
 from datetime import date
 from decimal import Decimal
 
@@ -81,14 +83,18 @@ def test_reverse_is_atomic_releases_both_records_and_regenerates_deterministical
     body = response.json()
     assert body["status"] == "REVERTIDA"
     assert body["reversal"]["reason"] == "Bank correction"
-    assert body["generated_proposals"] == [{"id": 2, "origin": {"type": "REVERSAL", "reverted_reconciliation_id": 1}}]
+    assert body["generated_proposals"] == [
+        {"id": 2, "origin": {"type": "REVERSAL", "reverted_reconciliation_id": 1}},
+        {"id": 3, "origin": {"type": "REVERSAL", "reverted_reconciliation_id": 1}},
+    ]
 
     with Session(engine) as db:
         assert db.get(ImportedRecord, 1).status == "CON_PROPUESTAS"
-        assert db.get(ImportedRecord, 11).status == "PENDIENTE"
+        assert db.get(ImportedRecord, 11).status == "CON_PROPUESTAS"
         reconciliation = db.get(Reconciliation, 1)
         assert reconciliation.status == "REVERTIDA"
         assert reconciliation.reversal_reason == "Bank correction"
+        assert db.get(ReconciliationProposal, 1).status == "CONFIRMADA"
         assert db.scalar(select(ReconciliationProposal).where(ReconciliationProposal.id == 2)).origin_type == "REVERSION"
         events = db.scalars(select(EventHistory).order_by(EventHistory.id)).all()
         assert [event.event_type for event in events] == ["CONCILIACION_REVERTIDA"]
@@ -98,6 +104,13 @@ def test_reverse_is_atomic_releases_both_records_and_regenerates_deterministical
     assert detail.json()["status"] == "REVERTIDA"
     assert detail.json()["reversal"]["reason"] == "Bank correction"
     assert client.get("/api/v1/history", params={"event_type": "CONCILIACION_REVERTIDA"}).json()["total"] == 1
+    assert client.get("/api/v1/reconciliations").json()["total"] == 0
+    confirmation = client.post("/api/v1/proposals/2/confirm")
+    assert confirmation.status_code == 200
+    assert confirmation.json()["reconciliation"]["id"] == 2
+    audit = client.get("/api/v1/reconciliations").json()
+    assert audit["total"] == 1
+    assert audit["items"][0]["proposal_id"] == 2
     close_engine(engine)
 
 
@@ -131,4 +144,44 @@ def test_reverse_is_owner_scoped_and_rejects_stale_endpoint_state():
     with Session(engine) as db:
         assert db.get(Reconciliation, 1).status == "ACTIVA"
         assert db.scalar(select(EventHistory).where(EventHistory.event_type == "CONCILIACION_REVERTIDA")) is None
+    close_engine(engine)
+
+
+def test_audit_filters_and_exports_balanced_accounting_csv():
+    engine = make_engine()
+    with Session(engine) as db:
+        seed_active_reconciliation(db)
+        db.commit()
+    client = client_for(engine, 1)
+    params = {
+        "movement_source_id": 1,
+        "receipt_source_id": 11,
+        "movement_from": "2026-01-01",
+        "movement_to": "2026-01-01",
+        "receipt_from": "2026-01-02",
+        "receipt_to": "2026-01-02",
+        "amount": "100.00",
+        "reference": "invoice",
+        "batch_id": 1,
+        "origin": "AUTOMATICA",
+    }
+
+    audit = client.get("/api/v1/reconciliations", params=params)
+    exported = client.get("/api/v1/reconciliations/export.csv", params=params)
+
+    assert audit.status_code == 200
+    assert audit.json()["total"] == 1
+    assert exported.status_code == 200
+    assert exported.headers["content-disposition"] == 'attachment; filename="asiento-conciliaciones.csv"'
+    rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+    assert len(rows) == 2
+    assert rows[0]["lado"] == "MOVIMIENTO"
+    assert rows[0]["cuenta"] == "Bank"
+    assert rows[0]["debe"] == "100.00"
+    assert rows[0]["haber"] == "0.00"
+    assert rows[1]["lado"] == "COMPROBANTE"
+    assert rows[1]["cuenta"] == "Receipt"
+    assert rows[1]["debe"] == "0.00"
+    assert rows[1]["haber"] == "100.00"
+    assert {row["diferencia"] for row in rows} == {"0.00"}
     close_engine(engine)

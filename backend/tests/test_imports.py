@@ -9,6 +9,7 @@ from app.database import get_db
 from app.main import app
 from app.access.security import create_access_token
 from app.models import Base, DataSource, ImportTemplate, TemplateField, User
+from app.validation.csv import parse_csv
 
 
 @pytest.fixture
@@ -296,3 +297,42 @@ def test_batch_inspection_is_scoped_to_the_authenticated_owner(catalog_client: T
 
     assert response.status_code == 404
     assert response.json()["code"] == "BATCH_NOT_FOUND"
+
+
+def test_source_schema_maps_semicolon_csv_to_canonical_fields():
+    content = (
+        "Referencia;Fecha;Crédito;Moneda;Descripción;Columna adicional\r\n"
+        "MOV-1;25/11/2026;1.234,56;ARS;Cobro factura;ignorada\r\n"
+    ).encode("cp1252")
+    columns = [
+        ("Referencia", "id_externo", "TEXTO", False, None, None),
+        ("Fecha", "fecha", "FECHA", True, "DD/MM/YYYY", None),
+        ("Crédito", "monto", "DECIMAL", True, None, ","),
+        ("Moneda", "moneda", "MONEDA", False, None, None),
+        ("Descripción", "referencia", "TEXTO", False, None, None),
+    ]
+
+    parsed = parse_csv(content, "MOVIMIENTO", 1, columns)
+
+    assert parsed.file_error is None
+    assert parsed.rows[0].canonical["id_externo"] == "MOV-1"
+    assert parsed.rows[0].values["fecha"].isoformat() == "2026-11-25"
+    assert str(parsed.rows[0].values["monto"]) == "1234.56"
+    assert parsed.rows[0].errors == ()
+
+
+def test_source_schema_rejects_missing_required_headers_with_expected_columns():
+    parsed = parse_csv(
+        b"Referencia,Fecha\nMOV-1,2026-11-25\n",
+        "MOVIMIENTO",
+        1,
+        [
+            ("Referencia", "id_externo", "TEXTO", False, None, None),
+            ("Fecha", "fecha", "FECHA", True, "YYYY-MM-DD", None),
+            ("Crédito", "monto", "DECIMAL", True, None, ","),
+        ],
+    )
+
+    assert parsed.file_error is not None
+    assert parsed.file_error.code == "CABECERA_INCOMPATIBLE"
+    assert "Crédito" in parsed.file_error.message

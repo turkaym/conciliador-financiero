@@ -1,4 +1,4 @@
-# Diagramas del diseño propuesto
+# Diagramas de arquitectura y dominio
 
 Estos ocho diagramas son vistas complementarias. El [diccionario](05-diccionario-de-datos.md) gobierna restricciones que Mermaid simplifica. Las fuentes se integran aquí deliberadamente para ofrecer renderizado directo en GitHub y evitar ocho archivos `.mmd` redundantes, sin eliminar ningún diagrama previsto.
 
@@ -7,7 +7,7 @@ Estos ocho diagramas son vistas complementarias. El [diccionario](05-diccionario
 ```mermaid
 flowchart LR
  O[Operador autenticado] -->|CSV y decisiones| C[CONCILIADOR]
- C -->|errores, propuestas, pendientes e historial| O
+ C -->|errores, consolidado, propuestas, auditoría e historial| O
  R[Responsable del proceso] -->|consulta| C
  B[CSV de banco conocido] --> C
  K[CSV de comprobantes conocido] --> C
@@ -18,11 +18,12 @@ flowchart LR
 ```mermaid
 flowchart LR
  O((Operador)) --- A[Iniciar sesión]
- O --- I[Importar CSV con fuente y plantilla conocidas]
- O --- P[Revisar propuestas]
+ O --- I[Importar CSV por tipo y fuente]
+ O --- P[Revisar propuestas automáticas o manuales]
  O --- D[Confirmar o rechazar]
  O --- V[Revertir con motivo]
- O --- Q[Consultar pendientes, errores e historial]
+ O --- Q[Consultar consolidado, auditoría, errores e historial]
+ O --- E[Exportar asiento CSV]
  R((Responsable)) --- Q
  I --> N[Validar, deduplicar y normalizar]
  P --> G[Ver criterios y evidencia]
@@ -32,7 +33,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
- A[Autenticar; validar fuente/tipo y capturar template_id] --> H[Calcular huella]
+ A[Autenticar; seleccionar fuente/tipo y resolver esquema] --> H[Calcular huella]
  H --> U{¿La huella está reservada?}
  U -- Sí --> DU[Crear DUPLICADO terminal con lote_original_id]
  DU --> Z[Registrar evento; sin filas]
@@ -67,7 +68,7 @@ flowchart TD
 ```mermaid
 flowchart TB
  subgraph UI[UI React]
-  V[Vistas: acceso, cargas, pendientes, propuestas e historial]
+  V[Vistas: acceso, importación, consolidado, propuestas e historial]
  end
  subgraph IN[Adaptador de entrada]
   API[API FastAPI / Pydantic]
@@ -79,7 +80,7 @@ flowchart TB
   VN[Validación-normalización]
   PR[Propuestas]
   RC[Revisión-conciliación]
-  PC[Pendientes-consultas]
+  PC[Consolidado-consultas]
   TR[Trazabilidad]
   PORT[Puertos de persistencia]
  end

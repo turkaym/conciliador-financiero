@@ -1,33 +1,49 @@
-# Contrato CSV y casos ficticios
+# CSV y casos de prueba
 
-Estos archivos UTF-8 sin BOM son evidencia documental para RF-02–RF-06 y RN-10–RN-11. Usan coma, salto de línea estándar, fechas ISO `YYYY-MM-DD`, decimal con punto, moneda `ARS` y datos inventados. Ninguna celda comienza con `=`, `+`, `-` o `@`; no contienen fórmulas ni personas reales.
+Todos los archivos contienen datos ficticios.
 
-## Plantillas conocidas
+## Archivos por fuente
 
-| Tipo | Archivo | Cabecera exacta | Mapeo |
-|---|---|---|---|
-| Movimiento | [`templates/movimientos.csv`](templates/movimientos.csv) | `id_externo,fecha,monto,moneda,referencia,tipo_movimiento` | Identidad opcional; `DATE`; `NUMERIC(18,2)` positivo; `ARS`; texto opcional; `CREDITO`. |
-| Comprobante | [`templates/comprobantes.csv`](templates/comprobantes.csv) | `id_externo,fecha,monto,moneda,referencia,clase` | Identidad opcional; `DATE`; `NUMERIC(18,2)` positivo; `ARS`; texto opcional; `VENTA` o `COBRO`. |
+En `templates/`:
 
-Cabecera, orden y cantidad de columnas son parte de la versión de plantilla. Las filas comienzan en el número 2. Espacios no alteran `datos_originales`; la representación tipada se guarda aparte. Un CSV estructuralmente ilegible produce `FALLIDO`; una estructura reconocida procesada sin filas válidas produce `PROCESADO_SIN_VALIDOS`; errores de fila producen `INVALIDO` y permiten continuar.
-
-## Resultado esperado
-
-| Fixture | Clasificación | Evidencia/códigos esperados |
+| Archivo | Tipo/fuente | Uso |
 |---|---|---|
-| [`movimientos-validos.csv`](fixtures/movimientos-validos.csv) | `PROCESADO`; 3 `PENDIENTE` | Tres créditos ARS; referencia vacía permitida. |
-| [`comprobantes-validos.csv`](fixtures/comprobantes-validos.csv) | `PROCESADO`; 3 `PENDIENTE` | Tres ventas/cobros ARS. |
-| [`movimientos-invalidos.csv`](fixtures/movimientos-invalidos.csv) | `PROCESADO_SIN_VALIDOS`; 3 `INVALIDO`, 0 válidas | `FECHA_INVALIDA`, `MONTO_NO_POSITIVO`, `MONEDA_NO_ADMITIDA` y `TIPO_MOVIMIENTO_NO_ADMITIDO`; no genera propuestas. |
-| [`comprobantes-invalidos.csv`](fixtures/comprobantes-invalidos.csv) | `PROCESADO_SIN_VALIDOS`; 3 `INVALIDO`, 0 válidas | `FECHA_INVALIDA`, `MONTO_NO_POSITIVO`, `MONEDA_NO_ADMITIDA` y `CLASE_NO_ADMITIDA`; no genera propuestas. |
-| [`movimientos-duplicados.csv`](fixtures/movimientos-duplicados.csv) | `PROCESADO_CON_ERRORES`; 2 elegibles, 2 `INVALIDO` | Segunda `MOV-D01`: `ID_EXTERNO_DUPLICADO`; cuarta fila: `HUELLA_FILA_DUPLICADA`. |
-| [`comprobantes-duplicados.csv`](fixtures/comprobantes-duplicados.csv) | `PROCESADO_CON_ERRORES`; 2 elegibles, 2 `INVALIDO` | Segunda `COMP-D01`: `ID_EXTERNO_DUPLICADO`; cuarta fila: `HUELLA_FILA_DUPLICADA`. |
-| [`movimientos-estructura-invalida.csv`](fixtures/movimientos-estructura-invalida.csv) | `FALLIDO`; sin filas | `CABECERA_INCOMPATIBLE`. |
-| [`comprobantes-estructura-invalida.csv`](fixtures/comprobantes-estructura-invalida.csv) | `FALLIDO`; sin filas | `CABECERA_INCOMPATIBLE`. |
+| `banco-nacion-movimientos-prueba.csv` | Movimiento / Banco Nación | Esquema bancario genérico. |
+| `galicia-movimientos-prueba.csv` | Movimiento / Galicia | Esquema bancario genérico. |
+| `mercado-pago-movimientos-prueba.csv` | Movimiento / Mercado Pago | Exportación técnica de Mercado Pago. |
+| `mercado-pago-comprobantes-prueba.csv` | Comprobante / Mercado Pago | Genera coincidencias con el archivo de movimientos. |
+| `tienda-nube-comprobantes-prueba.csv` | Comprobante / Tienda Nube | Ventas/cobros de prueba. |
+| `arca-comprobantes-prueba.csv` | Comprobante / ARCA | Comprobantes de prueba. |
 
-## Archivo repetido
+Para demostrar Automáticas, importar los dos archivos de Mercado Pago. El matcher puede mostrar más de una alternativa cuando varios registros cumplen monto y ventana de fecha; confirmar una caduca las incompatibles.
 
-La duplicidad se prueba reenviando **los mismos bytes**. Solo lotes en curso o procesados reservan; `FALLIDO` y `DUPLICADO` no. Por eso un fixture estructuralmente inválido o un intento con plantilla desconocida puede reenviarse y deja ambos intentos auditados. En carrera, el perdedor nace `DUPLICADO`, referencia al dueño y no crea filas; si el dueño falla, permanece terminal y un tercer envío puede reservar. Los fixtures `*-duplicados.csv` prueban duplicidad de fila, un caso diferente.
+## Esquemas activos
 
-## Seguridad y normalización
+- Bancos tradicionales: `Referencia,Fecha,Crédito,Moneda,Descripción`.
+- Mercado Pago movimientos: `SOURCE_ID,DATE,REAL_AMOUNT,CURRENCY_ID,EXTERNAL_REFERENCE,TRANSACTION_TYPE`.
+- Mercado Pago comprobantes: `SOURCE_ID,DATE,TRANSACTION_AMOUNT,CURRENCY_ID,EXTERNAL_REFERENCE,TRANSACTION_TYPE`.
+- Tienda Nube: número de orden, fecha, total, moneda, medio y estado de pago.
+- Facturas físicas OCR-a-CSV: número, fecha, importe, moneda, CAE, CUIT, tipo y punto de venta.
+- ARCA: número, fecha, importe total, moneda, autorización, tipo, punto de venta y CUIT.
 
-El importador rechaza fórmulas aun cuando el valor aparezca en una columna textual. La huella de archivo usa los bytes exactos. La clave de fila usa versión, fuente, tipo e ID externo original; sin ID usa campos originales estables y encuadrados por longitud. La referencia solo se normaliza para ranking y nunca modifica la celda original.
+La fuente Facturas físicas no procesa imágenes: espera el CSV producido por una herramienta OCR externa.
+
+## Fixtures canónicos
+
+`fixtures/` conserva ocho casos:
+
+- Movimientos/comprobantes válidos.
+- Movimientos/comprobantes inválidos.
+- Duplicados por fila.
+- Cabecera incompatible.
+
+## Duplicados
+
+Existen dos niveles:
+
+1. Archivo: mismos bytes de un lote que reserva la huella → lote `DUPLICADO`.
+2. Fila: misma identidad dentro del archivo o contra lotes anteriores → fila `INVALIDO`, referencia al original y continuación del resto.
+
+## Formatos
+
+El parser soporta UTF-8 y CP1252, delimitadores coma/punto y coma/tabulación y formatos regionales configurados. Los originales se preservan; las conversiones tipadas no los reemplazan.

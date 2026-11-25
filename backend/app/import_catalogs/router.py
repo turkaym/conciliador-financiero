@@ -55,18 +55,23 @@ def list_templates(
     ).all()
     items = []
     for template in templates:
-        columns = db.scalars(
-            select(TemplateField.source_column)
+        fields = db.scalars(
+            select(TemplateField)
             .where(TemplateField.template_id == template.id)
             .order_by(TemplateField.id)
         ).all()
+        canonical_order = order_columns(
+            template.template_type, [field.canonical_field for field in fields]
+        )
+        canonical_rank = {column: index for index, column in enumerate(canonical_order)}
+        fields.sort(key=lambda field: (canonical_rank[field.canonical_field], field.id))
         items.append(
             TemplateItem(
                 id=template.id,
                 name=template.name,
                 type=template.template_type,
                 version=template.version,
-                columns=order_columns(template.template_type, columns),
+                columns=[field.source_column for field in fields],
             )
         )
     return CatalogList(total=len(items), items=items)

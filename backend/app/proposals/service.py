@@ -28,7 +28,12 @@ def generate_for_batch(db: Session, batch_id: int, owner_id: int) -> list[Reconc
     records = db.scalars(
         select(ImportedRecord)
         .join(ImportBatch, ImportBatch.id == ImportedRecord.batch_id)
-        .where(ImportedRecord.batch_id == batch_id, ImportedRecord.status == "PENDIENTE", ImportBatch.user_id == owner_id)
+        .where(
+            ImportedRecord.batch_id == batch_id,
+            ImportedRecord.status.in_(("PENDIENTE", "CON_PROPUESTAS")),
+            ImportBatch.user_id == owner_id,
+            ~_active_reconciliation(ImportedRecord.id),
+        )
         .order_by(ImportedRecord.id)
     ).all()
     generated = _generate_for_records(db, records, owner_id, "LOTE", batch_id, None)
@@ -79,12 +84,14 @@ def _generate_for_records(
         for result in rank_matches(list(result_pairs)):
             pair = result_pairs[result]
             fingerprint = evaluation_fingerprint(pair)
-            exists = db.scalar(select(ReconciliationProposal.id).where(
+            existing_query = select(ReconciliationProposal.id).where(
                 ReconciliationProposal.movement_id == pair.movement_id,
                 ReconciliationProposal.receipt_id == pair.receipt_id,
                 ReconciliationProposal.rule_version == RULE_VERSION,
                 ReconciliationProposal.evaluation_fingerprint == fingerprint,
-            ))
+                ReconciliationProposal.status.in_(("GENERADA", "RECHAZADA")),
+            )
+            exists = db.scalar(existing_query)
             if exists is not None:
                 continue
             proposal = ReconciliationProposal(
@@ -110,6 +117,26 @@ def _generate_for_records(
                 if record is not None and record.status == "PENDIENTE":
                     record.status = "CON_PROPUESTAS"
     db.flush()
+    return generated
+
+
+def synchronize_for_user(db: Session, owner_id: int) -> list[ReconciliationProposal]:
+    records = db.scalars(
+        select(ImportedRecord)
+        .join(ImportBatch, ImportBatch.id == ImportedRecord.batch_id)
+        .where(
+            ImportBatch.user_id == owner_id,
+            ImportBatch.status.in_(("PROCESADO", "PROCESADO_CON_ERRORES")),
+            ImportedRecord.status.in_(("PENDIENTE", "CON_PROPUESTAS")),
+            ~_active_reconciliation(ImportedRecord.id),
+        )
+        .order_by(ImportedRecord.id)
+        .with_for_update()
+    ).all()
+    batch_ids = sorted({record.batch_id for record in records})
+    generated: list[ReconciliationProposal] = []
+    for batch_id in batch_ids:
+        generated.extend(generate_for_batch(db, batch_id, owner_id))
     return generated
 
 

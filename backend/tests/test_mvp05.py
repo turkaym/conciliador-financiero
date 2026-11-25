@@ -162,3 +162,80 @@ def test_pending_queries_reject_anonymous_and_hide_other_owner(processing_client
     assert client.get("/api/v1/pending").status_code == 401
     assert client.get("/api/v1/pending", headers=_headers()).json()["total"] == 3
     assert client.get("/api/v1/pending", headers=_headers(2)).json()["total"] == 1
+
+
+def test_consolidated_records_filter_reconciliation_source_and_dates(processing_client):
+    client, engine = processing_client
+    _seed_pending(engine)
+
+    movements = client.get(
+        "/api/v1/records?type=MOVIMIENTO&source_id=1&reconciled=false"
+        "&from=2026-01-10&to=2026-01-12&sort_by=amount&sort_order=desc&page_size=10",
+        headers=_headers(),
+    )
+    reconciled_receipts = client.get(
+        "/api/v1/records?type=COMPROBANTE&reconciled=true&page_size=10",
+        headers=_headers(),
+    )
+
+    assert movements.status_code == 200
+    assert movements.json()["total"] == 2
+    assert [item["record_id"] for item in movements.json()["items"]] == [2, 1]
+    assert movements.json()["items"][0] == {
+        "record_id": 2,
+        "type": "MOVIMIENTO",
+        "source": {"id": 1, "code": "BANCO_DEMO", "name": "Banco demo"},
+        "batch_id": 1,
+        "external_id": "MOV-2",
+        "date": "2026-01-11",
+        "amount": "200.00",
+        "currency": "ARS",
+        "description": "Beta",
+        "state": "PENDIENTE",
+        "reconciled": False,
+    }
+    assert reconciled_receipts.status_code == 200
+    assert reconciled_receipts.json()["total"] == 1
+    assert reconciled_receipts.json()["items"][0]["record_id"] == 6
+    assert reconciled_receipts.json()["items"][0]["reconciled"] is True
+
+
+def test_consolidated_records_are_paginated_and_owner_scoped(processing_client):
+    client, engine = processing_client
+    _seed_pending(engine)
+
+    first_page = client.get(
+        "/api/v1/records?type=MOVIMIENTO&page=1&page_size=10&sort_by=date&sort_order=asc",
+        headers=_headers(),
+    )
+    other_owner = client.get(
+        "/api/v1/records?type=MOVIMIENTO&page_size=10",
+        headers=_headers(2),
+    )
+    invalid_window = client.get(
+        "/api/v1/records?type=MOVIMIENTO&from=2026-02-01&to=2026-01-01&page_size=10",
+        headers=_headers(),
+    )
+
+    assert first_page.status_code == 200
+    assert first_page.json()["total"] == 3
+    assert [item["record_id"] for item in first_page.json()["items"]] == [1, 2, 5]
+    assert other_owner.status_code == 200
+    assert [item["record_id"] for item in other_owner.json()["items"]] == [4]
+    assert invalid_window.status_code == 400
+    assert invalid_window.json()["code"] == "INVALID_DATE_WINDOW"
+
+
+def test_consolidated_records_filter_amount_reference_and_batch(processing_client):
+    client, engine = processing_client
+    _seed_pending(engine)
+
+    response = client.get(
+        "/api/v1/records?type=MOVIMIENTO&batch_id=1&amount=195"
+        "&amount_tolerance=10&reference=MOV-2&page_size=10",
+        headers=_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+    assert response.json()["items"][0]["record_id"] == 2

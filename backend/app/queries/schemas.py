@@ -26,3 +26,34 @@ class PendingList(BaseModel):
     page_size: int
     total: int
     items: list[PendingItem]
+
+
+class ConsolidatedSource(BaseModel):
+    id: int
+    code: str
+    name: str
+
+
+class ConsolidatedItem(BaseModel):
+    record_id: int
+    type: str
+    source: ConsolidatedSource
+    batch_id: int
+    external_id: str | None
+    date: date
+    amount: Decimal
+    currency: str
+    description: str | None
+    state: str
+    reconciled: bool
+
+    @field_serializer("amount")
+    def serialize_amount(self, amount: Decimal) -> str:
+        return f"{amount:.2f}"
+
+
+class ConsolidatedList(BaseModel):
+    page: int
+    page_size: int
+    total: int
+    items: list[ConsolidatedItem]

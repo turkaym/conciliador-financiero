@@ -168,3 +168,87 @@ def test_proposal_and_history_are_owner_scoped():
     assert other.post("/api/v1/proposals/1/confirm", json={}).status_code == 404
     app.dependency_overrides.clear()
     engine.dispose()
+
+
+def test_manual_reconciliation_confirms_pair_and_exposes_audit_list():
+    engine = make_engine()
+    with Session(engine) as db:
+        seed_proposal(db)
+        db.commit()
+    client = client_for(engine, 1)
+
+    response = client.post(
+        "/api/v1/reconciliations/manual",
+        json={"movement_id": 1, "receipt_id": 11},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["proposal"]["status"] == "CONFIRMADA"
+    assert response.json()["reconciliation"]["status"] == "ACTIVA"
+    audit = client.get("/api/v1/reconciliations?status=ACTIVA")
+    assert audit.status_code == 200
+    assert audit.json()["total"] == 1
+    assert audit.json()["items"][0]["movement"]["source_name"] == "Bank"
+    assert audit.json()["items"][0]["receipt"]["source_name"] == "Receipt"
+    with Session(engine) as db:
+        manual = db.scalar(
+            select(ReconciliationProposal).where(
+                ReconciliationProposal.rule_version == "manual-v1"
+            )
+        )
+        assert manual is not None
+        assert manual.status == "CONFIRMADA"
+        assert manual.explanation["manual"] is True
+        assert db.get(ReconciliationProposal, 1).status == "CADUCADA"
+    app.dependency_overrides.clear()
+    engine.dispose()
+
+
+def test_manual_reconciliation_rejects_wrong_owner_and_reconciled_records():
+    engine = make_engine()
+    with Session(engine) as db:
+        seed_proposal(db)
+        db.add(
+            User(
+                id=2,
+                email="user2@example.com",
+                password_hash=PasswordHash.recommended().hash("secret"),
+                active=True,
+            )
+        )
+        db.commit()
+    other = client_for(engine, 2)
+    assert other.post(
+        "/api/v1/reconciliations/manual",
+        json={"movement_id": 1, "receipt_id": 11},
+    ).status_code == 404
+    owner = client_for(engine, 1)
+    assert owner.post(
+        "/api/v1/reconciliations/manual",
+        json={"movement_id": 1, "receipt_id": 11},
+    ).status_code == 200
+    reconciliation_id = owner.get("/api/v1/reconciliations").json()["items"][0]["id"]
+    assert owner.post(
+        "/api/v1/reconciliations/manual",
+        json={"movement_id": 1, "receipt_id": 11},
+    ).status_code == 409
+    assert owner.post(
+        f"/api/v1/reconciliations/{reconciliation_id}/reverse",
+        json={"reason": "Manual pairing error"},
+    ).status_code == 200
+    movement_candidates = owner.get(
+        "/api/v1/records?type=MOVIMIENTO&reconciled=false&page_size=10"
+    ).json()
+    receipt_candidates = owner.get(
+        "/api/v1/records?type=COMPROBANTE&reconciled=false&page_size=10"
+    ).json()
+    assert [item["record_id"] for item in movement_candidates["items"]] == [1]
+    assert [item["record_id"] for item in receipt_candidates["items"]] == [11]
+    assert owner.get("/api/v1/reconciliations").json()["total"] == 0
+    synchronization = owner.post("/api/v1/proposals/sync")
+    assert synchronization.status_code == 200
+    assert synchronization.json()["generated_count"] == 1
+    assert owner.get("/api/v1/proposals?status=GENERADA").json()["total"] == 1
+    assert owner.post("/api/v1/proposals/sync").json()["generated_count"] == 0
+    app.dependency_overrides.clear()
+    engine.dispose()

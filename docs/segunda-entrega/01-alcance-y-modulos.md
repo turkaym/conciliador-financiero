@@ -1,53 +1,49 @@
 # Alcance y módulos del MVP
 
-## Alcance priorizado
+## Alcance implementado
 
 | Nivel | Contenido |
 |---|---|
-| MVP | Acceso de usuarios pre-registrados; CSV con plantillas conocidas; cobranzas ARS; conciliación 1:1; revisión humana; pendientes e historial; prueba de hasta 10.000 registros por carga. |
-| Nice to have | Mapeo manual, búsqueda aproximada con `pg_trgm`, procesamiento asincrónico, dashboard y exportación. |
-| Fuera de alcance | Egresos, multimoneda, relaciones 1:N o N:M, roles y administración avanzada, integraciones reales, OCR/IA, ERP, fiscalidad, multi-tenancy e infraestructura distribuida. |
+| Implementado | Acceso pre-registrado; importación CSV por fuente; validación y deduplicación; ARS; conciliación 1:1 automática y manual; consolidado; auditoría; reversión; historial; exportación contable. |
+| Extensible | Nuevas fuentes/esquemas, mejoras de ranking, procesamiento asíncrono y métricas. |
+| Fuera de alcance | Integraciones reales, OCR interno, IA, egresos, multimoneda, relaciones 1:N/N:M, roles avanzados, multi-tenancy y uso productivo. |
 
-El volumen de 10.000 registros define una futura prueba funcional, no un SLA ni un tiempo prometido. La coincidencia propuesta exige ARS, monto exacto y fecha inclusiva de ±3 días; la referencia solo ayuda a ordenar y explicar.
+## Módulos funcionales
 
-## Módulos y límites
+| Módulo | Responsabilidad |
+|---|---|
+| Acceso | Autenticar al usuario demo y atribuir acciones. |
+| Catálogos | Exponer bancos, entidades y esquemas versionados. |
+| Importación | Recibir CSV, validar, normalizar y deduplicar. |
+| Consolidado | Consultar movimientos y comprobantes con filtros persistentes. |
+| Propuestas automáticas | Sincronizar, ordenar y explicar coincidencias elegibles. |
+| Conciliación manual | Seleccionar explícitamente un movimiento y un comprobante disponibles. |
+| Auditoría | Consultar activas, filtrar, exportar y deshacer conciliaciones. |
+| Historial | Conservar eventos y detalles de decisiones/reversiones. |
 
-| Módulo | Responsabilidad propuesta | No hace |
+## Correspondencia técnica
+
+| Concepto | Backend | Frontend |
 |---|---|---|
-| Acceso básico | Autenticar y atribuir acciones a usuarios pre-registrados | Alta pública o roles avanzados |
-| Catálogos de importación | Exponer fuentes y versiones de plantillas activas | Conectar bancos o sistemas externos |
-| Importación | Recibir un CSV, calcular su huella y administrar el lote | Interpretar reglas de conciliación |
-| Validación-normalización | Conservar originales, tipar datos y registrar errores | Alterar los valores recibidos |
-| Propuestas | Buscar parejas elegibles y explicar criterios | Confirmar automáticamente |
-| Revisión-conciliación | Confirmar, rechazar y revertir de forma atómica | Borrar decisiones previas |
-| Pendientes-consultas | Filtrar registros por tipo, lote y estado | Modificar datos del dominio |
-| Trazabilidad | Registrar cronología append-only junto con cada hecho | Sustituir las entidades operativas |
+| Acceso | `backend/app/access` | `frontend/src/auth.tsx` |
+| Importación | `backend/app/import_catalogs`, `imports`, `validation` | `frontend/src/modules/imports` |
+| Consolidado | `backend/app/queries` | `frontend/src/modules/consolidated` |
+| Propuestas | `backend/app/proposals` | `frontend/src/modules/proposals` |
+| Conciliación y auditoría | `backend/app/reconciliation`, `audit` | `frontend/src/modules/proposals`, `reconciliation_history` |
 
-## Correspondencia entre concepto y rutas
-
-| Módulo conceptual | Backend | Frontend |
-|---|---|---|
-| Acceso básico | `backend/app/access` | `frontend/src/modules/access` |
-| Catálogos de importación | `backend/app/import_catalogs` | `frontend/src/modules/imports` |
-| Importación y validación | `backend/app/imports`, `backend/app/validation` | `frontend/src/modules/imports`, `frontend/src/modules/import_results` |
-| Propuestas y revisión | `backend/app/proposals`, `backend/app/reconciliation` | `frontend/src/modules/proposals`, `frontend/src/modules/reconciliation_history` |
-| Pendientes y trazabilidad | `backend/app/queries`, `backend/app/audit` | `frontend/src/modules/pending`, `frontend/src/modules/reconciliation_history` |
-
-## Arquitectura objetivo
-
-La arquitectura objetivo es un monolito modular: React/Vite → API FastAPI/Pydantic → aplicación → dominio ← adaptadores SQLAlchemy/PostgreSQL. Alembic administra la evolución futura. Las reglas permanecen independientes de HTTP y ORM. La dirección de dependencias, los límites y la persistencia se amplían en [diseño de base de datos](04-diseno-base-de-datos.md) y [diagramas](06-diagramas.md).
-
-## Estado de trabajo
-
-El relevamiento está **No iniciado**. El diseño documental está definido y la codificación del producto está **No iniciada**. Las responsabilidades siguientes expresan el comportamiento requerido, no software disponible.
+El endpoint técnico `/pending` se conserva por compatibilidad, pero ya no tiene módulo visual. La experiencia vigente usa `/records` en Consolidado y en la selección manual.
 
 ## Recorrido funcional
 
-1. El operador se autentica y selecciona fuente, plantilla y tipo compatibles.
-2. El sistema calcula la huella, detecta archivos repetidos y valida estructura y filas.
-3. Conserva originales y produce datos normalizados o errores consultables.
-4. Al finalizar con filas válidas, genera propuestas para nuevos elegibles contra pendientes opuestos históricos.
-5. Una persona confirma o rechaza; una conciliación activa puede revertirse con motivo y recomparación atómica.
-6. Pendientes e historial conservan el origen, los estados, el actor y las decisiones.
+1. El operador se autentica.
+2. Selecciona tipo y fuente; el sistema resuelve el esquema sin selector de plantilla.
+3. El CSV se procesa por filas y los duplicados se omiten.
+4. Los registros válidos aparecen en Consolidado.
+5. Automáticas sincroniza coincidencias al ingresar o mediante botón.
+6. El operador confirma una propuesta o forma un par manual.
+7. Auditoría permite filtrar, exportar y deshacer.
+8. Una reversión libera registros; el matcher puede volver a proponerlos.
 
-Los criterios verificables están en [requerimientos](02-requerimientos.md); las restricciones del dominio, en [reglas de negocio](03-reglas-de-negocio.md).
+## Arquitectura
+
+Monolito modular React/Vite → FastAPI/Pydantic/SQLAlchemy → PostgreSQL 16. Las operaciones de confirmación y reversión son transaccionales y revalidan disponibilidad antes de modificar estados.

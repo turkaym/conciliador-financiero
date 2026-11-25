@@ -48,10 +48,54 @@ select { width: 100%; padding: 13px 14px; border: 1px solid #bfcac0; border-radi
 .totals { display: flex; gap: 24px; margin: 24px 0; }.totals div { min-width: 90px; }.totals dt { color: #66736b; font-size: .8rem; }.totals dd { margin: 3px 0 0; font-size: 1.4rem; font-weight: 800; }
 .table-wrap { overflow-x: auto; }.table-wrap h4 { margin-bottom: 10px; } table { width: 100%; border-collapse: collapse; font-size: .9rem; } th, td { padding: 12px 10px; border-bottom: 1px solid #e2e9e3; text-align: left; vertical-align: top; } th { color: #66736b; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }.empty { padding: 28px; border: 1px dashed #bfcac0; border-radius: 12px; color: #66736b; }.success { color: #245e45; }.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 24px; }.comparison-grid .result-card { margin-top: 0; }.result-card dl { display: grid; gap: 12px; }.result-card dt { color: #66736b; font-size: .8rem; }.result-card dd { margin: 3px 0 0; font-weight: 700; }.decision-panel { display: grid; gap: 10px; max-width: 500px; margin-top: 24px; padding: 20px; border: 1px solid #d4ddd5; border-radius: 14px; background: #fff; }.decision-panel button:last-child { color: #8c2b2b; background: #f7dddd; }.decision-panel button:last-child:hover:not(:disabled) { background: #efcaca; }
+.tabs { display: flex; gap: 8px; margin-top: 26px; border-bottom: 1px solid #d4ddd5; }
+.tabs button { border-radius: 10px 10px 0 0; color: #526159; background: transparent; }
+.tabs button[aria-selected="true"] { color: #fff; background: #1d4f3b; }
+.consolidated-filters { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 14px; align-items: end; margin: 22px 0; padding: 18px; border: 1px solid #d4ddd5; border-radius: 14px; background: #fff; }
+.consolidated-filters label, .pagination-bar label { display: grid; gap: 7px; margin: 0; }
+.secondary-button { color: #1d4f3b; border: 1px solid #bfcac0; background: #fff; }
+.secondary-button:hover:not(:disabled) { color: #fff; background: #1d4f3b; }
+.consolidated-table { border: 1px solid #d4ddd5; border-radius: 14px; background: #fff; }
+.sort-button { padding: 0; border-radius: 0; color: inherit; background: transparent; font-size: inherit; text-transform: inherit; letter-spacing: inherit; white-space: nowrap; }
+.sort-button:hover:not(:disabled) { color: #1d4f3b; background: transparent; text-decoration: underline; }
+.reconciled-pill { display: inline-block; min-width: 34px; padding: 4px 7px; border-radius: 99px; text-align: center; font-size: .75rem; font-weight: 800; }
+.reconciled-pill.yes { color: #245e45; background: #edf8f0; }
+.reconciled-pill.no { color: #715c1b; background: #fff7d6; }
+.pagination-bar { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-top: 18px; color: #66736b; font-size: .9rem; }
+.pagination-bar label { width: 145px; }
+.pagination-bar div { display: flex; gap: 8px; }
+.proposal-list { display: grid; gap: 18px; margin-top: 22px; }
+.proposal-pair { padding: 20px; border: 1px solid #d4ddd5; border-radius: 16px; background: #fff; }
+.proposal-pair > button { margin-top: 18px; }
+.proposal-pair-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.proposal-pair-heading div { display: grid; gap: 4px; }
+.proposal-pair-heading span { color: #66736b; font-size: .85rem; }
+.pair-record { display: grid; gap: 7px; padding: 16px; border: 1px solid #e2e9e3; border-radius: 12px; background: #fbfcfb; }
+.pair-record h3 { margin: 0; font-size: 1rem; }
+.pair-record span { color: #66736b; font-size: .85rem; }
+.manual-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 22px; }
+.candidate-panel { min-width: 0; padding: 18px; border: 1px solid #d4ddd5; border-radius: 14px; background: #fff; }
+.candidate-panel h3, .manual-confirmation h3 { margin-top: 0; }
+.candidate-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.candidate-filters label { display: grid; gap: 5px; margin: 0; }
+.candidate-list { display: grid; gap: 8px; max-height: 420px; margin-top: 16px; overflow-y: auto; }
+.candidate-row { display: flex; gap: 10px; margin: 0; padding: 12px; border: 1px solid #e2e9e3; border-radius: 10px; cursor: pointer; }
+.candidate-row.selected { border-color: #2d7157; background: #edf8f0; }
+.candidate-row input { width: auto; }
+.candidate-row span { display: grid; gap: 3px; }
+.candidate-row small { color: #66736b; }
+.manual-confirmation { margin-top: 20px; padding: 20px; border: 1px solid #d4ddd5; border-radius: 14px; background: #fff; }
+.audit-action { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; margin-top: 18px; }
+.audit-action label { grid-column: 1 / -1; margin: 0; }
 
 @media (max-width: 600px) {
   .login-card { padding: 30px 24px; }
   .topbar { align-items: flex-start; flex-direction: column; }
   .user-menu { width: 100%; justify-content: space-between; }
   .comparison-grid { grid-template-columns: 1fr; }
+  .consolidated-filters { grid-template-columns: 1fr; }
+  .pagination-bar { align-items: stretch; flex-direction: column; }
+  .pagination-bar label { width: 100%; }
+  .manual-columns, .candidate-filters { grid-template-columns: 1fr; }
+  .proposal-pair-heading, .audit-action { align-items: stretch; flex-direction: column; grid-template-columns: 1fr; }
 }

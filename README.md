@@ -1,216 +1,179 @@
-# CONCILIADOR - Financial and Accounting Reconciliation Platform
+# CONCILIADOR - Plataforma de conciliación financiera
 
-Academic proposal for the **Final Project** course in the **University Technical Degree in Programming (UTN)**. The first submission, approved without observations, provides the background for the problem, validation strategy, scope, and initial technical proposal.
+Proyecto académico de la Tecnicatura Universitaria en Programación (UTN). La aplicación permite importar movimientos bancarios y comprobantes, detectar coincidencias, confirmar o revertir conciliaciones y conservar trazabilidad.
 
-**Current status:** the MVP is implemented and deployed to Render. Remote login, both CSV imports, proposal generation, proposal confirmation, and history recording have been verified. Reversal smoke verification remains pending. This documentation translation covers only the allowed files listed in the delivery request; other academic documents remain in Spanish.
+## Estado actual
 
-### Public deployment
+El MVP está implementado y validado localmente. La rama de trabajo incorpora:
 
-- Frontend: https://conciliador-frontend-8djd.onrender.com
-- API: https://conciliador-api-bym3.onrender.com
-- Render Blueprint: `conciliador-financiero-mvp`
-- Demo credentials: `demo@conciliador.local` / `Demo1234!` (fictional credentials for demonstration only; change or remove them before using real data).
+- Importación CSV con esquema resuelto automáticamente según la fuente.
+- Validación estructural, normalización regional y deduplicación por fila.
+- Consolidado persistente de movimientos y comprobantes.
+- Propuestas automáticas sincronizadas al ingresar al módulo y mediante un botón manual.
+- Conciliación automática y manual.
+- Auditoría de conciliaciones activas, reversión y regeneración de coincidencias.
+- Filtros de auditoría y exportación contable CSV Debe/Haber.
+- Historial de eventos.
 
-The remote smoke test verified login, both valid CSV fixtures with 3/3 valid rows, pending records, three proposals, Proposal #1 confirmation, and the `PROPUESTA_CONFIRMADA` history event. Remote reversal verification is still pending, so MVP-11 remains open.
+La publicación en Render puede corresponder a una revisión anterior hasta que esta rama sea integrada y desplegada.
 
-## Team and availability
+## Acceso de demostración
 
-| Member | GitHub user | Planned primary role |
-|---|---|---|
-| Hugo Tcach | `HugoTcach` | Backend, database, and local infrastructure |
-| Farid Salomón | `turkaym` | Functional analysis, frontend, documentation, and quality |
+- Usuario: `demo@conciliador.local`
+- Contraseña: `Demo1234!`
 
-Joint availability is approximately **10 hours per week**. Both members will participate in discovery, change review, testing, and presentation. Cross-training is planned so that no area depends on a single person.
+Son credenciales y datos ficticios para demostración. No deben usarse con información financiera real.
 
-## Problem and initial hypothesis
+## Funcionalidades
 
-Companies and accounting firms may receive bank transactions and records or receipts from separate sources. Reconciliation requires relating those data, detecting differences, and retaining evidence of decisions.
+### Importar
 
-The initial hypothesis is that manual comparisons and disconnected tools can create repetitive work, difficulty identifying pending items, and limited traceability of why two records were matched or discarded. **This hypothesis has not yet been validated through interviews or metrics.**
+El usuario selecciona el tipo y la fuente; la interfaz obtiene el único esquema activo compatible y muestra sus columnas esperadas. No se selecciona una plantilla manualmente.
 
-### Actors and needs to validate
+Fuentes bancarias:
 
-| Actor | Participation in the flow | Proposed need |
-|---|---|---|
-| Administrative or accounting staff | Gather sources, compare records, and resolve differences | Reduce repetitive comparisons without losing control over decisions |
-| Process owner | Monitor status and review exceptions | Identify pending items and reconstruct decisions |
-| Company or accounting firm | Define criteria and retain documentation | Maintain a consistent and traceable process |
+- Banco Nación, Banco Provincia, Santander, Galicia, BBVA, Banco Macro, ICBC y Supervielle.
+- Naranja X y Mercado Pago.
 
-### Assumed current flow
+Fuentes de comprobantes:
 
-1. Obtain bank transactions and records or receipts from separate sources.
-2. Review formats and normalize data when necessary.
-3. Compare amount, date, and references to find matches.
-4. Investigate differences and decide which items match.
-5. Record results and leave unresolved cases pending.
+- Mercado Pago, Tienda Nube y ARCA.
+- Facturas físicas previamente convertidas mediante OCR a CSV. La aplicación no procesa imágenes ni PDF.
 
-This flow is an initial representation that will be validated and corrected during discovery.
+El parser admite UTF-8 y CP1252, separadores coma, punto y coma o tabulación, fechas configuradas por fuente y decimales regionales. Los duplicados internos o históricos se omiten sin detener las demás filas.
 
-### Digitization and added value
+### Consolidado
 
-Digitization would move the comparison to a screen without changing the process. The proposal aims to add value by assisting comparison with explainable rules, highlighting exceptions, preserving human review, and recording basic traceability. This value is not assumed to be proven; it will be evaluated with actors and workflow tests.
+Incluye pestañas de Movimientos y Comprobantes con:
 
-### Formal statement
+- Filtros por banco o entidad, fecha y estado conciliado.
+- Ordenamiento y paginación.
+- Persistencia del estado de cada pestaña por usuario en `localStorage`.
 
-**Project question:** How can reconciliation between bank transactions and records or receipts be assisted to reduce repetitive review and make differences visible, without replacing human decisions and while preserving basic traceability?
+El antiguo módulo Pendientes fue eliminado de la navegación. Los registros no conciliados se consultan en Consolidado o en la selección manual de Propuestas.
 
-## Validation strategy
+### Propuestas
 
-No users, results, or measurements are available at this stage. The following activities are proposed to validate relevance:
+La pestaña **Automáticas** ejecuta el matcher al ingresar y también ofrece **Buscar coincidencias**. La sincronización es idempotente: no duplica propuestas generadas ni revive propuestas rechazadas.
 
-1. Identify people who perform or supervise reconciliation in companies or accounting firms.
-2. Conduct semi-structured interviews about sources, steps, exceptions, frequency, and process difficulties.
-3. Observe anonymized examples or representative fictional data without requesting sensitive financial information.
-4. Document the actual flow and compare it with the initial hypothesis and actors.
-5. Test a workflow prototype with test data and record understanding, perceived usefulness, errors, and requested changes.
-6. Revisit scope if the problem is not recurrent, relevant, or compatible with the course schedule.
+La elegibilidad automática exige:
 
-Relevance will be considered supported when discovery confirms the need to relate separate sources, resolve exceptions, and preserve traceability, and when the proposed flow can be evaluated with representative cases. Metrics and quantitative criteria will be defined after discovery, not before.
+- Moneda `ARS`.
+- Monto exacto.
+- Diferencia de fecha de hasta tres días inclusive.
 
-## Value proposition and existing alternatives
+La referencia normalizada solo ordena y explica candidatos. La confirmación siempre requiere una acción humana. Al confirmar una propuesta se actualiza todo el listado para retirar alternativas que compartan registros y hayan quedado caducadas.
 
-The proposal is a tool focused on reconciliation between two sources, with visible matching rules, human review, and decision traceability.
+La pestaña **Manual** permite elegir un movimiento y un comprobante no conciliados y filtrarlos por fuente, fechas, monto, tolerancia, referencia y lote.
 
-| Alternative category | Typical contribution | Differentiation to evaluate |
-|---|---|---|
-| Spreadsheets | Flexibility and immediate access | Guide the flow, show pending items, and record decisions consistently |
-| Isolated banking portals | Transaction lookup for one institution | Relate transactions to external records in one flow |
-| General accounting systems or ERPs | Broad administrative-process coverage | Focus on a minimal, explainable, reviewable reconciliation experience |
+### Auditoría y reversión
 
-The differentiation is a proposal to validate and does not imply demonstrated superiority over these categories.
+Auditoría muestra conciliaciones activas con ambos registros. Permite filtrar por:
 
-## Prioritized scope
+- Fecha de conciliación.
+- Fecha del movimiento y del comprobante.
+- Banco, entidad, monto, referencia y lote.
+- Origen automático o manual.
 
-### Essential MVP
+Al deshacer:
 
-- Manual upload of two test-data sets: bank transactions and records or receipts.
-- Validation of structure and required fields.
-- Matching proposals based on amount, date, and reference.
-- Manual review to confirm or reject proposals.
-- Display of pending items.
-- Basic traceability of data origin and decisions.
+- Una conciliación automática genera una propuesta nueva y trazable.
+- Una conciliación manual libera ambos registros.
+- Al volver a Automáticas, el matcher reevalúa todos los registros disponibles.
+- La conciliación revertida desaparece de Auditoría activa, pero conserva su trazabilidad histórica.
 
-### Nice to have
+La descarga CSV genera dos líneas por conciliación filtrada: movimiento bancario al Debe y comprobante al Haber, con la diferencia entre importes.
 
-- Approximate reference search with `pg_trgm`.
-- Asynchronous import for large files.
-- Basic dashboard.
-- Result export.
-- Deployment on a PaaS platform.
+## Arquitectura
 
-### Out of scope
+```text
+React 19 + TypeScript + Vite
+            |
+FastAPI + Pydantic + SQLAlchemy
+            |
+        PostgreSQL 16
+```
 
-- Artificial intelligence and predictive models.
-- OCR.
-- Production integration with AFIP.
-- Real banking integrations.
-- Kubernetes and self-managed servers.
-- Multi-tenancy.
-- Monetization or SaaS model.
-- Advanced analytics.
+El backend es un monolito modular. PostgreSQL aplica integridad referencial, estados, unicidad de conciliaciones activas y protección transaccional.
 
-## Initial technical proposal
+## Ejecución local
 
-### Planned MVP stack
+1. Copiar `.env.example` a `.env` y definir `JWT_SECRET_KEY`.
+2. Iniciar PostgreSQL:
 
-| Area | Technologies | Selection criterion |
-|---|---|---|
-| Frontend | TypeScript, React, and Vite | Typing, mature ecosystem, extensive documentation, and transferable learning |
-| Backend | Python, FastAPI, and Pydantic | Focused API, explicit validation, and broad community |
-| Persistence | SQLAlchemy and Alembic | Structured access and controlled schema evolution |
-| Database | PostgreSQL | Relational integrity, transactions, and traceability |
-| Collaboration | Git and GitHub | Version control and joint review |
-| Local environment | Docker Compose | Reproducible environment without making infrastructure the project goal |
+   ```powershell
+   docker compose up --wait
+   ```
 
-The choice considers the problem, the academic scale of the MVP, tool maturity, the development environment, and learning cost. A small, stable stack supported by active documentation and communities is preferred. Keeping these technologies throughout the project focuses effort on the problem and avoids unnecessary training, integration, and testing costs caused by a stack change.
+3. Instalar el backend:
 
-### Relational database versus NoSQL
+   ```powershell
+   backend\.venv\Scripts\python.exe -m pip install -e backend[test]
+   ```
 
-Reconciliation relates transactions, records, proposals, decisions, and pending states. PostgreSQL suits this case through consistency, referential integrity, and transactional support. A NoSQL database could suit highly variable data or different scaling patterns, but those needs are not justified for the MVP. The decision will be revisited if discovery finds requirements incompatible with the relational model.
+4. Inicializar o actualizar de forma idempotente la base:
 
-### Deployment alternatives
+   ```powershell
+   Get-Content .env | Where-Object { $_ -match '^[^#][^=]*=' } | ForEach-Object {
+     $name, $value = $_ -split '=', 2
+     Set-Item -Path "Env:$($name.Trim())" -Value $value.Trim()
+   }
+   $env:PYTHONPATH='backend'
+   backend\.venv\Scripts\python.exe -m app.initialize_database
+   ```
 
-- **Initial development:** reproducible local execution through Docker Compose.
-- **Later alternative:** PaaS, if a demonstration needs to be published with less operational overhead.
-- **Initially out of scope:** self-managed servers and Kubernetes, because they add complexity without validating the core problem.
+5. Iniciar la API:
 
-## Work plan
+   ```powershell
+   backend\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --env-file .env --host 127.0.0.1 --port 8000
+   ```
 
-The sequence will be adjusted to the final course schedule and discovery findings.
+6. Iniciar el frontend:
 
-| Sequence | Stage | Owners | Factual status | Planned deliverable |
-|---:|---|---|---|---|
-| 1 | Discovery and validation | Hugo and Farid | **Not started** | Interviews, reviewed flow, and prioritized needs |
-| 2 | Formats and design | Hugo and Farid | **Documented** | Fictional formats, relational model, rules, and wireframes |
-| 3 | Workflow prototype | Hugo and Farid | **Not started** | Executable MVP flow with agreed test data |
-| 4 | Product verification | Hugo and Farid | **Not started** | Functional cases, technical tests, and limitations |
-| 5 | Presentation | Hugo and Farid | **Not started** | Demonstration and final documentation |
+   ```powershell
+   npm --prefix frontend install
+   npm --prefix frontend run dev
+   ```
 
-Each stage reserves time for learning, integration, and joint review. No nice-to-have item will be added while an essential MVP completion criterion is missing.
+La API queda en `http://localhost:8000`, el frontend en `http://localhost:5173` y `GET /health` debe responder `{"status":"healthy"}`.
 
-## Feasibility
+## Pruebas
 
-| Dimension | Initial assessment | Planned measure |
-|---|---|---|
-| Technical | The flow can be solved with explicit rules and mature technologies suitable for MVP scale | Build in stages, use test data, and validate the minimum flow first |
-| Schedule | Joint availability is approximately 10 hours per week | Prioritize the MVP, limit parallel work, and adjust estimates to the final course schedule |
-| Operational | The system requires clear formats and human participation to resolve exceptions | Validate the flow with actors and keep rules and states understandable |
-| Knowledge | The team's academic background provides a common foundation, and the selected stack has broad documentation and communities | Organize cross-training, joint reviews, and decision documentation |
+```powershell
+backend\.venv\Scripts\python.exe -m pytest backend\tests -q
+npm --prefix frontend test -- --run
+npm --prefix frontend run build
+```
 
-Feasibility will be reassessed after discovery and each stage. If the required time or learning exceeds expectations, scope will be reduced before adding infrastructure or secondary features.
+Última validación local de esta rama:
 
-## Repository
+- 44 pruebas backend aprobadas.
+- 17 pruebas frontend aprobadas.
+- Build de producción aprobado.
 
-Project code and documentation: [github.com/turkaym/conciliador-financiero](https://github.com/turkaym/conciliador-financiero)
+## Datos de prueba
 
-## Documentation
+Los CSV están documentados en [docs/segunda-entrega/csv/README.md](docs/segunda-entrega/csv/README.md). Para probar coincidencias automáticas de Mercado Pago, importar:
 
-- [Second delivery: index and review path](docs/segunda-entrega/README.md)
-- [API contract `/api/v1`](docs/segunda-entrega/09-contrato-api.md)
-- [CSV templates and fixtures](docs/segunda-entrega/csv/README.md)
-- [MVP wireframes](docs/segunda-entrega/wireframes/README.md)
-- [Backend skeleton](backend/README.md), [frontend skeleton](frontend/README.md), and [PostgreSQL schema](database/README.md)
+- `mercado-pago-movimientos-prueba.csv`
+- `mercado-pago-comprobantes-prueba.csv`
 
-## Local execution
+## Documentación
 
-1. Copy `.env.example` to `.env` and define a local `JWT_SECRET_KEY`.
-2. Run `docker compose up --wait` from the root. On a new volume, Compose runs `database/schema.sql` and `database/seed.sql` once.
-3. Install the backend with `backend\\.venv\\Scripts\\python.exe -m pip install -e backend[test]`.
-4. Start the API with `backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir backend --reload`.
-5. Start the frontend with `npm install && npm run dev` from `frontend/`.
+- [Guía funcional y de demostración](docs/conciliador-mvp-guide.md)
+- [Alcance y módulos](docs/segunda-entrega/01-alcance-y-modulos.md)
+- [Requerimientos](docs/segunda-entrega/02-requerimientos.md)
+- [Reglas de negocio](docs/segunda-entrega/03-reglas-de-negocio.md)
+- [Diseño de base de datos](docs/segunda-entrega/04-diseno-base-de-datos.md)
+- [Contrato API](docs/segunda-entrega/09-contrato-api.md)
+- [CSV de prueba](docs/segunda-entrega/csv/README.md)
+- [Backend](backend/README.md)
+- [Frontend](frontend/README.md)
 
-The local application uses `http://localhost:8000` as the API and `http://localhost:5173` as the default allowed origin. The demo user is `demo@conciliador.local` / `Demo1234!`; these are fictional development credentials and must not be reused in a public environment.
+## Limitaciones
 
-## Render deployment
-
-`render.yaml` defines a Blueprint with a managed PostgreSQL database, a FastAPI web service, and a Vite static site. The Blueprint generates `JWT_SECRET_KEY` and references the PostgreSQL connection; it contains no secrets. The deployed Blueprint is `conciliador-financiero-mvp`.
-
-1. In Render, connect the repository and select the `render.yaml` Blueprint.
-2. In `conciliador-api`, set `CORS_ORIGINS` to the final static-site URL, such as `https://<frontend>.onrender.com`.
-3. In `conciliador-frontend`, set `VITE_API_BASE_URL` to the final web-service URL, such as `https://<api>.onrender.com`.
-4. Save the changes and redeploy the frontend after configuring `VITE_API_BASE_URL`, because Vite embeds this variable during the build.
-
-The backend start command runs `app.initialize_database`: it acquires a transactional lock, creates the schema only when `public.usuario` is missing, and runs the deterministic idempotent seed on every start. It does not perform a destructive reset. Render injects `PORT`, Uvicorn listens on `0.0.0.0`, and `/health` is the health check.
-
-### Credentials and required variables
-
-- `DATABASE_URL`: the Blueprint reference to the managed database.
-- `JWT_SECRET_KEY`: generated by Render; never add it to the repository.
-- `CORS_ORIGINS`: exact public frontend URL, without a trailing slash.
-- `VITE_API_BASE_URL`: exact public API URL, without a trailing slash.
-- `DATABASE_SCHEMA_PATH` and `DATABASE_SEED_PATH`: versioned paths used by the initializer.
-
-The seed creates or reactivates the demo user and catalogs. For a public demonstration, change the documented credentials or remove the demo user through a secure procedure before using real data.
-
-### Post-deployment smoke test
-
-Verify from an authorized machine:
-
-1. `curl -fsS https://<api>.onrender.com/health` returns `{"status":"healthy"}`.
-2. The public frontend loads without asset or console errors.
-3. Login with the configured demo credentials receives a token.
-4. Upload both CSVs from `docs/segunda-entrega/csv/fixtures/`, inspect errors and pending records, and verify a proposal.
-5. Confirm a proposal, inspect history, reverse the reconciliation, and verify that both records return to pending.
-6. Restart or redeploy the backend and confirm that the seed does not duplicate catalogs or reset data.
-
-MVP-11 is deployed, but it is not complete until the reversal step in this remote smoke test is verified explicitly.
+- Proyecto académico, no preparado para datos financieros reales.
+- Sin integraciones directas con bancos, Mercado Pago, Tienda Nube o ARCA.
+- Sin OCR interno, inteligencia artificial ni confirmación autónoma.
+- Solo conciliación 1:1 en ARS.
+- Sin roles avanzados, recuperación de contraseña ni multi-tenancy.
