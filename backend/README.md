@@ -1,62 +1,58 @@
 # Backend
 
-Backend modular de FastAPI para el MVP de conciliacion financiera. El acceso usa
-un usuario pre-registrado y tokens JWT Bearer. MVP-03 agrega catálogos activos y
-recepción autenticada de lotes CSV. MVP-04 procesa las filas contra la plantilla
-seleccionada, persiste registros válidos y conserva errores deterministas por lote.
-MVP-05 agrega la consulta autenticada de pendientes con filtros de tipo, fuente,
-lote, estado y ventana de fechas.
-MVP-06 agrega matching determinista y propuestas persistidas, sin confirmar ni
-conciliar automáticamente los registros.
-MVP-07 agrega decisiones humanas atómicas, conciliaciones activas e historial
-consultable con alcance por propietario. MVP-08 agrega reversión atómica con
-recomparación, auditoría y protección contra repetición. La consulta consolidada
-`GET /api/v1/records` expone movimientos y comprobantes válidos con filtros por
-fuente, conciliación y rango de fechas, además de paginación y ordenamiento.
+API FastAPI del conciliador financiero. Implementa autenticación JWT, catálogos por fuente, importación y deduplicación CSV, consolidados, matching, conciliación manual/automática, auditoría, reversión, exportación e historial.
 
 ## Requisitos
 
 - Python 3.11+
-- Docker Compose
+- PostgreSQL 16
+- Variables de `.env.example`, especialmente `DATABASE_URL` y `JWT_SECRET_KEY`
 
-## Configuracion local
+## Ejecución
 
-Copie `.env.example` como `.env` y reemplace `JWT_SECRET_KEY` fuera de un entorno
-local. La configuracion de demo documenta `demo@conciliador.local` y
-`Demo1234!`; no reutilice estas credenciales fuera de desarrollo.
+Desde la raíz:
 
-Inicialice PostgreSQL 16 desde la raiz del repositorio:
-
-```text
-docker compose up --wait
+```powershell
+backend\.venv\Scripts\python.exe -m pip install -e backend[test]
+Get-Content .env | Where-Object { $_ -match '^[^#][^=]*=' } | ForEach-Object {
+  $name, $value = $_ -split '=', 2
+  Set-Item -Path "Env:$($name.Trim())" -Value $value.Trim()
+}
+$env:PYTHONPATH='backend'
+backend\.venv\Scripts\python.exe -m app.initialize_database
+backend\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --env-file .env --host 127.0.0.1 --port 8000
 ```
 
-Los scripts `database/schema.sql` y `database/seed.sql` se ejecutan en ese orden
-al crear un volumen nuevo. Para repetir una inicializacion limpia, use
-`docker compose down -v` unicamente sobre el volumen local de este proyecto.
+`app.initialize_database` crea el esquema si no existe y aplica siempre `database/seed.sql`, que es idempotente.
 
-## Ejecutar la API
+## Módulos
 
-Desde la raiz del repositorio, instale las dependencias en `backend/.venv` y
-ejecute:
+| Carpeta | Responsabilidad |
+|---|---|
+| `access` | Login, JWT y usuario actual. |
+| `import_catalogs` | Fuentes y esquemas activos. |
+| `imports` | Lotes, archivo, validación y duplicados. |
+| `validation` | Parseo y normalización por fuente. |
+| `queries` | Consolidado y endpoint técnico de pendientes. |
+| `proposals` | Matcher, sincronización y explicación. |
+| `reconciliation` | Confirmación, manual, auditoría, reversión y exportación. |
+| `audit` | Eventos históricos. |
 
-```text
-backend\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload
-```
+## Rutas destacadas
 
-El endpoint `GET /health` devuelve `{"status":"healthy"}`. El login esta en
-`POST /api/v1/auth/login` y recibe `{ "email": "...", "password": "..." }`.
+- `POST /api/v1/batches`
+- `GET /api/v1/records`
+- `POST /api/v1/proposals/sync`
+- `POST /api/v1/proposals/{id}/confirm`
+- `POST /api/v1/reconciliations/manual`
+- `GET /api/v1/reconciliations`
+- `GET /api/v1/reconciliations/export.csv`
+- `POST /api/v1/reconciliations/{id}/reverse`
 
 ## Pruebas
 
-Desde la raiz:
-
-```text
-backend\.venv\Scripts\python.exe -m pytest backend/tests -q
+```powershell
+backend\.venv\Scripts\python.exe -m pytest backend\tests -q
 ```
 
-Las pruebas de acceso cubren login valido, rechazo uniforme de credenciales
-invalidas y validacion basica de tokens protegidos. Las pruebas de MVP-03 y MVP-04
-cubren catálogos, recepción/consulta de lotes, validación de fixtures aprobados,
-errores ordenados, duplicados, consultas pendientes ordenadas/paginadas y límites de
-autenticación y request.
+Última validación: 44 pruebas aprobadas.

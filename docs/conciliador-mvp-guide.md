@@ -1,283 +1,175 @@
 # Conciliador Financiero
-## TP/MVP Demonstration Guide
 
-**Purpose:** A shareable, evidence-based guide for reviewing and demonstrating the current academic financial reconciliation MVP.
+## Guía funcional y de demostración
 
-**Current release posture:** The deployed happy path is verified through login, two valid CSV imports, pending records, proposal generation, one proposal confirmation, and history recording. Remote reversal smoke verification remains **pending**.
+Esta guía describe el comportamiento vigente del MVP académico y un recorrido reproducible para docentes y revisores.
 
-**Audience:** Teammates, reviewers, and professors evaluating the TP/MVP.
+> Use únicamente credenciales y CSV ficticios. La aplicación no está preparada para información financiera real.
 
-**Public deployment**
+## 1. Objetivo
 
-- Frontend: <https://conciliador-frontend-8djd.onrender.com>
-- API health check: <https://conciliador-api-bym3.onrender.com/health>
-- Render Blueprint: `conciliador-financiero-mvp`
-- Fixture repository: <https://github.com/turkaym/conciliador-financiero/tree/feat/final-mvp/docs/segunda-entrega/csv/fixtures>
+Conciliador relaciona movimientos bancarios con comprobantes provenientes de archivos separados. La aplicación valida los datos, propone parejas explicables, conserva la decisión humana y permite revertirla sin perder trazabilidad.
 
-> **Demo data warning:** The credentials in this guide are fictional demo credentials. Do not use them, or the shared demo database, with real financial data.
+## 2. Navegación actual
 
----
+| Módulo | Función |
+|---|---|
+| Importar | Cargar CSV y mostrar esquema, resultado y errores. |
+| Consolidado | Consultar movimientos y comprobantes, conciliados o no. |
+| Propuestas | Revisar coincidencias automáticas, conciliar manualmente y auditar conciliaciones activas. |
+| Historial | Consultar eventos y detalle histórico. |
 
-## 1. What This Guide Proves
+No existe un módulo Pendientes separado. Los no conciliados se consultan con `Conciliado: No` en Consolidado o desde Propuestas > Manual.
 
-The guide gives a reviewer one reproducible route through the current deployed MVP:
+## 3. Flujo principal
 
-1. Sign in with the demo account.
-2. Import valid movement and receipt CSV files.
-3. Confirm that each file reports 3/3 valid rows.
-4. Inspect six pending records and three generated proposals.
-5. Confirm Proposal #1 manually.
-6. Verify the `PROPUESTA_CONFIRMADA` event in **Historial**.
-7. Treat reversal as a clearly marked follow-up test, not as completed evidence.
+1. Iniciar sesión.
+2. Importar movimientos eligiendo tipo y banco.
+3. Importar comprobantes eligiendo tipo y entidad.
+4. Revisar ambos consolidados.
+5. Ingresar en Propuestas > Automáticas.
+6. Confirmar una coincidencia o buscar coincidencias nuevamente.
+7. Si no hay propuesta adecuada, usar Propuestas > Manual.
+8. Consultar la conciliación en Auditoría.
+9. Descargar el asiento CSV o deshacer la conciliación.
+10. Verificar eventos en Historial.
 
-The product assists reconciliation; it does not replace the human decision to confirm or reject a proposal.
+## 4. Importación
 
-## 2. The Problem the TP Solves
+La interfaz no solicita Plantilla. Al elegir la fuente obtiene el esquema activo correspondiente y muestra las columnas esperadas.
 
-Companies and accounting teams may receive bank movements and receipts from separate sources. Comparing those files manually is repetitive, makes exceptions easy to miss, and can leave little evidence of why a pair was accepted or rejected.
+El importador:
 
-Conciliador addresses the academic version of that problem by bringing two known CSV sources into one review flow. It validates the input, preserves pending records, proposes explainable pairs, requires a human decision, and records the resulting event history.
+- Admite coma, punto y coma o tabulación.
+- Interpreta UTF-8 y CP1252.
+- Convierte fechas y decimales según la fuente.
+- Conserva datos originales y valores tipados.
+- Procesa filas válidas aunque otras fallen.
+- Omite duplicados internos e históricos y referencia el registro original.
 
-This is a project hypothesis and an executable MVP demonstration, not a claim that business value or production suitability has already been proven through interviews, metrics, or real customer data.
+Estados principales:
 
-## 3. MVP Scope
+- `PROCESADO`: todas las filas válidas.
+- `PROCESADO_CON_ERRORES`: combinación de válidas e inválidas.
+- `PROCESADO_SIN_VALIDOS`: estructura reconocida, sin filas válidas.
+- `FALLIDO`: estructura o procesamiento no interpretable.
+- `DUPLICADO`: mismos bytes de un lote que todavía reserva la huella.
 
-### Included
+## 5. Coincidencias automáticas
 
-| Capability | Current behavior |
-| --- | --- |
-| Authentication | JWT demo login for a pre-registered user |
-| Import | Manual CSV upload using known source and template catalogs |
-| Validation | Structure and row validation with visible errors |
-| Data scope | Fictional ARS movements and receipts |
-| Matching | One movement to one receipt, subject to explicit eligibility rules |
-| Review | Human confirmation or rejection of generated proposals |
-| Pending work | List and inspect unresolved records |
-| Traceability | History of imports, decisions, and reconciliation events |
-| Deployment | React/Vite frontend and FastAPI API deployed on Render |
+Una pareja automática es elegible cuando:
 
-### Excluded or not yet demonstrated
+| Criterio | Regla |
+|---|---|
+| Moneda | Ambos registros son `ARS`. |
+| Monto | Igualdad decimal exacta. |
+| Fecha | Diferencia máxima de tres días inclusive. |
 
-- Real bank, ERP, AFIP, or accounting-system integrations.
-- OCR, artificial intelligence, predictive matching, or autonomous confirmation.
-- Multi-currency reconciliation, expenses, and 1:N or N:M relationships.
-- Multi-tenancy, advanced roles, administration, dashboards, exports, and advanced analytics.
-- A production security posture or suitability for real financial data.
-- Remote reversal completion evidence. The reversal endpoint and workflow are implemented, but the remote smoke test is still pending.
+La referencia se normaliza con `ref-nfkd-v1` y se usa para ordenar y explicar. No habilita ni excluye una pareja.
 
-## 4. Architecture and Data Flow
+El matcher se ejecuta:
 
-The MVP uses a modular monolith with a clear web-to-database path:
+- Al finalizar una importación con registros válidos.
+- Durante una reversión automática.
+- Al entrar en Propuestas > Automáticas.
+- Al presionar **Buscar coincidencias**.
 
-```text
-React/Vite/TypeScript UI
-        |
-FastAPI/Python API and JWT authentication
-        |
-Application and domain rules
-        |
-SQLAlchemy persistence
-        |
-PostgreSQL
+La sincronización no duplica propuestas generadas ni revive una propuesta rechazada. Es posible que un registro tenga más de una alternativa; al confirmar una, las alternativas incompatibles se marcan `CADUCADA` y desaparecen del listado actualizado.
+
+## 6. Conciliación manual
+
+La pestaña Manual muestra movimientos y comprobantes no conciliados. Los filtros disponibles son:
+
+- Banco o entidad.
+- Fecha desde/hasta.
+- Monto y tolerancia.
+- Referencia.
+- Lote.
+
+La conciliación manual permite diferencias de fecha o monto porque representa una decisión explícita del operador. Ambos registros quedan bloqueados y se revalida que sigan disponibles antes de confirmar.
+
+## 7. Auditoría, reversión y exportación
+
+Auditoría muestra solo conciliaciones activas. Sus filtros cubren fechas de conciliación y operaciones, fuentes, monto, referencia, lote y origen.
+
+Al deshacer:
+
+- Se exige un motivo.
+- La conciliación pasa a `REVERTIDA`.
+- Ambos registros dejan de estar conciliados.
+- Si el origen fue automático se genera una propuesta nueva.
+- Si fue manual, los registros vuelven a la selección manual y el sincronizador puede volver a detectar una coincidencia automática válida.
+- La fila desaparece de Auditoría activa.
+
+La exportación genera un CSV contable filtrado:
+
+- Línea de movimiento: Debe = monto bancario; Haber = 0.
+- Línea de comprobante: Debe = 0; Haber = monto del comprobante.
+- Diferencia = Debe bancario - Haber comprobante.
+
+## 8. Persistencia de interfaz
+
+Por usuario se conserva en `localStorage`:
+
+- Pestaña y filtros de Consolidado.
+- Pestaña de Propuestas.
+- Filtros y selecciones manuales.
+- Filtros de Auditoría.
+
+Los datos de negocio permanecen en PostgreSQL; `localStorage` guarda solo estado de navegación y token de sesión.
+
+## 9. Demostración recomendada
+
+### Acceso
+
+1. Abrir la aplicación.
+2. Ingresar `demo@conciliador.local` / `Demo1234!`.
+
+### Importación y matching
+
+1. Importar `mercado-pago-movimientos-prueba.csv` como Movimiento > Mercado Pago.
+2. Importar `mercado-pago-comprobantes-prueba.csv` como Comprobante > Mercado Pago.
+3. Revisar el resultado de ambos lotes.
+4. Abrir Consolidado y verificar los registros.
+5. Abrir Propuestas > Automáticas y revisar las parejas lado a lado.
+
+Si los mismos bytes ya fueron importados, el lote puede quedar `DUPLICADO`. En una base compartida pueden utilizarse registros existentes.
+
+### Confirmación y reversión
+
+1. Confirmar una propuesta.
+2. Abrir Auditoría y verificar la conciliación activa.
+3. Aplicar filtros y descargar el asiento CSV.
+4. Ingresar un motivo y deshacer.
+5. Volver a Automáticas: el sistema sincroniza y muestra nuevamente cualquier coincidencia que continúe siendo válida.
+
+## 10. CSV disponibles
+
+En `docs/segunda-entrega/csv/templates/`:
+
+- Banco Nación, Galicia y Mercado Pago para movimientos.
+- Mercado Pago, Tienda Nube y ARCA para comprobantes.
+
+En `docs/segunda-entrega/csv/fixtures/` permanecen los casos canónicos válidos, inválidos, duplicados y de estructura incompatible.
+
+## 11. Verificación técnica
+
+```powershell
+backend\.venv\Scripts\python.exe -m pytest backend\tests -q
+npm --prefix frontend test -- --run
+npm --prefix frontend run build
 ```
 
-The main flow is:
+Última validación local:
 
-1. The operator logs in and receives a demo JWT.
-2. The UI loads compatible source and template options.
-3. A CSV is uploaded and assigned to an import batch.
-4. The backend validates structure and rows, preserving original values and recording errors.
-5. Valid records become pending records. Invalid rows do not prevent other valid rows from being processed.
-6. A completed batch with valid rows triggers proposal generation against opposite historical pending records.
-7. The operator reviews and confirms or rejects a proposal.
-8. History records the relevant actor, target, state, and event.
+- 44 pruebas backend aprobadas.
+- 17 pruebas frontend aprobadas.
+- Build TypeScript/Vite aprobado.
 
-The deployed frontend is available at <https://conciliador-frontend-8djd.onrender.com>. The deployed API is <https://conciliador-api-bym3.onrender.com>. Render manages the deployment through the `conciliador-financiero-mvp` Blueprint.
+## 12. Limitaciones
 
-## 5. Business Matching Rules
-
-A movement and receipt are eligible only when all three mandatory conditions hold:
-
-| Rule | Requirement |
-| --- | --- |
-| Currency | Both records use `ARS`. |
-| Amount | The amounts are exactly equal. |
-| Date | The business dates are within an inclusive +/- 3 calendar-day window. |
-
-Reference text is not an eligibility gate. It is normalized and used to rank eligible candidates and explain the ordering. The current normalizer is `ref-nfkd-v1`: it applies Unicode NFKD, removes marks, converts to uppercase, replaces punctuation with spaces, collapses whitespace, trims, and uses unique tokens. Candidate ordering prioritizes exact reference equality, reference similarity, smaller date difference, and stable IDs.
-
-No proposal is confirmed automatically. A person must select **Confirmar propuesta** or **Rechazar propuesta**. Rejection requires a non-empty reason.
-
-## 6. Implementation Status and Evidence
-
-### Verified in the deployed flow
-
-- The public frontend loads and accepts the demo login.
-- `movimientos-validos.csv` imports with 3/3 valid rows.
-- `comprobantes-validos.csv` imports with 3/3 valid rows.
-- The resulting review state contains six pending records.
-- The system generates three proposals.
-- **Proposal #1** is confirmed successfully through the UI.
-- **Historial** contains the `PROPUESTA_CONFIRMADA` event.
-
-### Pending verification
-
-- Remote reversal smoke test: use **Revertir conciliación** with a reason, then verify the result and any re-generated proposals. Do not present this as completed evidence until it has been observed remotely.
-
-### Local implementation checks
-
-At the latest implementation checkpoint, the project recorded 35 backend tests, 13 frontend tests, a TypeScript check, a production build, and Compose/configuration checks. These are implementation checks, not a claim that every final release gate or remote scenario has passed.
-
-## 7. Teammate Test: Exact Steps
-
-### Before starting
-
-- Use a normal browser window and the public frontend URL.
-- Use only the approved fictional fixtures.
-- Keep the API health URL available for a cold-start check.
-- The shared demo database may already contain prior test data.
-
-### Step 1: Login
-
-1. Open <https://conciliador-frontend-8djd.onrender.com>.
-2. Enter email `demo@conciliador.local`.
-3. Enter password `Demo1234!`.
-4. Submit the form.
-5. Confirm that the authenticated application shell appears.
-
-These credentials are demo-only and must not be used for real data.
-
-### Step 2: Import movements
-
-1. Open **Importar**.
-2. Choose the movement source and its compatible template.
-3. Select `movimientos-validos.csv` from the approved [fixture repository](https://github.com/turkaym/conciliador-financiero/tree/feat/final-mvp/docs/segunda-entrega/csv/fixtures).
-4. Submit the import.
-5. Confirm a successful processed result with 3/3 valid rows and no row errors.
-
-### Step 3: Import receipts
-
-1. Stay in **Importar**.
-2. Choose the receipt source and its compatible template.
-3. Select `comprobantes-validos.csv` from the same fixture repository.
-4. Submit the import.
-5. Confirm a successful processed result with 3/3 valid rows and no row errors.
-
-### Step 4: Inspect pending records
-
-1. Open **Pendientes**.
-2. Confirm that the two imports produce six pending records in total.
-3. Check that the records retain their source type, date, amount, currency, and original reference where present.
-
-### Step 5: Review proposals
-
-1. Open **Propuestas**.
-2. Confirm that three proposals are listed.
-3. Open Proposal #1.
-4. Review both sides of the proposed pair and the displayed explanation.
-5. Confirm that eligibility is consistent with ARS, exact amount, and date within +/- 3 days.
-6. Treat reference similarity as ranking evidence, not as the reason eligibility exists.
-
-### Step 6: Confirm one proposal
-
-1. Select **Confirmar propuesta** for Proposal #1.
-2. Confirm the successful response in the UI.
-3. Check that the proposal is no longer awaiting the same decision and that the reconciliation is active.
-
-### Step 7: Verify history
-
-1. Open **Historial**.
-2. Find the event `PROPUESTA_CONFIRMADA`.
-3. Verify that the event is associated with the confirmation just performed.
-
-### Step 8: Reversal follow-up, pending
-
-1. Locate the active reconciliation created by the confirmation.
-2. Select **Revertir conciliación**.
-3. Enter a non-empty reason.
-4. Record the observed response, resulting states, history event, and any generated proposals.
-5. Mark the test as **verified only after remote observation**. Until then, report it as pending.
-
-## 8. Test Fixtures and Expected Results
-
-All approved fixtures are under the repository path [`docs/segunda-entrega/csv/fixtures`](https://github.com/turkaym/conciliador-financiero/tree/feat/final-mvp/docs/segunda-entrega/csv/fixtures).
-
-| File | Expected result |
-| --- | --- |
-| `movimientos-validos.csv` | Processed; 3 valid movement rows; 3 pending records before matching. |
-| `comprobantes-validos.csv` | Processed; 3 valid receipt rows; 3 pending records before matching. |
-| `movimientos-invalidos.csv` | `PROCESADO_SIN_VALIDOS`; 3 invalid rows; no proposals. |
-| `comprobantes-invalidos.csv` | `PROCESADO_SIN_VALIDOS`; 3 invalid rows; no proposals. |
-| `movimientos-duplicados.csv` | `PROCESADO_CON_ERRORES`; 2 eligible rows and 2 invalid duplicate rows. |
-| `comprobantes-duplicados.csv` | `PROCESADO_CON_ERRORES`; 2 eligible rows and 2 invalid duplicate rows. |
-| `movimientos-estructura-invalida.csv` | `FALLIDO`; no processed rows; incompatible-header error. |
-| `comprobantes-estructura-invalida.csv` | `FALLIDO`; no processed rows; incompatible-header error. |
-
-The two valid files are the canonical happy-path test for the deployed flow. Invalid fixtures demonstrate validation behavior and should be run only when the reviewer wants to inspect error handling.
-
-## 9. Known Limitations and Troubleshooting
-
-### Render cold start
-
-The first request after inactivity can be slow while a Render service wakes up. Wait, refresh once, and check <https://conciliador-api-bym3.onrender.com/health>. A healthy response is expected to report `{"status":"healthy"}`.
-
-### A valid file is reported as duplicate
-
-The shared demo database may already contain the same test data. Re-uploading the exact same valid file bytes can therefore be reported as a duplicate. This is an honest property of the shared environment, not evidence that the fixture is invalid. Use the existing records for review, or coordinate a clean test state rather than repeatedly uploading the same bytes.
-
-### Import result differs from the expected count
-
-Check that the correct fixture, source type, and compatible template were selected. Confirm that the browser sent the intended file and inspect the import result errors before retrying.
-
-### No proposals appear
-
-Confirm that both imports completed with valid rows, that the currency is `ARS`, that amounts match exactly, and that dates are within three days. A `PROCESADO_SIN_VALIDOS`, `FALLIDO`, or `DUPLICADO` batch does not trigger matching.
-
-### Reporting an error
-
-Record the frontend URL, approximate time, exact steps, selected fixture, visible status or error code, and a screenshot that contains no real data. Report the issue through the repository [Issues page](https://github.com/turkaym/conciliador-financiero/issues). Never include secrets, tokens, or real financial records.
-
-## 10. Short Presentation Script
-
-> “Conciliador is an academic MVP that assists reconciliation between two known CSV sources. I log in with a demo account, import fictional movements and receipts, and show that validation produces three valid rows per file. The system leaves six records pending and generates three proposals. Its mandatory eligibility rules are ARS, exact amount, and a date difference of at most three days; reference similarity only ranks eligible candidates. I then review Proposal #1, confirm it manually, and show the `PROPUESTA_CONFIRMADA` event in **Historial**. Remote reversal verification is still pending, so I will not claim that step as completed.”
-
-### Questions a professor may ask
-
-| Question | Concise answer |
-| --- | --- |
-| Why is confirmation manual? | The MVP assists the reviewer but does not replace a business decision. |
-| Why PostgreSQL? | The flow needs relational integrity, 1:1 constraints, transactions, and traceability. |
-| Does a similar reference make a match eligible? | No. It only ranks candidates after currency, amount, and date pass. |
-| What happens to invalid rows? | They receive validation errors while other valid rows can continue processing. |
-| Is this production-ready? | No. It is an academic MVP using fictional data and demo credentials. |
-| What remains open? | Remote reversal smoke verification and broader product validation. |
-| What is deliberately out of scope? | Real integrations, OCR/AI, multitenancy, multi-currency, advanced analytics, and autonomous decisions. |
-
-## 11. Final Status Checklist
-
-### Verified
-
-- [x] Public frontend loads.
-- [x] Demo login succeeds.
-- [x] Valid movement CSV imports 3/3 valid.
-- [x] Valid receipt CSV imports 3/3 valid.
-- [x] Six pending records are visible.
-- [x] Three proposals are visible.
-- [x] Proposal #1 confirmation succeeds.
-- [x] `PROPUESTA_CONFIRMADA` appears in **Historial**.
-- [x] Local implementation checks were recorded at the latest checkpoint.
-
-### Pending
-
-- [ ] Remote **Revertir conciliación** smoke test is observed end to end.
-- [ ] Reversal result, history event, and any re-generated proposals are recorded as evidence.
-
-### Out of scope
-
-- [ ] Real financial data or production credentials.
-- [ ] Real bank, ERP, AFIP, or accounting integrations.
-- [ ] OCR, AI, predictive matching, or automatic confirmation.
-- [ ] Multi-currency, expenses, 1:N/N:M reconciliation, multitenancy, and advanced administration.
-- [ ] SLA, performance guarantee, or final release-gate claim based only on the local checkpoint.
-
-**Status conclusion:** The current TP/MVP supports a verified deployed happy path for import, pending review, proposal confirmation, and history. Reversal remains an explicitly pending verification item.
+- Solo ARS y relaciones 1:1.
+- No integra APIs bancarias ni plataformas externas.
+- Facturas físicas significa CSV producido previamente por OCR; no se reciben imágenes.
+- Sin IA, confirmación autónoma, roles avanzados ni multi-tenancy.
+- Despliegues públicos pueden estar detrás de la rama local hasta realizar merge y redeploy.

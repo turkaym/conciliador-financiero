@@ -1,36 +1,24 @@
-# Matriz de trazabilidad
+# Matriz de trazabilidad vigente
 
-La matriz permite revisar cobertura sin duplicar criterios completos. Los detalles canónicos están en [requerimientos](02-requerimientos.md), [reglas](03-reglas-de-negocio.md) y [diccionario](05-diccionario-de-datos.md).
+| Requisitos | Módulo | Rutas principales | Evidencia |
+|---|---|---|---|
+| RF-01 | Acceso | `POST /auth/login` | Pruebas de autenticación. |
+| RF-02–RF-04 | Importación | `/catalog/*`, `POST /batches`, `/batches/{id}/errors` | Fixtures válidos, inválidos y duplicados. |
+| RF-05 | Consolidado | `GET /records` | Pruebas de filtros, pestañas y persistencia. |
+| RF-06 | Propuestas | `POST /proposals/sync`, `GET /proposals` | Sincronización inicial/manual e idempotencia. |
+| RF-07 | Decisiones | `POST /proposals/{id}/confirm|reject` | Confirmación, rechazo y conflicto 409. |
+| RF-08 | Manual | `POST /reconciliations/manual` | Selección de ambos tipos y validación de propietario. |
+| RF-09–RF-10 | Auditoría/reversión | `GET /reconciliations`, `POST /reconciliations/{id}/reverse` | Reaparición de pares automáticos y manuales. |
+| RF-11 | Exportación | `GET /reconciliations/export.csv` | Dos líneas Debe/Haber y filtros. |
+| RF-12 | Historial | `GET /history`, `GET /reconciliations/{id}` | Eventos y detalle. |
+| RF-13 | Frontend | `localStorage` por usuario | Pruebas de remount y persistencia. |
 
-## Trazabilidad funcional cruzada
+## Evidencia ejecutable
 
-| Requisitos | Reglas | Módulo | Entidades principales | Diagramas | Evidencia de aceptación |
-|---|---|---|---|---|---|
-| RF-01; RNF-04 | RN-08 | Acceso básico | `usuario`, `evento_historial` | Contexto, casos de uso | Autenticación positiva/negativa y atribución sin datos reales |
-| RF-02–RF-06; RNF-02, RNF-06 | RN-10–RN-12 | Catálogos, importación, validación-normalización | `fuente_datos`, `plantilla_importacion`, `campo_plantilla`, `lote_carga`, registros y errores | Actividad, secuencia, ER, lógico, estados | [Diez CSV](csv/README.md): válido, mixto, cero válidos, estructural, duplicado y recarga tras fallo |
-| RF-07; RNF-06 | RN-01 | Pendientes-consultas | `registro_importado`, subtipos | Casos de uso, estados | Filtros distinguen condición, causa y siguiente acción |
-| RF-08–RF-09; RNF-03 | RN-01, RN-03–RN-05, RN-07, RN-13 | Propuestas | subtipos, `propuesta_conciliacion` | Módulos, secuencia, wireframe 05 | API explica huella, score, versiones y origen XOR; rechazo idéntico queda suprimido |
-| RF-10–RF-12; RNF-01 | RN-02, RN-05–RN-09, RN-12–RN-13 | Revisión-conciliación | propuesta, conciliación, registros y eventos | Secuencia, estados, ER, wireframe 06 | Locks `id ASC`, recomparación inmediata, exclusión de pareja idéntica, rollback y cero deadlocks |
-| RF-13; RNF-03 | RN-08–RN-09 | Trazabilidad | `evento_historial` y entidades referenciadas | Contexto, módulos, ER | Cronología conserva origen, actor, fecha y motivo |
-| Volumen (RNF-05) | — | Importación, propuestas | `lote_carga`, registros y propuestas | Actividad, secuencia | Prueba futura de 10.000 filas documentada sin umbral de servicio |
-| Coherencia (RNF-07) | RN-13 | Todos | 12 tablas, 106 columnas, 109 constraints, 52 índices, 8 triggers | Todas las vistas | SQL, diccionario, API, CSV, SVG, glosario y READMEs coinciden |
+- `backend/tests`: 44 pruebas.
+- `frontend/tests`: 17 pruebas.
+- `npm --prefix frontend run build`: build de producción.
+- `database/schema.sql`: esquema inicial.
+- `database/seed.sql`: catálogo y actualizaciones idempotentes.
 
-## Cobertura de la consigna docente
-
-| Aspecto solicitado | Evidencia documental |
-|---|---|
-| Alcance, prioridades y módulos | [Alcance y módulos](01-alcance-y-modulos.md) separa MVP, opcionales y exclusiones |
-| Requisitos verificables | [Requerimientos](02-requerimientos.md) contiene 13 RF y 7 RNF, todos con prioridad y aceptación |
-| Reglas y estados | [Reglas](03-reglas-de-negocio.md) contiene 13 reglas y las máquinas de estado |
-| Diseño conceptual, lógico y físico | [Diseño](04-diseno-base-de-datos.md), [diccionario](05-diccionario-de-datos.md), diagramas ER y lógico |
-| Actores, comportamiento y arquitectura | Diagramas de contexto, casos de uso, actividad, módulos y secuencia en [diagramas](06-diagramas.md) |
-| Decisiones, alternativas, riesgos y supuestos | [Decisiones y supuestos](07-decisiones-y-supuestos.md) |
-| Lenguaje común y navegación | [Glosario](glosario.md), índice y enlaces locales |
-| Esqueletos modulares | [Backend](../../backend/README.md) y [frontend](../../frontend/README.md), solo READMEs |
-| Infraestructura y DDL | [Compose](../../docker-compose.yml), [SQL y guía PostgreSQL 16](../../database/README.md) |
-| Contrato invocable | [API `/api/v1`](09-contrato-api.md) con requests, responses, errores y paginación |
-| Experiencia | [Seis wireframes SVG](wireframes/README.md) con estados y navegación |
-
-## Comprobación de cobertura
-
-Cada grupo remite a un criterio canónico, un módulo, datos y al menos un diagrama. La aceptación del producto es futura: esta matriz prueba completitud documental, no ejecución de software.
+Esta matriz demuestra correspondencia entre requisitos, módulos, rutas y pruebas. No representa certificación productiva ni uso con datos reales.

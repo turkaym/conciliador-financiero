@@ -29,10 +29,10 @@ La procedencia exige `origen_tipo=LOTE` con solo `lote_origen_id`, o `origen_tip
 | Operación | Límite transaccional |
 |---|---|
 | Importar | Una transacción corta intenta reservar `(fuente_id,tipo,huella_archivo)`. Un conflicto crea directamente `DUPLICADO` terminal con evento y `lote_original_id`. Si el dueño falla libera la huella; el duplicado no se promociona y un nuevo envío puede reservar. Estructura reconocida sin filas válidas termina `PROCESADO_SIN_VALIDOS`. |
-| Generar propuestas | Tras el commit de un lote con válidos o durante reversión, bloquea registros por `id` ascendente, revalida y recién entonces inserta `GENERADA`. `tr_propuesta_generada_sin_conciliacion` repite el lock y rechaza extremos con conciliación `ACTIVA`, rechazos idénticos y la pareja revertida con identidad idéntica. |
+| Generar propuestas | Tras un lote, reversión automática o sincronización explícita, bloquea registros disponibles por `id` ascendente, revalida e inserta `GENERADA`. El trigger rechaza extremos con conciliación `ACTIVA`, rechazos idénticos y procedencias de reversión inválidas. Una pareja histórica revertida puede originar una propuesta nueva. |
 | Confirmar | Lee sin lock los IDs inmutables de la pareja, bloquea ambos `registro_importado` por `id` ascendente y solo entonces bloquea la propuesta. Revalida que siga `GENERADA`, la cambia a `CONFIRMADA` y crea la conciliación. `tr_conciliacion_activa_caduca_propuestas` exige esa propuesta confirmada y caduca toda otra `GENERADA` que comparta un extremo, dentro del mismo commit. Generación y confirmación usan idéntico recurso y orden para evitar deadlocks. |
 | Rechazar | Bloquea la propuesta, exige motivo y agrega estado y evento en el mismo commit. |
-| Revertir | Lee IDs inmutables, reúne extremos/candidatos, bloquea todos los registros por `id ASC`, luego la conciliación y revalida `ACTIVA`. Marca `REVERTIDA`, libera extremos, omite la pareja revertida idéntica y rechazos idénticos, recompara e inserta propuestas `REVERSION` y eventos en un solo commit. Cualquier error revierte todo. |
+| Revertir | Lee IDs inmutables, reúne extremos/candidatos, bloquea todos los registros por `id ASC`, luego la conciliación y revalida `ACTIVA`. Marca `REVERTIDA` y libera extremos. Para origen automático crea propuestas `REVERSION` nuevas; para origen manual deja los registros disponibles para selección o sincronización posterior. Cualquier error revierte todo. |
 
 ## Originales y normalizados
 
