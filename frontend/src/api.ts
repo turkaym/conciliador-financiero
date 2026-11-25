@@ -52,19 +52,6 @@ export interface ValidationErrorItem {
   created_at: string;
 }
 
-export interface PendingItem {
-  record_id: number;
-  type: ImportType;
-  batch_id: number;
-  external_id: string | null;
-  date: string;
-  amount: string;
-  currency: string;
-  reference_original: string | null;
-  state: string;
-  cause: string;
-}
-
 export interface ConsolidatedItem {
   record_id: number;
   type: ImportType;
@@ -251,9 +238,6 @@ export const api = {
   },
   getBatchErrors(accessToken: string, batchId: number) {
     return request<{ total: number; items: ValidationErrorItem[] }>(`/api/v1/batches/${batchId}/errors`, undefined, accessToken);
-  },
-  getPending(accessToken: string) {
-    return request<{ page: number; page_size: number; total: number; items: PendingItem[] }>("/api/v1/pending?page_size=100", undefined, accessToken);
   },
   getConsolidatedRecords(accessToken: string, filters: {
     type: ImportType;

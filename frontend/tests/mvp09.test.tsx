@@ -23,7 +23,7 @@ function renderApp(path = "/") {
 
 function json(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }); }
 
-describe("MVP-09 import and pending workflows", () => {
+describe("MVP-09 import workflows", () => {
   beforeEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
   afterEach(() => cleanup());
 
@@ -35,6 +35,7 @@ describe("MVP-09 import and pending workflows", () => {
     });
     const user = userEvent.setup();
     renderApp();
+    expect(screen.queryByRole("link", { name: "Pendientes" })).not.toBeInTheDocument();
     await user.selectOptions(await screen.findByLabelText("Fuente"), "1");
     expect(await screen.findByText(/Formato CSV esperado para Banco demo/)).toHaveTextContent("id_externo, fecha, monto, moneda, referencia, tipo_movimiento");
     expect(screen.queryByLabelText("Plantilla")).not.toBeInTheDocument();
@@ -74,26 +75,4 @@ describe("MVP-09 import and pending workflows", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
-  it("loads pending movement and receipt records and renders an empty state", async () => {
-    vi.spyOn(window, "fetch").mockResolvedValue(json({ page: 1, page_size: 100, total: 2, items: [
-      { record_id: 1, type: "MOVIMIENTO", batch_id: 31, external_id: "M-1", date: "2026-01-01", amount: "100.00", currency: "ARS", reference_original: "Factura 1", state: "PENDIENTE", cause: "UNRECONCILED" },
-      { record_id: 2, type: "COMPROBANTE", batch_id: 32, external_id: "C-1", date: "2026-01-02", amount: "100.00", currency: "ARS", reference_original: "Factura 1", state: "CON_PROPUESTAS", cause: "UNRECONCILED" },
-    ] }));
-    renderApp("/pending");
-    expect(await screen.findByRole("heading", { name: "Registros pendientes" })).toBeInTheDocument();
-    expect(await screen.findByText("Movimiento")).toBeInTheDocument();
-    expect(screen.getByText("Comprobante")).toBeInTheDocument();
-  });
-
-  it("shows pending loading, API errors, and empty results", async () => {
-    vi.spyOn(window, "fetch").mockResolvedValueOnce(json({ page: 1, page_size: 100, total: 0, items: [] }));
-    renderApp("/pending");
-    expect(await screen.findByText("No hay registros pendientes.")).toBeInTheDocument();
-    cleanup();
-    localStorage.setItem("conciliador.session", JSON.stringify(session));
-    vi.spyOn(window, "fetch").mockResolvedValue(json({ message: "Service unavailable" }, 503));
-    window.history.pushState({}, "", "/pending");
-    render(<BrowserRouter><AuthProvider><App /></AuthProvider></BrowserRouter>);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Service unavailable");
-  });
 });
