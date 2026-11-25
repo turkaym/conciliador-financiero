@@ -35,7 +35,8 @@ describe("proposal workspace", () => {
       if (url.includes("/proposals?")) return json({ page: 1, page_size: 100, total: 1, items: [summary] });
       if (url.includes("/records?") && url.includes("type=MOVIMIENTO")) return json({ page: 1, page_size: 25, total: 1, items: [movementCandidate] });
       if (url.includes("/records?") && url.includes("type=COMPROBANTE")) return json({ page: 1, page_size: 25, total: 1, items: [receiptCandidate] });
-      if (url.includes("/reconciliations?page")) return json({ page: 1, page_size: 100, total: 1, items: [reconciliation] });
+      if (url.includes("/reconciliations/export.csv?")) return new Response("conciliacion_id,debe,haber\n5,100.00,0.00");
+      if (url.includes("/reconciliations?")) return json({ page: 1, page_size: 100, total: 1, items: [reconciliation] });
       if (url.endsWith("/reconciliations/manual")) {
         expect(init?.body).toBe(JSON.stringify({ movement_id: 1, receipt_id: 2 }));
         return json({ proposal: { id: 8, status: "CONFIRMADA" }, reconciliation: { id: 6, status: "ACTIVA" } });
@@ -81,17 +82,39 @@ describe("proposal workspace", () => {
     });
   });
 
-  it("audits active reconciliations and reverses with a reason", async () => {
+  it("persists audit filters, downloads the extract and removes reversed reconciliations", async () => {
     const fetchMock = mockApi();
     const user = userEvent.setup();
+    const createObjectURL = vi.fn(() => "blob:audit");
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     renderProposals();
     await user.click(await screen.findByRole("tab", { name: "Auditoría" }));
 
     expect(await screen.findByText("Conciliación #5")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Banco"), "1");
+    await user.selectOptions(screen.getByLabelText("Entidad"), "2");
+    await user.selectOptions(screen.getByLabelText("Origen"), "MANUAL");
+    await user.type(screen.getByLabelText("Conciliada desde"), "2026-01-01");
+    await user.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/movement_source_id=1.*receipt_source_id=2.*origin=MANUAL/), expect.anything()));
+    await user.click(screen.getByRole("button", { name: "Descargar asiento CSV" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/reconciliations/export.csv?"), expect.objectContaining({ headers: { Authorization: "Bearer bearer-token" } })));
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(anchorClick).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:audit");
+
     await user.type(screen.getByLabelText("Motivo para deshacer"), "Asignación incorrecta");
     await user.click(screen.getByRole("button", { name: "Deshacer conciliación" }));
 
     expect(await screen.findByText("Conciliación #5 revertida.")).toBeInTheDocument();
+    expect(screen.queryByText("Conciliación #5")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/reconciliations/5/reverse"), expect.objectContaining({ method: "POST" }));
+    await waitFor(() => {
+      const persisted = JSON.parse(localStorage.getItem("conciliador.proposals.1")!);
+      expect(persisted.auditFilters).toMatchObject({ movementSourceId: "1", receiptSourceId: "2", origin: "MANUAL", confirmedFrom: "2026-01-01" });
+    });
   });
 });

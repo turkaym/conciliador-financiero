@@ -134,6 +134,21 @@ export interface ReconciliationDetail {
   reversal: { reason: string; actor: number; occurred_at: string } | null;
 }
 
+export interface AuditFilters {
+  confirmedFrom: string;
+  confirmedTo: string;
+  movementFrom: string;
+  movementTo: string;
+  receiptFrom: string;
+  receiptTo: string;
+  movementSourceId: string;
+  receiptSourceId: string;
+  amount: string;
+  reference: string;
+  batchId: string;
+  origin: "" | "AUTOMATICA" | "MANUAL";
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
@@ -173,6 +188,44 @@ async function request<T>(path: string, init?: RequestInit, accessToken?: string
     );
   }
   return body as T;
+}
+
+function reconciliationQuery(filters: AuditFilters) {
+  const params = new URLSearchParams({ status: "ACTIVA", page_size: "100" });
+  const values: Array<[string, string]> = [
+    ["confirmed_from", filters.confirmedFrom],
+    ["confirmed_to", filters.confirmedTo],
+    ["movement_from", filters.movementFrom],
+    ["movement_to", filters.movementTo],
+    ["receipt_from", filters.receiptFrom],
+    ["receipt_to", filters.receiptTo],
+    ["movement_source_id", filters.movementSourceId],
+    ["receipt_source_id", filters.receiptSourceId],
+    ["amount", filters.amount],
+    ["reference", filters.reference],
+    ["batch_id", filters.batchId],
+    ["origin", filters.origin],
+  ];
+  values.forEach(([key, value]) => {
+    if (value.trim()) params.set(key, value.trim());
+  });
+  return params.toString();
+}
+
+async function download(path: string, accessToken: string): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  } catch {
+    throw new ApiError("No se pudo conectar con el servidor.", 0);
+  }
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { message?: string; code?: string } | null;
+    throw new ApiError(body?.message ?? "No se pudo descargar el archivo.", response.status, body?.code);
+  }
+  return response.blob();
 }
 
 export const api = {
@@ -253,8 +306,11 @@ export const api = {
       body: JSON.stringify({ movement_id: movementId, receipt_id: receiptId }),
     }, accessToken);
   },
-  getReconciliations(accessToken: string) {
-    return request<{ page: number; page_size: number; total: number; items: ReconciliationDetail[] }>("/api/v1/reconciliations?page_size=100", undefined, accessToken);
+  getReconciliations(accessToken: string, filters: AuditFilters) {
+    return request<{ page: number; page_size: number; total: number; items: ReconciliationDetail[] }>(`/api/v1/reconciliations?${reconciliationQuery(filters)}`, undefined, accessToken);
+  },
+  downloadReconciliations(accessToken: string, filters: AuditFilters) {
+    return download(`/api/v1/reconciliations/export.csv?${reconciliationQuery(filters)}`, accessToken);
   },
   rejectProposal(accessToken: string, proposalId: number, reason: string) {
     return request<{ id: number; status: string; reason: string }>(`/api/v1/proposals/${proposalId}/reject`, { method: "POST", body: JSON.stringify({ reason }) }, accessToken);

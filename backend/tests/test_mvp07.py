@@ -227,9 +227,23 @@ def test_manual_reconciliation_rejects_wrong_owner_and_reconciled_records():
         "/api/v1/reconciliations/manual",
         json={"movement_id": 1, "receipt_id": 11},
     ).status_code == 200
+    reconciliation_id = owner.get("/api/v1/reconciliations").json()["items"][0]["id"]
     assert owner.post(
         "/api/v1/reconciliations/manual",
         json={"movement_id": 1, "receipt_id": 11},
     ).status_code == 409
+    assert owner.post(
+        f"/api/v1/reconciliations/{reconciliation_id}/reverse",
+        json={"reason": "Manual pairing error"},
+    ).status_code == 200
+    movement_candidates = owner.get(
+        "/api/v1/records?type=MOVIMIENTO&reconciled=false&page_size=10"
+    ).json()
+    receipt_candidates = owner.get(
+        "/api/v1/records?type=COMPROBANTE&reconciled=false&page_size=10"
+    ).json()
+    assert [item["record_id"] for item in movement_candidates["items"]] == [1]
+    assert [item["record_id"] for item in receipt_candidates["items"]] == [11]
+    assert owner.get("/api/v1/reconciliations").json()["total"] == 0
     app.dependency_overrides.clear()
     engine.dispose()

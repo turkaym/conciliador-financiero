@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   api,
   ApiError,
+  type AuditFilters,
   type CatalogSource,
   type ConsolidatedItem,
   type ImportType,
@@ -49,6 +50,13 @@ export function ProposalPage() {
     }));
   }
 
+  function patchAuditFilters(patch: Partial<AuditFilters>) {
+    setWorkspace((current) => ({
+      ...current,
+      auditFilters: { ...current.auditFilters, ...patch },
+    }));
+  }
+
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(workspace));
   }, [storageKey, workspace]);
@@ -71,7 +79,7 @@ export function ProposalPage() {
     const request = workspace.activeTab === "automatic"
       ? api.getProposals(session!.accessToken).then((result) => { if (active) setProposals(result.items); })
       : workspace.activeTab === "audit"
-        ? api.getReconciliations(session!.accessToken).then((result) => { if (active) setReconciliations(result.items); })
+        ? api.getReconciliations(session!.accessToken, workspace.auditFilters).then((result) => { if (active) setReconciliations(result.items); })
         : Promise.all((["MOVIMIENTO", "COMPROBANTE"] as ImportType[]).map((type) => {
           const filters = workspace.filters[type];
           return api.getConsolidatedRecords(session!.accessToken, {
@@ -122,9 +130,26 @@ export function ProposalPage() {
     setSubmitting(item.id); setError(null);
     try {
       await api.reverseReconciliation(session!.accessToken, item.id, reason);
-      setReconciliations((current) => current.map((entry) => entry.id === item.id ? { ...entry, status: "REVERTIDA", reversal: { reason, actor: session!.user.id, occurred_at: new Date().toISOString() } } : entry));
+      setReconciliations((current) => current.filter((entry) => entry.id !== item.id));
       setFeedback(`Conciliación #${item.id} revertida.`);
     } catch (reasonValue) { fail(reasonValue, setError); } finally { setSubmitting(null); }
+  }
+
+  async function downloadAudit() {
+    setError(null);
+    try {
+      const blob = await api.downloadReconciliations(session!.accessToken, workspace.auditFilters);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "asiento-conciliaciones.csv";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (reason) {
+      fail(reason, setError);
+    }
   }
 
   const selectedMovement = candidates.MOVIMIENTO.find((item) => item.record_id === workspace.selectedMovement);
@@ -158,11 +183,12 @@ export function ProposalPage() {
     </>}
 
     {!loading && !error && workspace.activeTab === "audit" && <>
+      <AuditFilterPanel filters={workspace.auditFilters} movementSources={sources.MOVIMIENTO} receiptSources={sources.COMPROBANTE} onFilters={patchAuditFilters} onSearch={() => setRefresh((value) => value + 1)} onDownload={() => void downloadAudit()} />
       {reconciliations.length === 0 && <p className="empty" role="status">No hay conciliaciones para auditar.</p>}
       <div className="proposal-list">{reconciliations.map((item) => <article className="proposal-pair" key={item.id}>
         <div className="proposal-pair-heading"><div><strong>Conciliación #{item.id}</strong><span>{item.status} · {new Date(item.confirmed_at).toLocaleString("es-AR")}</span></div></div>
         <div className="comparison-grid"><PairRecord title="Movimiento" record={item.movement} /><PairRecord title="Comprobante" record={item.receipt} /></div>
-        {item.status === "ACTIVA" ? <div className="audit-action"><label htmlFor={`reversal-${item.id}`}>Motivo para deshacer</label><input id={`reversal-${item.id}`} value={reversalReasons[item.id] ?? ""} onChange={(event) => setReversalReasons((current) => ({ ...current, [item.id]: event.target.value }))} /><button type="button" onClick={() => void reverse(item)} disabled={submitting !== null || !reversalReasons[item.id]?.trim()}>Deshacer conciliación</button></div> : <p className="muted">Revertida: {String(item.reversal?.reason ?? "Sin motivo")}</p>}
+        <div className="audit-action"><label htmlFor={`reversal-${item.id}`}>Motivo para deshacer</label><input id={`reversal-${item.id}`} value={reversalReasons[item.id] ?? ""} onChange={(event) => setReversalReasons((current) => ({ ...current, [item.id]: event.target.value }))} /><button type="button" onClick={() => void reverse(item)} disabled={submitting !== null || !reversalReasons[item.id]?.trim()}>Deshacer conciliación</button></div>
       </article>)}</div>
     </>}
   </section>;
@@ -170,14 +196,15 @@ export function ProposalPage() {
 
 type ProposalTabName = "automatic" | "manual" | "audit";
 interface ManualFilters { sourceId: string; from: string; to: string; amount: string; tolerance: string; reference: string; batchId: string }
-interface ProposalWorkspace { activeTab: ProposalTabName; filters: Record<ImportType, ManualFilters>; selectedMovement: number | null; selectedReceipt: number | null }
+interface ProposalWorkspace { activeTab: ProposalTabName; filters: Record<ImportType, ManualFilters>; auditFilters: AuditFilters; selectedMovement: number | null; selectedReceipt: number | null }
 const defaultFilters: ManualFilters = { sourceId: "", from: "", to: "", amount: "", tolerance: "0", reference: "", batchId: "" };
-function defaultWorkspace(): ProposalWorkspace { return { activeTab: "automatic", filters: { MOVIMIENTO: { ...defaultFilters }, COMPROBANTE: { ...defaultFilters } }, selectedMovement: null, selectedReceipt: null }; }
+const defaultAuditFilters: AuditFilters = { confirmedFrom: "", confirmedTo: "", movementFrom: "", movementTo: "", receiptFrom: "", receiptTo: "", movementSourceId: "", receiptSourceId: "", amount: "", reference: "", batchId: "", origin: "" };
+function defaultWorkspace(): ProposalWorkspace { return { activeTab: "automatic", filters: { MOVIMIENTO: { ...defaultFilters }, COMPROBANTE: { ...defaultFilters } }, auditFilters: { ...defaultAuditFilters }, selectedMovement: null, selectedReceipt: null }; }
 function loadWorkspace(key: string): ProposalWorkspace {
   try {
     const stored = JSON.parse(localStorage.getItem(key) ?? "null") as Partial<ProposalWorkspace> | null;
     if (!stored || !["automatic", "manual", "audit"].includes(stored.activeTab ?? "")) return defaultWorkspace();
-    return { ...defaultWorkspace(), ...stored, filters: { MOVIMIENTO: { ...defaultFilters, ...stored.filters?.MOVIMIENTO }, COMPROBANTE: { ...defaultFilters, ...stored.filters?.COMPROBANTE } } };
+    return { ...defaultWorkspace(), ...stored, filters: { MOVIMIENTO: { ...defaultFilters, ...stored.filters?.MOVIMIENTO }, COMPROBANTE: { ...defaultFilters, ...stored.filters?.COMPROBANTE } }, auditFilters: { ...defaultAuditFilters, ...stored.auditFilters } };
   } catch { return defaultWorkspace(); }
 }
 function ProposalTab({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) { return <button type="button" role="tab" aria-selected={selected} onClick={onClick}>{label}</button>; }
@@ -188,6 +215,27 @@ function PairRecord({ title, record }: { title: string; record: ProposalRecord }
 
 function CandidateSummary({ title, item }: { title: string; item: ConsolidatedItem }) {
   return <article className="pair-record"><h3>{title}</h3><strong>{item.amount} {item.currency}</strong><span>{item.date}</span><span>{item.source.name} · Lote #{item.batch_id}</span><span>{item.external_id || item.description || "Sin referencia"}</span></article>;
+}
+
+function AuditFilterPanel({ filters, movementSources, receiptSources, onFilters, onSearch, onDownload }: { filters: AuditFilters; movementSources: CatalogSource[]; receiptSources: CatalogSource[]; onFilters: (patch: Partial<AuditFilters>) => void; onSearch: () => void; onDownload: () => void }) {
+  return <section className="candidate-panel audit-filters" aria-labelledby="audit-filters-title"><h3 id="audit-filters-title">Filtros del extracto</h3>
+    <div className="candidate-filters">
+      <label>Conciliada desde<input type="date" value={filters.confirmedFrom} max={filters.confirmedTo || undefined} onChange={(event) => onFilters({ confirmedFrom: event.target.value })} /></label>
+      <label>Conciliada hasta<input type="date" value={filters.confirmedTo} min={filters.confirmedFrom || undefined} onChange={(event) => onFilters({ confirmedTo: event.target.value })} /></label>
+      <label>Movimiento desde<input type="date" value={filters.movementFrom} max={filters.movementTo || undefined} onChange={(event) => onFilters({ movementFrom: event.target.value })} /></label>
+      <label>Movimiento hasta<input type="date" value={filters.movementTo} min={filters.movementFrom || undefined} onChange={(event) => onFilters({ movementTo: event.target.value })} /></label>
+      <label>Comprobante desde<input type="date" value={filters.receiptFrom} max={filters.receiptTo || undefined} onChange={(event) => onFilters({ receiptFrom: event.target.value })} /></label>
+      <label>Comprobante hasta<input type="date" value={filters.receiptTo} min={filters.receiptFrom || undefined} onChange={(event) => onFilters({ receiptTo: event.target.value })} /></label>
+      <label>Banco<select value={filters.movementSourceId} onChange={(event) => onFilters({ movementSourceId: event.target.value })}><option value="">Todos</option>{movementSources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
+      <label>Entidad<select value={filters.receiptSourceId} onChange={(event) => onFilters({ receiptSourceId: event.target.value })}><option value="">Todas</option>{receiptSources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
+      <label>Monto<input type="number" min="0.01" step="0.01" value={filters.amount} onChange={(event) => onFilters({ amount: event.target.value })} /></label>
+      <label>Referencia<input value={filters.reference} onChange={(event) => onFilters({ reference: event.target.value })} /></label>
+      <label>Lote<input type="number" min="1" step="1" value={filters.batchId} onChange={(event) => onFilters({ batchId: event.target.value })} /></label>
+      <label>Origen<select value={filters.origin} onChange={(event) => onFilters({ origin: event.target.value as AuditFilters["origin"] })}><option value="">Todos</option><option value="AUTOMATICA">Automática</option><option value="MANUAL">Manual</option></select></label>
+      <button type="button" onClick={onSearch}>Aplicar filtros</button>
+      <button type="button" className="secondary" onClick={onDownload}>Descargar asiento CSV</button>
+    </div>
+  </section>;
 }
 
 function CandidatePanel({ title, entityLabel, type, sources, filters, items, selected, onFilters, onSearch, onSelect }: { title: string; entityLabel: string; type: ImportType; sources: CatalogSource[]; filters: ManualFilters; items: ConsolidatedItem[]; selected: number | null; onFilters: (patch: Partial<ManualFilters>) => void; onSearch: () => void; onSelect: (recordId: number) => void }) {

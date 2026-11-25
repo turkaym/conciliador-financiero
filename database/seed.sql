@@ -128,4 +128,28 @@ ALTER TABLE propuesta_conciliacion
     ADD CONSTRAINT ck_propuesta_dias
     CHECK (diferencia_dias BETWEEN -32768 AND 32767);
 
+CREATE OR REPLACE FUNCTION validar_actualizacion_propuesta() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF (NEW.movimiento_id, NEW.comprobante_id, NEW.normalizador_version, NEW.version_regla,
+        NEW.huella_evaluacion, NEW.origen_tipo, NEW.lote_origen_id, NEW.conciliacion_revertida_id,
+        NEW.score_referencia, NEW.coincidencia_exacta, NEW.diferencia_dias, NEW.explicacion)
+       IS DISTINCT FROM
+       (OLD.movimiento_id, OLD.comprobante_id, OLD.normalizador_version, OLD.version_regla,
+        OLD.huella_evaluacion, OLD.origen_tipo, OLD.lote_origen_id, OLD.conciliacion_revertida_id,
+        OLD.score_referencia, OLD.coincidencia_exacta, OLD.diferencia_dias, OLD.explicacion) THEN
+        RAISE EXCEPTION 'identidad y evaluacion de propuesta son inmutables';
+    END IF;
+    IF OLD.estado = 'CONFIRMADA' AND NEW.estado = 'GENERADA' THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM conciliacion
+             WHERE propuesta_id = OLD.id AND estado = 'REVERTIDA'
+        ) THEN
+            RAISE EXCEPTION 'una propuesta confirmada solo puede reabrirse tras revertir su conciliacion';
+        END IF;
+    ELSIF OLD.estado <> 'GENERADA' OR NEW.estado NOT IN ('CONFIRMADA', 'RECHAZADA', 'CADUCADA') THEN
+        RAISE EXCEPTION 'transicion de propuesta no permitida: % -> %', OLD.estado, NEW.estado;
+    END IF;
+    RETURN NEW;
+END $$;
+
 COMMIT;

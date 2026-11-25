@@ -250,6 +250,15 @@ def reverse_reconciliation(db: Session, reconciliation_id: int, user_id: int, re
         locked[record_id].status = "PENDIENTE"
     db.flush()
 
+    original_proposal = db.get(ReconciliationProposal, reconciliation.proposal_id)
+    if original_proposal is not None and original_proposal.rule_version != MANUAL_RULE_VERSION:
+        original_proposal.status = "GENERADA"
+        original_proposal.decided_by = None
+        original_proposal.decided_at = None
+        for record_id in endpoint_ids:
+            locked[record_id].status = "CON_PROPUESTAS"
+        db.flush()
+
     proposals = generate_for_reversal(db, reconciliation, user_id, set(locked))
     _event(
         db,

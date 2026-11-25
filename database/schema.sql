@@ -352,7 +352,14 @@ BEGIN
         OLD.score_referencia, OLD.coincidencia_exacta, OLD.diferencia_dias, OLD.explicacion) THEN
         RAISE EXCEPTION 'identidad y evaluacion de propuesta son inmutables';
     END IF;
-    IF OLD.estado <> 'GENERADA' OR NEW.estado NOT IN ('CONFIRMADA', 'RECHAZADA', 'CADUCADA') THEN
+    IF OLD.estado = 'CONFIRMADA' AND NEW.estado = 'GENERADA' THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM conciliacion
+             WHERE propuesta_id = OLD.id AND estado = 'REVERTIDA'
+        ) THEN
+            RAISE EXCEPTION 'una propuesta confirmada solo puede reabrirse tras revertir su conciliacion';
+        END IF;
+    ELSIF OLD.estado <> 'GENERADA' OR NEW.estado NOT IN ('CONFIRMADA', 'RECHAZADA', 'CADUCADA') THEN
         RAISE EXCEPTION 'transicion de propuesta no permitida: % -> %', OLD.estado, NEW.estado;
     END IF;
     RETURN NEW;
