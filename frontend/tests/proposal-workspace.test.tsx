@@ -63,6 +63,30 @@ describe("proposal workspace", () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/proposals/7/confirm"), expect.objectContaining({ method: "POST" }));
   });
 
+  it("refreshes stale automatic proposals after a conflict", async () => {
+    let proposalReads = 0;
+    vi.spyOn(window, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/catalog/sources?type=MOVIMIENTO")) return json({ total: 1, items: [{ id: 1, code: "BANCO_NACION", name: "Banco Nación", type: "MOVIMIENTO" }] });
+      if (url.includes("/catalog/sources?type=COMPROBANTE")) return json({ total: 1, items: [{ id: 2, code: "ARCA", name: "ARCA", type: "COMPROBANTE" }] });
+      if (url.endsWith("/proposals/sync")) return json({ generated_count: 0, proposal_ids: [] });
+      if (url.includes("/proposals?")) {
+        proposalReads += 1;
+        return json({ page: 1, page_size: 100, total: proposalReads === 1 ? 1 : 0, items: proposalReads === 1 ? [summary] : [] });
+      }
+      if (url.endsWith("/proposals/7/confirm")) return json({ code: "PROPOSAL_NOT_PENDING", message: "Proposal is already decided", details: {} }, 409);
+      return json({});
+    });
+    const user = userEvent.setup();
+    renderProposals();
+
+    await user.click(await screen.findByRole("button", { name: "Conciliar" }));
+
+    expect(await screen.findByText(/La propuesta ya no estaba disponible/)).toBeInTheDocument();
+    expect(screen.queryByText("Propuesta #7")).not.toBeInTheDocument();
+    expect(screen.getByText("No hay propuestas automáticas para revisar.")).toBeInTheDocument();
+  });
+
   it("filters, selects and confirms a persistent manual pair", async () => {
     const fetchMock = mockApi();
     const user = userEvent.setup();

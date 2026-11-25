@@ -110,9 +110,22 @@ export function ProposalPage() {
     setSubmitting(proposalId); setError(null);
     try {
       const result = await api.confirmProposal(session!.accessToken, proposalId);
-      setProposals((current) => current.filter((proposal) => proposal.id !== proposalId));
+      const current = await api.getProposals(session!.accessToken);
+      setProposals(current.items);
       setFeedback(`Propuesta conciliada. Conciliación #${result.reconciliation.id} creada.`);
-    } catch (reason) { fail(reason, setError); } finally { setSubmitting(null); }
+    } catch (reason) {
+      if (reason instanceof ApiError && ["PROPOSAL_NOT_PENDING", "RECORD_NOT_PENDING"].includes(reason.code ?? "")) {
+        try {
+          const current = await api.getProposals(session!.accessToken);
+          setProposals(current.items);
+          setFeedback("La propuesta ya no estaba disponible porque compartía registros con otra conciliación confirmada. Se actualizó el listado.");
+        } catch (refreshReason) {
+          fail(refreshReason, setError);
+        }
+      } else {
+        fail(reason, setError);
+      }
+    } finally { setSubmitting(null); }
   }
 
   async function synchronizeAutomatic() {
